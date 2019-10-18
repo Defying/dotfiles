@@ -1,8 +1,11 @@
 HOSTNAME:=$(shell hostname)
 PWD:=$(shell pwd -LP)
 
-install:
+packages:
+	@echo -e "- installing packages"
+	sudo pacman -S --needed - < $(PWD)/packages.txt
 
+links:
 	@echo -e "- creating config folder"
 	mkdir -p ~/.config
 
