@@ -1,0 +1,128 @@
+exec --no-startup-id xmodmap /home/ben/.config/.Xmodmap
+exec --no-startup-id xrdb /home/ben/.config/.Xresources
+exec --no-startup-id compton
+exec --no-startup-id feh --bg-fill ~/wall.jpg
+exec --no-startup-id redshift
+
+
+exec --no-startup-id firefox
+exec --no-startup-id chromium --force-dark-mode --app=https://beta.music.apple.com/for-you
+
+set $mod mod3
+font pango:SF Pro 10
+
+gaps inner 6
+gaps outer 12
+smart_borders on
+default_border none
+
+floating_modifier $mod
+
+set $ws1 "1: firefox"
+set $ws2 "2: music"
+set $ws3 "3: discord"
+set $ws4 "4:editor"
+set $ws5 "5"
+set $ws6 "6"
+set $ws7 "7"
+set $ws8 "8"
+set $ws9 "9"
+set $ws10 "10"
+
+for_window [class="Thunar"] floating enable
+for_window [class="Thunar"] resize set 960 540
+
+assign [class="firefox"]  $ws1
+assign [class="Chromium"] $ws2
+assign [class="discord"]  $ws3
+assign [class="Subl"]     $ws4
+
+bindsym $mod+1 workspace number $ws1
+bindsym $mod+2 workspace number $ws2
+bindsym $mod+3 workspace number $ws3
+bindsym $mod+4 workspace number $ws4
+bindsym $mod+5 workspace number $ws5
+bindsym $mod+6 workspace number $ws6
+bindsym $mod+7 workspace number $ws7
+bindsym $mod+8 workspace number $ws8
+bindsym $mod+9 workspace number $ws9
+bindsym $mod+0 workspace number $ws10
+
+bindsym $mod+control+1 move container to workspace number $ws1
+bindsym $mod+control+2 move container to workspace number $ws2
+bindsym $mod+control+3 move container to workspace number $ws3
+bindsym $mod+control+4 move container to workspace number $ws4
+bindsym $mod+control+5 move container to workspace number $ws5
+bindsym $mod+control+6 move container to workspace number $ws6
+bindsym $mod+control+7 move container to workspace number $ws7
+bindsym $mod+control+8 move container to workspace number $ws8
+bindsym $mod+control+9 move container to workspace number $ws9
+bindsym $mod+control+0 move container to workspace number $ws10
+
+bindsym $mod+space     exec --no-startup-id i3-dmenu-desktop
+bindsym $mod+Return    exec i3-sensible-terminal
+bindsym $mod+control+x kill
+
+bindsym $mod+j         focus up
+bindsym $mod+Up        focus up
+bindsym $mod+k         focus down
+bindsym $mod+Down      focus down
+bindsym $mod+Left      focus left
+bindsym $mod+l         focus left
+bindsym $mod+Right     focus right
+bindsym $mod+semicolon focus right
+
+bindsym $mod+control+j         move up
+bindsym $mod+control+Up        move up
+bindsym $mod+control+k         move down
+bindsym $mod+control+Down      move down
+bindsym $mod+control+l         move left
+bindsym $mod+control+Left      move left
+bindsym $mod+control+semicolon move right
+bindsym $mod+control+Right     move right
+
+bindsym $mod+h split h
+bindsym $mod+v split v
+bindsym $mod+f fullscreen toggle
+#bindsym $mod+s layout stacking
+#bindsym $mod+w layout tabbed
+#bindsym $mod+e layout toggle split
+
+bindsym $mod+a focus parent
+bindsym $mod+d focus child
+bindsym $mod+control+f floating toggle
+bindsym $mod+control+space focus mode_toggle
+bindsym $mod+control+r reload
+bindsym $mod+control+t restart
+bindsym $mod+control+e exec "i3-nagbar -t warning -m 'exit i3?' -B 'yes' 'i3-msg exit'"
+
+bindsym $mod+r mode "resize"
+
+mode "resize" {
+  bindsym j resize shrink width 10 px or 10 ppt
+  bindsym k resize grow height 10 px or 10 ppt
+  bindsym l resize shrink height 10 px or 10 ppt
+  bindsym semicolon resize grow width 10 px or 10 ppt
+  bindsym return mode "default"
+  bindsym escape mode "default"
+}
+
+
+bar {
+   colors {
+        background #000000
+        statusline #FFFFFF #that neon blue
+        separator #FFFFFF
+
+        focused_workspace  #4c7899 #285577 #ffffff
+        active_workspace   #333333 #5f676a #ffffff
+        inactive_workspace #333333 #222222 #888888
+        urgent_workspace   #2f343a #900000 #ffffff
+    }
+  position top
+  separator_symbol "/"
+  tray_output none
+  strip_workspace_numbers yes
+  font pango:SF Mono, Awesome 10
+  status_command i3blocks
+}

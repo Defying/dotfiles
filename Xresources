@@ -1,0 +1,60 @@
+Xcursor.size: 16
+
+
+Xft.antialias: true
+Xft.hinting: false
+Xft.rgba: rgb
+
+
+URxvt.saveLines: 20000
+URxvt.scrollBar: False
+URxvt.scrollstyle: rxvt
+URxvt.termName: xterm-256color
+URxvt.urgentOnBell: True
+URxvt.cursorBlink: False
+URxvt.internalBorder: 20
+
+URxvt.font: xft:SF Mono:size=11:style=Regular:antialias=true,xft:SauceCodePro Nerd Font Mono:size=11
+URxvt.boldFont: xft:SF Mono:size=11:style=Bold:antialias=true
+URxvt.letterSpace: -1
+
+URxvt.depth: 32
+URxvt.background: rgba:0000/0000/0000/8888
+
+URxvt.foreground:   #c5c8c6
+URxvt.cursorColor:  #c5c8c6
+URxvt.color0:       #1d1f21
+URxvt.color8:       #969896
+URxvt.color1:       #cc6666
+URxvt.color9:       #cc6666
+URxvt.color2:       #b5bd68
+URxvt.color10:      #b5bd68
+URxvt.color3:       #f0c674
+URxvt.color11:      #f0c674
+URxvt.color4:       #81a2be
+URxvt.color12:      #81a2be
+URxvt.color5:       #b294bb
+URxvt.color13:      #b294bb
+URxvt.color6:       #8abeb7
+URxvt.color14:      #8abeb7
+URxvt.color7:       #c5c8c6
+URxvt.color15:      #ffffff
+
+
+
+URxvt.perl-ext-common: default,clipboard
+!URxvt.url-launcher: /usr/bin/xdg-open
+!URxvt.matcher.button: 1
+
+! Disable ISO 14755 unicode input so we can use Ctrl-Shift bindings
+URxvt.iso14755:        false
+URxvt.iso14755_52:     false
+
+! Disable Ctrl-Alt-c & Ctrl-Alt-v bindings (optional)
+URxvt.keysym.C-M-c:    builtin-string:
+URxvt.keysym.C-M-v:    builtin-string:
+
+! Bind Ctrl-Shift-c & Ctrl-Shift-v to copy and paste
+! I dont know why, but I needed to use hex keysym values to get it to work
+URxvt.keysym.C-S-0x43: eval:selection_to_clipboard
+URxvt.keysym.C-S-0x56: eval:paste_clipboard
