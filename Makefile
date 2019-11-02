@@ -1,20 +1,20 @@
 HOSTNAME:=$(shell hostname)
 PWD:=$(shell pwd -LP)
 
-packages:
+pkg:
 	@echo -e "- installing packages"
 	sudo pacman -S --needed - < $(PWD)/packages.txt
 
-links:
+link:
 	@echo -e "- creating config folder"
 	mkdir -p ~/.config
-
 	@echo -e "- creating symlinks"
-	ln -sf $(PWD)/xinitrc      ~/.xinitrc
-	ln -sf $(PWD)/Xmodmap      ~/.Xmodmap
-	ln -sf $(PWD)/Xresources   ~/.Xresources
-	ln -sf $(PWD)/gtkrc-2.0    ~/.gtkrc-2.0
-	ln -sf $(PWD)/i3           ~/.config/i3
-	ln -sf $(PWD)/i3blocks     ~/.config/i3blocks
-	ln -sf $(PWD)/redshift     ~/.config/redshift
-	ln -sf $(PWD)/compton.conf ~/.config/compton.conf
+	ln -nsf $(PWD)/xinitrc      ~/.xinitrc
+	ln -nsf $(PWD)/Xmodmap      ~/.Xmodmap
+	ln -nsf $(PWD)/Xresources   ~/.Xresources
+	ln -nsf $(PWD)/gtkrc-2.0    ~/.gtkrc-2.0
+	ln -nsf $(PWD)/kvm          ~/.config/kvm
+	ln -nsf $(PWD)/redshift     ~/.config/redshift
+	ln -nsf $(PWD)/i3           ~/.config/i3
+	ln -nsf $(PWD)/polybar      ~/.config/polybar
+	ln -nsf $(PWD)/compton.conf ~/.config/compton.conf

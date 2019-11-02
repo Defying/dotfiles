@@ -1,0 +1,174 @@
+[bar/top]
+enable-ipc = true
+monitor = DVI-I-1
+width = 100%
+height = 30
+dpi = 96
+padding = 2
+
+background = #b3000000
+foreground = #99ffffff
+
+
+separator = %{F#40FFFFFF}/%{F-}
+
+font-0 = SFMono:size=8;2
+font-1 = FontAwesome5Free:style=Solid:size=10;2
+font-2 = FontAwesome5Free:style=Regular:size=10;2
+font-3 = FontAwesome5Brands:style=Regular:size=10;2
+font-4 = SFMono:size=5;-2
+font-5 = SFMono:size=7;2
+modules-left = clock date pulseaudio
+modules-center = i3
+modules-right = wired-network cpu temperature memory filesystem  
+
+wm-restack = i3
+module-margin = 1
+line-size = 2
+line-color = #80ffffff
+
+
+[module/clock]
+type = internal/date
+interval = 1
+date = %I:%M
+
+[module/date]
+type = internal/date
+interval = 45
+date = %m.%d.%y%
+
+[module/pulseaudio]
+type = internal/pulseaudio
+; Use PA_VOLUME_UI_MAX (~153%) if true, or PA_VOLUME_NORM (100%) if false
+use-ui-max = true
+interval = 5
+label-volume =  %percentage%%
+label-muted =  mute
+
+
+[module/wired-network]
+type = internal/network
+interface = br0
+interval = 3
+accumulate-stats = false
+udspeed-minwidth = 4
+label-connected =  %local_ip%
+
+[module/cpu]
+type = internal/cpu
+interval = 1
+format = <label>
+label =  %percentage%%
+
+[module/temperature]
+interval = 1
+type = internal/temperature
+thermal-zone = 2
+warn-temperature = 80
+format = <label>
+;format-underline = #f50a4d
+format-warn = <label-warn>
+;format-warn-underline = ${self.format-underline}
+label = %temperature-c%
+label-warn = !! %temperature%
+label-warn-foreground = #f00
+
+[module/memory]
+type = internal/memory
+format = <label>
+label =  %gb_used%
+
+[module/filesystem]
+type = internal/fs
+interval = 25
+mount-0 = /
+label-mounted =   %percentage_used%%
+label-unmounted = %mountpoint% not mounted
+label-unmounted-foreground = #66
+
+
+
+
+
+[module/i3]
+type = internal/i3
+
+pin-workspaces = true
+strip-wsnumbers = true
+index-sort = true
+
+enable-click = true
+enable-scroll = false
+wrapping-scroll = false
+reverse-scroll = false
+
+; Use fuzzy (partial) matching on labels when assigning 
+; icons to workspaces
+; Example: code;♚ will apply the icon to all workspaces 
+; containing 'code' in the label
+; Default: false
+fuzzy-match = true
+ws-icon-0 = 1;
+ws-icon-1 = 2;
+ws-icon-2 = 3;
+ws-icon-3 = 4;
+ws-icon-4 = 5;
+ws-icon-default = 
+
+label-dimmed-underline = ${root.background}
+
+; Available tags:
+;   <label-state> (default) - gets replaced with <label-(focused|unfocused|visible|urgent)>
+;   <label-mode> (default)
+format = <label-state> <label-mode>
+
+; Available tokens:
+;   %mode%
+; Default: %mode%
+label-mode = %mode%
+label-mode-padding = 0
+label-mode-background = #e60053
+
+; Available tokens:
+;   %name%
+;   %icon%
+;   %index%
+;   %output%
+; Default: %icon%  %name%
+label-focused =  %{T5}%index% %{T-}%icon% %{T6}%name%%{T-}
+label-focused-background = #60000000
+label-focused-foreground = #b3ffffff
+label-focused-overline = #b3ffffff
+label-focused-padding = 2
+
+; Available tokens:
+;   %name%
+;   %icon%
+;   %index%
+;   %output%
+; Default: %icon%  %name%
+label-unfocused = %{T5}%index% %{T-}%icon%
+label-unfocused-foreground = #80ffffff
+label-unfocused-padding = 2
+
+; Available tokens:
+;   %name%
+;   %icon%
+;   %index%
+;   %output%
+; Default: %icon%  %name%
+label-visible = %icon%  %name%
+label-visible-overline = #80FFFFFF
+label-visible-padding = 2
+
+; Available tokens:
+;   %name%
+;   %icon%
+;   %index%
+;   %output%
+; Default: %icon%  %name%
+label-urgent = %{T5}%index% %{T-}%icon%
+;label-urgent-foreground = #000000
+label-urgent-background = #e6bd2c40
+label-urgent-padding = 2

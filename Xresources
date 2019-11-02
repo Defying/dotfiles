@@ -6,39 +6,36 @@ Xft.hinting: false
 Xft.rgba: rgb
 
 
-URxvt.saveLines: 20000
-URxvt.scrollBar: False
-URxvt.scrollstyle: rxvt
-URxvt.termName: xterm-256color
-URxvt.urgentOnBell: True
-URxvt.cursorBlink: False
+URxvt.saveLines:      20000
+URxvt.scrollBar:      False
+URxvt.scrollstyle:    rxvt
+URxvt.termName:       xterm-256color
+URxvt.urgentOnBell:   True
+URxvt.cursorBlink:    False
 URxvt.internalBorder: 20
-
-URxvt.font: xft:SF Mono:size=11:style=Regular:antialias=true,xft:SauceCodePro Nerd Font Mono:size=11
-URxvt.boldFont: xft:SF Mono:size=11:style=Bold:antialias=true
-URxvt.letterSpace: -1
-
-URxvt.depth: 32
-URxvt.background: rgba:0000/0000/0000/8888
-
-URxvt.foreground:   #c5c8c6
-URxvt.cursorColor:  #c5c8c6
-URxvt.color0:       #1d1f21
-URxvt.color8:       #969896
-URxvt.color1:       #cc6666
-URxvt.color9:       #cc6666
-URxvt.color2:       #b5bd68
-URxvt.color10:      #b5bd68
-URxvt.color3:       #f0c674
-URxvt.color11:      #f0c674
-URxvt.color4:       #81a2be
-URxvt.color12:      #81a2be
-URxvt.color5:       #b294bb
-URxvt.color13:      #b294bb
-URxvt.color6:       #8abeb7
-URxvt.color14:      #8abeb7
-URxvt.color7:       #c5c8c6
-URxvt.color15:      #ffffff
+URxvt.font:           xft:SF Mono:size=11:style=Regular:antialias=true,xft:SauceCodePro Nerd Font Mono:size=11
+URxvt.boldFont:       xft:SF Mono:size=11:style=Bold:antialias=true
+URxvt.letterSpace:    -1
+URxvt.depth:          32
+URxvt.background:     [80]#000000
+URxvt.foreground:     rgba:ff00/ff00/ff00/8000
+URxvt.cursorColor:    rgba:ff00/ff00/ff00/8000
+URxvt.color0:         [80]#1d1f21
+URxvt.color8:         [80]#969896
+URxvt.color1:         [80]#cc6666
+URxvt.color9:         [80]#cc6666
+URxvt.color2:         [80]#b5bd68
+URxvt.color10:        [80]#b5bd68
+URxvt.color3:         [80]#f0c674
+URxvt.color11:        [80]#f0c674
+URxvt.color4:         [80]#81a2be
+URxvt.color12:        [80]#81a2be
+URxvt.color5:         [80]#b294bb
+URxvt.color13:        [80]#b294bb
+URxvt.color6:         [80]#8abeb7
+URxvt.color14:        [80]#8abeb7
+URxvt.color7:         [80]#c5c8c6
+URxvt.color15:        [80]#ffffff
 
 
 
