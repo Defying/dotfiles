@@ -1,4 +1,0 @@
-#!/bin/bash
-
-swap_usage=$(free -m | awk 'NR==3{printf "%smb", $3}')
-echo $swap_usage

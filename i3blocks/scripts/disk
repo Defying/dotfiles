@@ -1,4 +1,0 @@
-#!/bin/bash
-
-disk_usage=$(df -h | awk '$NF=="/"{printf "%dgb", $3}')
-echo $disk_usage

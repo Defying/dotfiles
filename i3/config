@@ -121,7 +121,3 @@ mode "resize" {
   bindsym return mode "default"
   bindsym escape mode "default"
 }
-
-workspace $ws1 output DVI-I-1
-workspace $ws10 output DVI-D-0
-

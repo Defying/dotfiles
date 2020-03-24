@@ -1,4 +1,0 @@
-#!/bin/bash
-
-ram_usage=$(free -m | awk 'NR==2{printf "%smb", $3}')
-echo $ram_usage
