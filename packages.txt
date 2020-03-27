@@ -39,3 +39,4 @@ lxde
 chromium
 docker
 docker-compose
+picom

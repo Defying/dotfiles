@@ -1,10 +1,11 @@
-font pango:SF Pro Text 10
-gaps inner 10
-gaps outer 20
+set $mod Mod4
+floating_modifier $mod
 smart_borders on
 default_border none
 focus_follows_mouse no
-floating_modifier $mod
+font pango:SF Pro Text 10
+gaps inner 10
+gaps outer 20
 
 set $ws1 "1:chrome"
 set $ws2 "2:music"
@@ -16,16 +17,12 @@ set $ws7 "7"
 set $ws8 "8"
 set $ws9 "9"
 set $ws10 "10"
-set $mod mod3
-
-
 
 assign [class="^Google-chrome$"] $ws1
 assign [class="^AppleMusic$"] $ws2
 assign [class="discord"] $ws3
 assign [class="code" class="Code"] $ws4
 
-for_window [class="virt-manager" class="Virt-manager" title="Virtual Machine Manager"] floating enable
 for_window [class="Thunar"] floating enable
 for_window [class="discord"] floating enable
 for_window [class="Thunar"] resize set 960 540
@@ -33,10 +30,8 @@ for_window [class="URxvt" instance="float_term"] floating enable
 for_window [window_role="pop-up"] floating enable
 
 exec_always --no-startup-id ~/.config/polybar/launch.sh
-exec        --no-startup-id xmodmap ~/.Xmodmap
-exec        --no-startup-id xrdb ~/.Xresources
-exec        --no-startup-id feh --bg-fill ~/wall2.jpg
-exec        --no-startup-id redshift
+exec --no-startup-id xrdb ~/.Xresources
+exec --no-startup-id feh --bg-fill ~/wall.jpg
 
 bindsym $mod+1 workspace number $ws1
 bindsym $mod+2 workspace number $ws2
