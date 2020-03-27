@@ -32,6 +32,7 @@ for_window [window_role="pop-up"] floating enable
 exec_always --no-startup-id ~/.config/polybar/launch.sh
 exec --no-startup-id xrdb ~/.Xresources
 exec --no-startup-id feh --bg-fill ~/wall.jpg
+exec --no-startup-id barrierc --enable-crypto -display :0 Bens-Desktop
 
 bindsym $mod+1 workspace number $ws1
 bindsym $mod+2 workspace number $ws2
