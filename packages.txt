@@ -32,11 +32,10 @@ unzip
 usbutils
 wget
 vnstat
+xf86-video-fbturbo
 xorg-server
 xorg-xinit
 zip
-lxde
 chromium
-docker
-docker-compose
-picom
+gnome-keyring
+libsecret

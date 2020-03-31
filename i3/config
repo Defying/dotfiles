@@ -1,11 +1,11 @@
-set $mod Mod4
+set $mod Mod3
 floating_modifier $mod
 smart_borders on
 default_border none
 focus_follows_mouse no
 font pango:SF Pro Text 10
-gaps inner 10
-gaps outer 20
+gaps inner 20
+gaps outer 40
 
 set $ws1 "1:chrome"
 set $ws2 "2:music"
@@ -32,7 +32,8 @@ for_window [window_role="pop-up"] floating enable
 exec_always --no-startup-id ~/.config/polybar/launch.sh
 exec --no-startup-id xrdb ~/.Xresources
 exec --no-startup-id feh --bg-fill ~/wall.jpg
-exec --no-startup-id barrierc --enable-crypto -display :0 Bens-Desktop
+exec --no-startup-id xmodmap ~/.Xmodmap
+#exec --no-startup-id barrierc --enable-crypto -display :0 Bens-Desktop
 
 bindsym $mod+1 workspace number $ws1
 bindsym $mod+2 workspace number $ws2
