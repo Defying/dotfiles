@@ -30,7 +30,7 @@ is_blocked_path() {
     */.cloudflared/*|.cloudflared/*)
       return 0
       ;;
-    */id_rsa|*/id_rsa.pub|*/id_ed25519|*/id_ed25519.pub|*/id_ecdsa|*/id_ecdsa.pub)
+    */id_rsa|*/id_ed25519|*/id_ecdsa)
       return 0
       ;;
   esac
