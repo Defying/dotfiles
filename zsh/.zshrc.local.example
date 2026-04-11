@@ -1,0 +1,6 @@
+# copy this to ~/.zshrc.local and add machine-only helpers there
+# example:
+# alias homelab="ssh ben@example-host"
+# dashboard() {
+#   open 'http://localhost:3000'
+# }
