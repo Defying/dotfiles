@@ -2,22 +2,22 @@
 
 Ben's local shell and prompt setup, kept in git.
 
-## tracked
+## current layout
 
-- `~/.zshenv`
-- `~/.zprofile`
-- `~/.zshrc`
-- `~/.gitconfig`
-- `~/.config/motd/omens-motd.sh`
+- `zsh/` -> links into `$HOME`
+- `git/` -> links into `$HOME`
+- `config/` -> links into `$HOME/.config`
+- `home/` -> links into `$HOME` for anything else you want to archive later
 
 ## not tracked
 
 Keep machine-only and secret stuff out of the repo.
 
 - `~/.zshrc.local`
-- tokens
-- private hostnames and tunnels you do not want synced
-- anything else that is specific to one box
+- `.env*`
+- private keys, cert bundles, keychains, sqlite/db files
+- `.cloudflared/`
+- anything with tokens or credentials in it
 
 ## install
 
@@ -30,14 +30,16 @@ The installer backs up existing non-symlink files into `backups/<timestamp>/` be
 
 ## auto sync
 
-Use `scripts/auto-sync.sh` to commit and push tracked dotfile changes.
+Use `scripts/auto-sync.sh` to keep this repo archived to GitHub.
 
 What it does:
 
-- stages updates to already-tracked files only
-- skips untracked files, so new files do not get auto-pushed by surprise
+- stages updates, deletions, and new non-ignored files
+- blocks common secret file types and obvious token/key material
 - creates a timestamped `chore: sync dotfiles (...)` commit
 - pushes to `origin main`
+
+If it sees something secret-looking, it aborts instead of pushing.
 
 ## local overrides
 

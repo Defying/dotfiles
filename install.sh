@@ -6,9 +6,8 @@ BACKUP_DIR="$REPO_DIR/backups/$(date +%Y%m%d-%H%M%S)"
 DID_BACKUP=0
 
 link_file() {
-  local source_rel="$1"
+  local source="$1"
   local target="$2"
-  local source="$REPO_DIR/$source_rel"
 
   mkdir -p "$(dirname "$target")"
 
@@ -28,11 +27,24 @@ link_file() {
   echo "link  $target -> $source"
 }
 
-link_file "zsh/.zshenv" "$HOME/.zshenv"
-link_file "zsh/.zprofile" "$HOME/.zprofile"
-link_file "zsh/.zshrc" "$HOME/.zshrc"
-link_file "git/.gitconfig" "$HOME/.gitconfig"
-link_file "config/motd/omens-motd.sh" "$HOME/.config/motd/omens-motd.sh"
+link_tree() {
+  local source_rel="$1"
+  local target_root="$2"
+  local source_dir="$REPO_DIR/$source_rel"
+
+  [ -d "$source_dir" ] || return 0
+
+  while IFS= read -r -d '' source; do
+    local rel="${source#$source_dir/}"
+    local target="$target_root/$rel"
+    link_file "$source" "$target"
+  done < <(find "$source_dir" -type f -print0 | sort -z)
+}
+
+link_tree "home" "$HOME"
+link_tree "zsh" "$HOME"
+link_tree "git" "$HOME"
+link_tree "config" "$HOME/.config"
 
 if [ ! -f "$HOME/.zshrc.local" ] && [ -f "$REPO_DIR/zsh/.zshrc.local.example" ]; then
   cp "$REPO_DIR/zsh/.zshrc.local.example" "$HOME/.zshrc.local"
