@@ -31,3 +31,4 @@ backups/
 !home/.local/bin/backup-pi-sd-card.sh
 !home/.local/bin/backup-orangepi-sd-card.sh
 !home/.local/bin/backup-raspberrypi-sd-card.sh
+!home/.local/bin/check-carve-health.sh
