@@ -3,13 +3,13 @@
 [[ -o interactive ]] || return 0 2>/dev/null || exit 0
 
 if [[ -t 1 && "${TERM:-dumb}" != "dumb" ]]; then
-  BORDER_COLOR=$'\033[38;5;45m'
-  TITLE_COLOR=$'\033[1;38;5;117m'
+  BORDER_COLOR=$'\033[38;5;183m'
+  TITLE_COLOR=$'\033[1;38;5;225m'
   DIM_COLOR=$'\033[38;5;244m'
-  INFO_COLOR=$'\033[38;5;81m'
+  INFO_COLOR=$'\033[38;5;189m'
   GOOD_COLOR=$'\033[38;5;78m'
   WARN_COLOR=$'\033[38;5;214m'
-  BACKUP_COLOR=$'\033[38;5;110m'
+  BACKUP_COLOR=$'\033[38;5;182m'
   RESET_COLOR=$'\033[0m'
 else
   BORDER_COLOR=''

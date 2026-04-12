@@ -38,8 +38,8 @@ zstyle ':vcs_info:*' enable git
 zstyle ':vcs_info:git:*' check-for-changes true
 zstyle ':vcs_info:git:*' stagedstr '●'
 zstyle ':vcs_info:git:*' unstagedstr '✚'
-zstyle ':vcs_info:git:*' formats '%F{81}⎇ %b%f %F{214}%c%u%f'
-zstyle ':vcs_info:git:*' actionformats '%F{81}⎇ %b|%a%f %F{214}%c%u%f'
+zstyle ':vcs_info:git:*' formats '%F{183}⎇ %b%f %F{214}%c%u%f'
+zstyle ':vcs_info:git:*' actionformats '%F{183}⎇ %b|%a%f %F{214}%c%u%f'
 
 _doves_prompt_precmd() {
   local exit_code=$?
@@ -70,6 +70,6 @@ _doves_prompt_precmd() {
 
 add-zsh-hook precmd _doves_prompt_precmd
 
-PROMPT='%F{45}╭─%f %B%F{117}%n%f%b %B%F{111}%~%f%b${DOVES_PROMPT_GIT}${DOVES_PROMPT_JOBS}
-%F{45}╰─%f${DOVES_PROMPT_STATUS:+ ${DOVES_PROMPT_STATUS}} ${DOVES_PROMPT_ARROW} '
+PROMPT='%F{183}╭─%f %B%F{225}%n%f%b %B%F{189}%~%f%b${DOVES_PROMPT_GIT}${DOVES_PROMPT_JOBS}
+%F{183}╰─%f${DOVES_PROMPT_STATUS:+ ${DOVES_PROMPT_STATUS}} ${DOVES_PROMPT_ARROW} '
 RPROMPT=''
