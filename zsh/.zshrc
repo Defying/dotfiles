@@ -46,10 +46,10 @@ _doves_prompt_precmd() {
   vcs_info
 
   if [[ $exit_code -eq 0 ]]; then
-    export DOVES_PROMPT_STATUS="%F{78}● ok%f"
+    export DOVES_PROMPT_STATUS=""
     export DOVES_PROMPT_ARROW="%F{78}❯%f"
   else
-    export DOVES_PROMPT_STATUS="%F{160}● exit ${exit_code}%f"
+    export DOVES_PROMPT_STATUS="%F{160}exit ${exit_code}%f"
     export DOVES_PROMPT_ARROW="%F{160}❯%f"
   fi
 
@@ -70,6 +70,6 @@ _doves_prompt_precmd() {
 
 add-zsh-hook precmd _doves_prompt_precmd
 
-PROMPT='%F{45}╭─%f %B%F{117}%n@%m%f%b %F{45}in%f %B%F{111}%~%f%b${DOVES_PROMPT_GIT}${DOVES_PROMPT_JOBS}
-%F{45}╰─%f ${DOVES_PROMPT_STATUS} %F{244}[%*]%f ${DOVES_PROMPT_ARROW} '
+PROMPT='%F{45}╭─%f %B%F{117}%n%f%b %B%F{111}%~%f%b${DOVES_PROMPT_GIT}${DOVES_PROMPT_JOBS}
+%F{45}╰─%f${DOVES_PROMPT_STATUS:+ ${DOVES_PROMPT_STATUS}} ${DOVES_PROMPT_ARROW} '
 RPROMPT=''
