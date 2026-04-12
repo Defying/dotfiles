@@ -16,7 +16,8 @@ export PATH="$PATH:$HOME/.lmstudio/bin"
 
 # Hermes Agent, ensure ~/.local/bin is on PATH
 export PATH="$HOME/.local/bin:$PATH"
-alias orangepi-sd-backup="$HOME/.local/bin/backup-orangepi-sd-card.sh"
+alias sd-orange="$HOME/.local/bin/backup-orangepi-sd-card.sh"
+alias sd-raspberry="$HOME/.local/bin/backup-raspberrypi-sd-card.sh"
 
 # Omen login banner
 if [ -f "$HOME/.config/motd/omens-motd.sh" ]; then
