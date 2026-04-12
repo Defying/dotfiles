@@ -195,14 +195,8 @@ About to create a compressed $TARGET_LABEL microSD image backup.
 
 The card will be unmounted first. This reads the card and writes a gzip-compressed image.
 EOF
-printf 'Continue? [y/N] '
-read -r confirm
-if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-  echo "aborted"
-  exit 1
-fi
 
-echo "[info] press x at any time to stop this image backup"
+echo "[info] starting image backup, press x at any time to stop"
 sudo -v
 rm -f "$tmpfile" "$outfile" "$outfile.sha256"
 

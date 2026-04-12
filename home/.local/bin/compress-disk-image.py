@@ -33,6 +33,19 @@ def human_bytes(value: float) -> str:
     return f"{size:.1f}P"
 
 
+def format_eta(seconds: float) -> str:
+    if seconds <= 0:
+        return "0s"
+    total = int(seconds)
+    hours, rem = divmod(total, 3600)
+    minutes, secs = divmod(rem, 60)
+    if hours:
+        return f"{hours}h {minutes}m {secs}s"
+    if minutes:
+        return f"{minutes}m {secs}s"
+    return f"{secs}s"
+
+
 def render_bar(processed: int, total: int, width: int) -> str:
     if width <= 0:
         return ""
@@ -43,45 +56,39 @@ def render_bar(processed: int, total: int, width: int) -> str:
     return "█" * filled + "░" * (width - filled)
 
 
-def eta_text(processed: int, total: int, rate: float) -> str:
-    if total <= 0 or rate <= 0:
-        return "--s"
-    return f"{int((total - processed) / rate)}s"
-
-
 def make_status_line(label: str, processed: int, total: int, output_size: int, start: float) -> str:
     elapsed = max(time.time() - start, 0.001)
     rate = processed / elapsed
     pct = ((processed / total) * 100.0) if total else 0.0
     ratio = ((output_size / processed) * 100.0) if processed else 0.0
+    eta = format_eta((total - processed) / rate) if total and rate > 0 else "--"
     cols = max(get_terminal_size((100, 20)).columns, 60)
-    bar_width = max(10, min(24, cols - 58))
+
+    left = f"{label} {pct:5.1f}%"
+    right = f"{human_bytes(processed)}/{human_bytes(total)} → {human_bytes(output_size)} {human_bytes(rate)}/s eta {eta} x"
+    bar_width = max(8, min(20, cols - len(left) - len(right) - 6))
     bar = render_bar(processed, total, bar_width)
-    plain = (
-        f"{label} [{bar}] {pct:5.1f}% "
-        f"{human_bytes(processed)}/{human_bytes(total)} "
-        f"→ {human_bytes(output_size)} ({ratio:4.1f}%) "
-        f"{human_bytes(rate)}/s {eta_text(processed, total, rate)} x"
-    )
+
+    plain = f"{left} [{bar}] {right}"
     if len(plain) > cols - 1:
-        overflow = len(plain) - (cols - 1)
-        label = label[: max(3, len(label) - overflow - 1)] + ("…" if len(label) > 4 else "")
-        plain = (
-            f"{label} [{bar}] {pct:5.1f}% "
-            f"{human_bytes(processed)}/{human_bytes(total)} "
-            f"→ {human_bytes(output_size)} ({ratio:4.1f}%) "
-            f"{human_bytes(rate)}/s {eta_text(processed, total, rate)} x"
-        )
-    if COLOR:
+        right = f"{human_bytes(processed)}/{human_bytes(total)} {human_bytes(rate)}/s {eta} x"
+        bar_width = max(6, min(16, cols - len(left) - len(right) - 6))
+        bar = render_bar(processed, total, bar_width)
+        plain = f"{left} [{bar}] {right}"
+    if len(plain) > cols - 1:
+        plain = f"{label} {pct:5.1f}% {human_bytes(processed)}/{human_bytes(total)} {eta} x"
+
+    if not COLOR:
+        return CLEAR_LINE + plain
+
+    if "[" in plain and "]" in plain:
+        prefix, rest = plain.split("[", 1)
+        bar_text, suffix = rest.split("]", 1)
         return (
-            f"{CLEAR_LINE}{BOLD}{CYAN}{label}{RESET} "
-            f"{CYAN}[{bar}]{RESET} {pct:5.1f}% "
-            f"{human_bytes(processed)}/{human_bytes(total)} "
-            f"→ {BOLD}{human_bytes(output_size)}{RESET} ({ratio:4.1f}%) "
-            f"{human_bytes(rate)}/s {eta_text(processed, total, rate)} "
-            f"{DIM}x cancel{RESET}"
+            f"{CLEAR_LINE}{BOLD}{CYAN}{prefix.rstrip()}{RESET} "
+            f"{CYAN}[{bar_text}]{RESET}{suffix}"
         )
-    return CLEAR_LINE + plain
+    return f"{CLEAR_LINE}{BOLD}{CYAN}{plain}{RESET}"
 
 
 def setup_tty_reader():
