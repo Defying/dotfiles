@@ -96,6 +96,15 @@ count_backup_artifacts() {
   fi
 }
 
+sum_backup_artifact_bytes() {
+  local dir="$1"
+  if [[ -d "$dir" ]]; then
+    find "$dir" -maxdepth 1 -type f ! -name '.*' ! -name '*.sha256' -exec stat -f '%z' {} + 2>/dev/null | awk '{sum += $1} END {print sum + 0}'
+  else
+    print 0
+  fi
+}
+
 UPTIME=$(uptime | sed -E 's/^.*up ([^,]+), .*$/\1/' 2>/dev/null)
 LOAD=$(uptime | sed -nE 's/.*load averages?: ([0-9. ]+).*$/\1/p' | awk '{print $1" " $2" " $3}' 2>/dev/null)
 
@@ -178,9 +187,16 @@ fi
 
 ORANGE_ARCHIVE_COUNT=$(count_backup_artifacts "/Volumes/Carve/Backups/orange-pi/archives")
 ORANGE_IMAGE_COUNT=$(count_backup_artifacts "/Volumes/Carve/Backups/orange-pi/images")
+RASPBERRY_ARCHIVE_COUNT=$(count_backup_artifacts "/Volumes/Carve/Backups/raspberry-pi/archives")
 RASPBERRY_IMAGE_COUNT=$(count_backup_artifacts "/Volumes/Carve/Backups/raspberry-pi/images")
-ORANGE_TOTAL_COUNT=$(( ${ORANGE_ARCHIVE_COUNT:-0} + ${ORANGE_IMAGE_COUNT:-0} ))
-BACKUP_SUMMARY="${BACKUP_STATUS} • orange ${ORANGE_TOTAL_COUNT} • raspberry ${RASPBERRY_IMAGE_COUNT:-0}"
+
+ORANGE_ARCHIVE_BYTES=$(sum_backup_artifact_bytes "/Volumes/Carve/Backups/orange-pi/archives")
+ORANGE_IMAGE_BYTES=$(sum_backup_artifact_bytes "/Volumes/Carve/Backups/orange-pi/images")
+RASPBERRY_ARCHIVE_BYTES=$(sum_backup_artifact_bytes "/Volumes/Carve/Backups/raspberry-pi/archives")
+RASPBERRY_IMAGE_BYTES=$(sum_backup_artifact_bytes "/Volumes/Carve/Backups/raspberry-pi/images")
+BACKUP_TOTAL_BYTES=$(( ${ORANGE_ARCHIVE_BYTES:-0} + ${ORANGE_IMAGE_BYTES:-0} + ${RASPBERRY_ARCHIVE_BYTES:-0} + ${RASPBERRY_IMAGE_BYTES:-0} ))
+
+BACKUP_SUMMARY="${BACKUP_STATUS} • $(human_disk_bytes "$BACKUP_TOTAL_BYTES") • orange ${ORANGE_IMAGE_COUNT:-0}/${ORANGE_ARCHIVE_COUNT:-0} • raspberry ${RASPBERRY_IMAGE_COUNT:-0}/${RASPBERRY_ARCHIVE_COUNT:-0}"
 
 TM_NAME=$(tmutil destinationinfo 2>/dev/null | awk -F': ' '/^Name[[:space:]]*:/ {print $2; exit}')
 TM_MOUNT=$(tmutil destinationinfo 2>/dev/null | awk -F': ' '/^Mount Point[[:space:]]*:/ {print $2; exit}')
