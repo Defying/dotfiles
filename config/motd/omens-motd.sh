@@ -98,6 +98,27 @@ if [[ -d "$BACKUP_ROOT" ]]; then
   fi
 fi
 
+TM_NAME=$(tmutil destinationinfo 2>/dev/null | awk -F': ' '/^Name[[:space:]]*:/ {print $2; exit}')
+TM_MOUNT=$(tmutil destinationinfo 2>/dev/null | awk -F': ' '/^Mount Point[[:space:]]*:/ {print $2; exit}')
+TM_RUNNING=$(tmutil status 2>/dev/null | awk -F'= ' '/Running =/ {gsub(/;/, "", $2); print $2; exit}')
+TM_PERCENT=$(tmutil status 2>/dev/null | awk -F'= ' '/Percent =/ {gsub(/[;\"]/, "", $2); print $2; exit}')
+TM_SUMMARY="not configured"
+if [[ -n "$TM_NAME" ]]; then
+  if [[ "$TM_RUNNING" == "1" ]]; then
+    if [[ -n "$TM_PERCENT" && "$TM_PERCENT" != "-1" ]]; then
+      TM_SUMMARY="$TM_NAME • running ${TM_PERCENT}%"
+    else
+      TM_SUMMARY="$TM_NAME • running"
+    fi
+  else
+    TM_SUMMARY="$TM_NAME • idle"
+  fi
+
+  if [[ -n "$TM_MOUNT" ]]; then
+    TM_SUMMARY+=" • $(basename "$TM_MOUNT")"
+  fi
+fi
+
 repeat_char() {
   local char="$1"
   local count="$2"
@@ -163,6 +184,7 @@ box_line 'claw' "$OPENCLAW_COLOR" "$OPENCLAW_STATUS" "$OPENCLAW_COLOR"
 box_line 'repo' "$GIT_COLOR" "$GIT_SUMMARY" "$GIT_COLOR"
 box_line 'projects' "$WARN_COLOR" "${PROJECT_SUMMARY} • latest ${LATEST_PROJECT}" "$DIM_COLOR"
 box_line 'backup' "$BACKUP_COLOR" "$BACKUP_SUMMARY" "$DIM_COLOR"
+box_line 'tm' "$BACKUP_COLOR" "$TM_SUMMARY" "$DIM_COLOR"
 box_line 'system' "$DIM_COLOR" "up ${UPTIME:-unknown} • load ${LOAD:-unknown}" "$DIM_COLOR"
 box_line 'storage' "$DIM_COLOR" "${DISK:-unknown} • ram ${MEM:-unknown}" "$DIM_COLOR"
 box_rule '╚' '═' '╝'
