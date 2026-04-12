@@ -96,32 +96,6 @@ find_expected_disk() {
   return 1
 }
 
-start_cancel_watcher() {
-  [[ ! -r /dev/tty ]] && return 0
-
-  {
-    typeset key
-    while true; do
-      if ! read -r -k 1 key < /dev/tty; then
-        exit 0
-      fi
-
-      [[ "$key" == $'\n' || "$key" == $'\r' ]] && continue
-
-      if [[ "$key" == [xX] ]]; then
-        print -u2 -- "\n[info] stop requested, cancelling image..."
-        : > "$CANCEL_FLAG"
-        [[ -n "${PIPELINE_PID:-}" ]] && {
-          pkill -TERM -P "$PIPELINE_PID" 2>/dev/null || true
-          kill -TERM "$PIPELINE_PID" 2>/dev/null || true
-        }
-        exit 0
-      fi
-    done
-  } &
-  WATCHER_PID=$!
-}
-
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   usage
   exit 0
@@ -196,12 +170,14 @@ if fingerprint_configured; then
   fi
 fi
 
+SCRIPT_DIR="${0:A:h}"
 outfile="$BACKUP_ROOT/$IMAGE_PREFIX-$STAMP-$disk.img.gz"
+tmpfile="$outfile.part"
 IMAGE_COMPLETED=0
 
 cleanup_partial_image() {
   if [[ "${IMAGE_COMPLETED:-0}" != "1" ]]; then
-    rm -f "$outfile" "$outfile.sha256"
+    rm -f "$tmpfile" "$outfile" "$outfile.sha256"
   fi
 }
 
@@ -228,74 +204,32 @@ fi
 
 echo "[info] press x at any time to stop this image backup"
 sudo -v
-
-CANCEL_FLAG="${TMPDIR:-/tmp}/${IMAGE_PREFIX}-${STAMP}.cancelled"
-WATCHER_PID=""
-PIPELINE_PID=""
-rm -f "$CANCEL_FLAG"
+rm -f "$tmpfile" "$outfile" "$outfile.sha256"
 
 /usr/sbin/diskutil unmountDisk "$dev" >/dev/null
-trap 'cleanup_partial_image; /usr/sbin/diskutil mountDisk "$dev" >/dev/null 2>&1 || true; [[ -n "${WATCHER_PID:-}" ]] && kill "$WATCHER_PID" 2>/dev/null || true; rm -f "$CANCEL_FLAG"' EXIT INT TERM
+trap 'cleanup_partial_image; /usr/sbin/diskutil mountDisk "$dev" >/dev/null 2>&1 || true' EXIT INT TERM
 
-start_cancel_watcher
-
-(
-  set -o pipefail
-  sudo dd if="$rdev" bs=4m 2>/dev/null | \
-    python3 -c 'import sys, time
-
-total = int(sys.argv[1]) if len(sys.argv) > 1 else 0
-processed = 0
-start = time.time()
-last = 0.0
-width = 28
-
-while True:
-    chunk = sys.stdin.buffer.read(1024 * 1024)
-    if not chunk:
-        break
-    sys.stdout.buffer.write(chunk)
-    processed += len(chunk)
-    now = time.time()
-    if now - last >= 0.2:
-        frac = (processed / total) if total else 0.0
-        filled = int(width * frac) if total else 0
-        bar = "#" * filled + "-" * (width - filled)
-        rate = processed / max(now - start, 0.001)
-        eta = int((total - processed) / rate) if total and rate > 0 else 0
-        sys.stderr.write(f"\r[{bar}] {frac * 100:5.1f}%  {processed / (1024**3):5.1f}/{total / (1024**3):5.1f} GiB  {rate / (1024**2):6.1f} MiB/s  ETA {eta:5d}s")
-        sys.stderr.flush()
-        last = now
-
-sys.stdout.buffer.flush()
-if total:
-    rate = processed / max(time.time() - start, 0.001)
-    bar = "#" * width
-    sys.stderr.write(f"\r[{bar}] 100.0%  {processed / (1024**3):5.1f}/{total / (1024**3):5.1f} GiB  {rate / (1024**2):6.1f} MiB/s  ETA     0s\n")
-    sys.stderr.flush()
-' "$size_bytes" | \
-    gzip -1 > "$outfile"
-) &
-PIPELINE_PID=$!
-
-if ! wait "$PIPELINE_PID"; then
-  [[ -n "$WATCHER_PID" ]] && kill "$WATCHER_PID" 2>/dev/null || true
-  if [[ -f "$CANCEL_FLAG" ]]; then
-    rm -f "$outfile" "$outfile.sha256"
+if ! sudo /usr/bin/env python3 "$SCRIPT_DIR/compress-disk-image.py" \
+  --input "$rdev" \
+  --output "$tmpfile" \
+  --total-bytes "$size_bytes" \
+  --label "$TARGET_LABEL" \
+  --compress-level 1; then
+  status=$?
+  cleanup_partial_image
+  if [[ $status -eq 130 ]]; then
     echo "[info] image backup cancelled"
-    exit 1
+  else
+    echo "[error] image backup failed"
   fi
-  rm -f "$outfile" "$outfile.sha256"
-  echo "[error] image backup failed"
   exit 1
 fi
 
-[[ -n "$WATCHER_PID" ]] && kill "$WATCHER_PID" 2>/dev/null || true
+mv "$tmpfile" "$outfile"
 /usr/bin/shasum -a 256 "$outfile" > "$outfile.sha256"
 IMAGE_COMPLETED=1
 /usr/sbin/diskutil mountDisk "$dev" >/dev/null || true
 trap - EXIT INT TERM
-rm -f "$CANCEL_FLAG"
 
 ls -lh "$outfile" "$outfile.sha256"
 echo "[ok] compressed image written to $outfile"
