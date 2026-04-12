@@ -24,3 +24,10 @@ backups/
 **/*.db
 .cloudflared/
 **/.cloudflared/
+
+# Allow tracked helper scripts under home/.local/bin
+!home/.local/
+!home/.local/bin/
+!home/.local/bin/backup-pi-sd-card.sh
+!home/.local/bin/backup-orangepi-sd-card.sh
+!home/.local/bin/backup-raspberrypi-sd-card.sh
