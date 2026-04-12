@@ -215,9 +215,9 @@ if ! sudo /usr/bin/env python3 "$SCRIPT_DIR/compress-disk-image.py" \
   --total-bytes "$size_bytes" \
   --label "$TARGET_LABEL" \
   --compress-level 1; then
-  status=$?
+  exit_code=$?
   cleanup_partial_image
-  if [[ $status -eq 130 ]]; then
+  if [[ $exit_code -eq 130 ]]; then
     echo "[info] image backup cancelled"
   else
     echo "[error] image backup failed"
