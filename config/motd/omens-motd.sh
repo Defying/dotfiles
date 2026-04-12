@@ -27,23 +27,105 @@ OS=$(sw_vers -productVersion 2>/dev/null || uname -r)
 IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo "offline")
 TIME_NOW=$(date "+%a %b %d • %I:%M %p")
 
+human_bytes_base() {
+  emulate -L zsh
+  local bytes="${1:-0}"
+  local base="${2:-1024}"
+  [[ -z "$bytes" ]] && bytes=0
+
+  local -a units=(B KB MB GB TB PB)
+  local unit=1
+  local value=$(( bytes * 1.0 ))
+
+  while (( unit < ${#units} && value >= base )); do
+    value=$(( value / base ))
+    (( unit++ ))
+  done
+
+  if (( unit == 1 )); then
+    printf '%.0f%s' "$value" "${units[$unit]}"
+  elif (( value >= 100 )); then
+    printf '%.0f%s' "$value" "${units[$unit]}"
+  else
+    printf '%.1f%s' "$value" "${units[$unit]}"
+  fi
+}
+
+human_disk_bytes() {
+  human_bytes_base "$1" 1000
+}
+
+human_mem_bytes() {
+  human_bytes_base "$1" 1024
+}
+
+human_age() {
+  emulate -L zsh
+  local seconds="${1:-0}"
+  (( seconds < 0 )) && seconds=0
+
+  local days=$(( seconds / 86400 ))
+  local hours=$(( (seconds % 86400) / 3600 ))
+  local mins=$(( (seconds % 3600) / 60 ))
+
+  if (( days > 0 )); then
+    if (( hours > 0 )); then
+      print -r -- "${days}d ${hours}h ago"
+    else
+      print -r -- "${days}d ago"
+    fi
+  elif (( hours > 0 )); then
+    if (( mins > 0 )); then
+      print -r -- "${hours}h ${mins}m ago"
+    else
+      print -r -- "${hours}h ago"
+    fi
+  elif (( mins > 0 )); then
+    print -r -- "${mins}m ago"
+  else
+    print -r -- "just now"
+  fi
+}
+
+count_backup_artifacts() {
+  local dir="$1"
+  if [[ -d "$dir" ]]; then
+    find "$dir" -maxdepth 1 -type f ! -name '.*' ! -name '*.sha256' 2>/dev/null | wc -l | tr -d ' '
+  else
+    print 0
+  fi
+}
+
 UPTIME=$(uptime | sed -E 's/^.*up ([^,]+), .*$/\1/' 2>/dev/null)
 LOAD=$(uptime | sed -nE 's/.*load averages?: ([0-9. ]+).*$/\1/p' | awk '{print $1" " $2" " $3}' 2>/dev/null)
-DISK=$(df -h / 2>/dev/null | awk 'NR==2 {print $3"/"$2" ("$5")"}')
-MEM=$(vm_stat 2>/dev/null | awk '
+
+INTERNAL_TOTAL_BYTES=0
+INTERNAL_FREE_BYTES=0
+read INTERNAL_TOTAL_BYTES INTERNAL_FREE_BYTES <<<"$(diskutil info -plist / 2>/dev/null | python3 -c 'import plistlib,sys; raw=sys.stdin.buffer.read(); data=plistlib.loads(raw) if raw else {}; print(data.get("APFSContainerSize", 0), data.get("APFSContainerFree", 0))' 2>/dev/null)"
+(( INTERNAL_TOTAL_BYTES > 0 )) || INTERNAL_TOTAL_BYTES=0
+(( INTERNAL_FREE_BYTES > 0 )) || INTERNAL_FREE_BYTES=0
+INTERNAL_USED_BYTES=$(( INTERNAL_TOTAL_BYTES - INTERNAL_FREE_BYTES ))
+(( INTERNAL_USED_BYTES < 0 )) && INTERNAL_USED_BYTES=0
+DISK="ssd $(human_disk_bytes "$INTERNAL_USED_BYTES") / $(human_disk_bytes "$INTERNAL_TOTAL_BYTES") used"
+
+TOTAL_MEM_BYTES=$(sysctl -n hw.memsize 2>/dev/null || echo 0)
+MEM_USED_BYTES=$(vm_stat 2>/dev/null | awk -v total="$TOTAL_MEM_BYTES" '
+/page size of/ {page=$8; gsub(/[^0-9]/, "", page)}
 /Pages free/ {free=$3}
-/Pages active/ {active=$3}
-/Pages inactive/ {inactive=$3}
 /Pages speculative/ {spec=$3}
-/Pages wired down/ {wired=$4}
-/Pages occupied by compressor/ {comp=$5}
+/Pages purgeable/ {purge=$3}
 END {
-  gsub("\\.","",free); gsub("\\.","",active); gsub("\\.","",inactive); gsub("\\.","",spec); gsub("\\.","",wired); gsub("\\.","",comp);
-  page=4096;
-  used=(active+inactive+spec+wired+comp)*page/1024/1024/1024;
-  avail=free*page/1024/1024/1024;
-  printf "%.1fG used • %.1fG free", used, avail;
+  gsub("\\.", "", free)
+  gsub("\\.", "", spec)
+  gsub("\\.", "", purge)
+  if (!page) page=4096
+  freebytes=(free+spec+purge)*page
+  used=total-freebytes
+  if (used < 0) used=0
+  printf "%.0f", used
 }')
+[[ -n "$MEM_USED_BYTES" ]] || MEM_USED_BYTES=0
+MEM="ram $(human_mem_bytes "$MEM_USED_BYTES") / $(human_mem_bytes "$TOTAL_MEM_BYTES") used"
 
 OPENCLAW_STATUS="gateway asleep"
 OPENCLAW_COLOR="$WARN_COLOR"
@@ -89,33 +171,45 @@ for repo in "$HOME/.openclaw/workspace" "$PROJECT_ROOT/dotfiles" "$PROJECT_ROOT"
   fi
 done
 
-BACKUP_ROOT="/Volumes/Carve/Backups/orange-pi/archives"
-BACKUP_SUMMARY="no archive yet"
-if [[ -d "$BACKUP_ROOT" ]]; then
-  LATEST_BACKUP=$(find "$BACKUP_ROOT" -maxdepth 1 -type f -name '*.tar.zst' -print0 2>/dev/null | xargs -0 stat -f '%m %N' 2>/dev/null | sort -nr | head -n 1 | cut -d' ' -f2-)
-  if [[ -n "$LATEST_BACKUP" ]]; then
-    BACKUP_SUMMARY=$(basename "$LATEST_BACKUP")
-  fi
+BACKUP_STATUS="idle"
+if pgrep -f 'backup-orange-pi-to-mini|backup-orangepi-sd-card|backup-raspberrypi-sd-card|backup-pi-sd-card' >/dev/null 2>&1; then
+  BACKUP_STATUS="running"
 fi
+
+ORANGE_ARCHIVE_COUNT=$(count_backup_artifacts "/Volumes/Carve/Backups/orange-pi/archives")
+ORANGE_IMAGE_COUNT=$(count_backup_artifacts "/Volumes/Carve/Backups/orange-pi/images")
+RASPBERRY_IMAGE_COUNT=$(count_backup_artifacts "/Volumes/Carve/Backups/raspberry-pi/images")
+ORANGE_TOTAL_COUNT=$(( ${ORANGE_ARCHIVE_COUNT:-0} + ${ORANGE_IMAGE_COUNT:-0} ))
+BACKUP_SUMMARY="${BACKUP_STATUS} • orange ${ORANGE_TOTAL_COUNT} • raspberry ${RASPBERRY_IMAGE_COUNT:-0}"
 
 TM_NAME=$(tmutil destinationinfo 2>/dev/null | awk -F': ' '/^Name[[:space:]]*:/ {print $2; exit}')
 TM_MOUNT=$(tmutil destinationinfo 2>/dev/null | awk -F': ' '/^Mount Point[[:space:]]*:/ {print $2; exit}')
 TM_RUNNING=$(tmutil status 2>/dev/null | awk -F'= ' '/Running =/ {gsub(/;/, "", $2); print $2; exit}')
-TM_PERCENT=$(tmutil status 2>/dev/null | awk -F'= ' '/Percent =/ {gsub(/[;\"]/, "", $2); print $2; exit}')
 TM_SUMMARY="not configured"
 if [[ -n "$TM_NAME" ]]; then
-  if [[ "$TM_RUNNING" == "1" ]]; then
-    if [[ -n "$TM_PERCENT" && "$TM_PERCENT" != "-1" ]]; then
-      TM_SUMMARY="$TM_NAME • running ${TM_PERCENT}%"
-    else
-      TM_SUMMARY="$TM_NAME • running"
-    fi
-  else
-    TM_SUMMARY="$TM_NAME • idle"
+  TM_STATUS="idle"
+  [[ "$TM_RUNNING" == "1" ]] && TM_STATUS="running"
+
+  TM_USED_BYTES=0
+  TM_LAST_SNAPSHOT=''
+  if [[ -n "$TM_MOUNT" ]]; then
+    TM_USED_BYTES=$(diskutil info -plist "$TM_MOUNT" 2>/dev/null | python3 -c 'import plistlib,sys; raw=sys.stdin.buffer.read(); data=plistlib.loads(raw) if raw else {}; print(data.get("CapacityInUse", 0))' 2>/dev/null)
+    TM_LAST_SNAPSHOT=$(diskutil info "$TM_MOUNT" 2>/dev/null | awk '/Name:[[:space:]]+com\.apple\.TimeMachine\./ {latest=$NF} END {print latest}')
   fi
 
-  if [[ -n "$TM_MOUNT" ]]; then
-    TM_SUMMARY+=" • $(basename "$TM_MOUNT")"
+  [[ -n "$TM_USED_BYTES" ]] || TM_USED_BYTES=0
+  TM_SUMMARY="${TM_STATUS} • $(human_disk_bytes "$TM_USED_BYTES") total"
+
+  if [[ -n "$TM_LAST_SNAPSHOT" ]]; then
+    TM_STAMP=${TM_LAST_SNAPSHOT#com.apple.TimeMachine.}
+    TM_STAMP=${TM_STAMP%.backup}
+    TM_EPOCH=$(date -j -f "%Y-%m-%d-%H%M%S" "$TM_STAMP" "+%s" 2>/dev/null || true)
+    if [[ -n "$TM_EPOCH" ]]; then
+      TM_AGE=$(human_age $(( $(date +%s) - TM_EPOCH )))
+      TM_SUMMARY+=" • ${TM_AGE}"
+    fi
+  else
+    TM_SUMMARY+=" • no backups yet"
   fi
 fi
 
@@ -186,6 +280,6 @@ box_line 'projects' "$WARN_COLOR" "${PROJECT_SUMMARY} • latest ${LATEST_PROJEC
 box_line 'backup' "$BACKUP_COLOR" "$BACKUP_SUMMARY" "$DIM_COLOR"
 box_line 'tm' "$BACKUP_COLOR" "$TM_SUMMARY" "$DIM_COLOR"
 box_line 'system' "$DIM_COLOR" "up ${UPTIME:-unknown} • load ${LOAD:-unknown}" "$DIM_COLOR"
-box_line 'storage' "$DIM_COLOR" "${DISK:-unknown} • ram ${MEM:-unknown}" "$DIM_COLOR"
+box_line 'storage' "$DIM_COLOR" "${DISK:-unknown} • ${MEM:-unknown}" "$DIM_COLOR"
 box_rule '╚' '═' '╝'
 print ""
