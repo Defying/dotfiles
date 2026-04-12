@@ -6,12 +6,15 @@ export PATH=/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin
 TARGET_LABEL="${SD_TARGET_LABEL:-Pi}"
 TARGET_SLUG="${SD_TARGET_SLUG:-pi}"
 TARGET_HOST="${SD_TARGET_HOST:-}"
+TARGET_MEDIA_KIND="${SD_TARGET_MEDIA_KIND:-disk}"
 BACKUP_ROOT="${SD_BACKUP_ROOT:-/Volumes/Carve/Backups/${TARGET_SLUG}/images}"
 IMAGE_PREFIX="${SD_IMAGE_PREFIX:-${TARGET_SLUG}-sd}"
+SCRIPT_NAME="$(basename "$0")"
 STAMP="$(date +%Y%m%d-%H%M%S)"
 EXPECTED_MEDIA_NAME="${SD_EXPECTED_MEDIA_NAME:-}"
 EXPECTED_SIZE_BYTES="${SD_EXPECTED_SIZE_BYTES:-}"
 EXPECTED_CONTENT="${SD_EXPECTED_CONTENT:-}"
+EXPECTED_REMOVABLE_MEDIA="${SD_EXPECTED_REMOVABLE_MEDIA:-}"
 
 fingerprint_configured() {
   [[ -n "$EXPECTED_MEDIA_NAME" && -n "$EXPECTED_SIZE_BYTES" && -n "$EXPECTED_CONTENT" ]]
@@ -20,8 +23,8 @@ fingerprint_configured() {
 usage() {
   cat <<EOF
 Usage:
-  ${0:t} [diskN]
-  ${0:t} --list
+  $SCRIPT_NAME [diskN]
+  $SCRIPT_NAME --list
 
 Target: $TARGET_LABEL${TARGET_HOST:+ ($TARGET_HOST)}
 Output root: $BACKUP_ROOT
@@ -30,10 +33,11 @@ EOF
   if fingerprint_configured; then
     cat <<EOF
 
-If no disk is given, the script auto-detects the expected card by fingerprint:
+If no disk is given, the script auto-detects the expected $TARGET_MEDIA_KIND by fingerprint:
   media name: $EXPECTED_MEDIA_NAME
   exact size: $EXPECTED_SIZE_BYTES bytes
-  partition map: $EXPECTED_CONTENT
+  partition map: $EXPECTED_CONTENT${EXPECTED_REMOVABLE_MEDIA:+
+  removable: $EXPECTED_REMOVABLE_MEDIA}
 EOF
   else
     cat <<'EOF'
@@ -87,7 +91,10 @@ find_expected_disk() {
     content="$(plist_field "/dev/$disk" Content)"
     removable="$(plist_field "/dev/$disk" RemovableMedia)"
 
-    if [[ "$whole" == "true" && "$internal" == "false" && "$removable" == "true" && "$name" == "$EXPECTED_MEDIA_NAME" && "$size" == "$EXPECTED_SIZE_BYTES" && "$content" == "$EXPECTED_CONTENT" ]]; then
+    if [[ "$whole" == "true" && "$internal" == "false" && "$name" == "$EXPECTED_MEDIA_NAME" && "$size" == "$EXPECTED_SIZE_BYTES" && "$content" == "$EXPECTED_CONTENT" ]]; then
+      if [[ -n "$EXPECTED_REMOVABLE_MEDIA" && "$removable" != "$EXPECTED_REMOVABLE_MEDIA" ]]; then
+        continue
+      fi
       print -r -- "$disk"
       return 0
     fi
@@ -117,13 +124,13 @@ typeset disk="${1:-}"
 if [[ -z "$disk" ]]; then
   if fingerprint_configured; then
     if ! disk="$(find_expected_disk)"; then
-      echo "[error] could not auto-detect the expected $TARGET_LABEL microSD card"
+      echo "[error] could not auto-detect the expected $TARGET_LABEL $TARGET_MEDIA_KIND"
       echo
       echo "External physical disks:"
       list_candidates
       exit 1
     fi
-    echo "[ok] auto-detected $TARGET_LABEL microSD as /dev/$disk"
+    echo "[ok] auto-detected $TARGET_LABEL $TARGET_MEDIA_KIND as /dev/$disk"
   else
     echo "External physical disks:"
     list_candidates
@@ -163,9 +170,15 @@ fi
 
 if fingerprint_configured; then
   if [[ "$name" != "$EXPECTED_MEDIA_NAME" || "$size_bytes" != "$EXPECTED_SIZE_BYTES" || "$content" != "$EXPECTED_CONTENT" ]]; then
-    echo "[error] $dev does not match the expected $TARGET_LABEL microSD fingerprint"
-    echo "        expected: media=$EXPECTED_MEDIA_NAME size=$EXPECTED_SIZE_BYTES content=$EXPECTED_CONTENT"
-    echo "        got:      media=${name:-unknown} size=${size_bytes:-unknown} content=${content:-unknown}"
+    echo "[error] $dev does not match the expected $TARGET_LABEL $TARGET_MEDIA_KIND fingerprint"
+    echo "        expected: media=$EXPECTED_MEDIA_NAME size=$EXPECTED_SIZE_BYTES content=$EXPECTED_CONTENT${EXPECTED_REMOVABLE_MEDIA:+ removable=$EXPECTED_REMOVABLE_MEDIA}"
+    echo "        got:      media=${name:-unknown} size=${size_bytes:-unknown} content=${content:-unknown}${removable:+ removable=$removable}"
+    exit 1
+  fi
+  if [[ -n "$EXPECTED_REMOVABLE_MEDIA" && "$removable" != "$EXPECTED_REMOVABLE_MEDIA" ]]; then
+    echo "[error] $dev does not match the expected $TARGET_LABEL $TARGET_MEDIA_KIND fingerprint"
+    echo "        expected removable=$EXPECTED_REMOVABLE_MEDIA"
+    echo "        got      removable=${removable:-unknown}"
     exit 1
   fi
 fi
@@ -182,7 +195,7 @@ cleanup_partial_image() {
 }
 
 cat <<EOF
-About to create a compressed $TARGET_LABEL microSD image backup.
+About to create a compressed $TARGET_LABEL $TARGET_MEDIA_KIND image backup.
 
   target:    $TARGET_LABEL${TARGET_HOST:+ ($TARGET_HOST)}
   disk:      $dev
@@ -193,7 +206,7 @@ About to create a compressed $TARGET_LABEL microSD image backup.
   content:   ${content:-unknown}
   output:    $outfile
 
-The card will be unmounted first. This reads the card and writes a gzip-compressed image.
+The device will be unmounted first. This reads the device and writes a gzip-compressed image.
 EOF
 
 echo "[info] starting image backup, press x at any time to stop"
