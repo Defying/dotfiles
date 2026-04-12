@@ -29,24 +29,47 @@ if [ -f "$HOME/.openclaw/completions/openclaw.zsh" ]; then
   source "$HOME/.openclaw/completions/openclaw.zsh"
 fi
 
-# Minimal prompt, readable git info, no heavy theme machinery.
+# Fancy but lightweight prompt.
 autoload -Uz add-zsh-hook colors vcs_info
 colors
 setopt prompt_subst
 
 zstyle ':vcs_info:*' enable git
 zstyle ':vcs_info:git:*' check-for-changes true
-zstyle ':vcs_info:git:*' stagedstr ' +'
-zstyle ':vcs_info:git:*' unstagedstr ' !'
-zstyle ':vcs_info:git:*' formats ' %F{244}on%f %F{81}%b%f%c%u'
-zstyle ':vcs_info:git:*' actionformats ' %F{244}on%f %F{81}%b|%a%f%c%u'
+zstyle ':vcs_info:git:*' stagedstr '●'
+zstyle ':vcs_info:git:*' unstagedstr '✚'
+zstyle ':vcs_info:git:*' formats '%F{81}⎇ %b%f %F{214}%c%u%f'
+zstyle ':vcs_info:git:*' actionformats '%F{81}⎇ %b|%a%f %F{214}%c%u%f'
 
 _doves_prompt_precmd() {
+  local exit_code=$?
   vcs_info
+
+  if [[ $exit_code -eq 0 ]]; then
+    export DOVES_PROMPT_STATUS="%F{78}● ok%f"
+    export DOVES_PROMPT_ARROW="%F{78}❯%f"
+  else
+    export DOVES_PROMPT_STATUS="%F{160}● exit ${exit_code}%f"
+    export DOVES_PROMPT_ARROW="%F{160}❯%f"
+  fi
+
+  local jobs_count
+  jobs_count=$(jobs -p 2>/dev/null | wc -l | tr -d ' ')
+  if [[ -n "$jobs_count" && "$jobs_count" != "0" ]]; then
+    export DOVES_PROMPT_JOBS=" %F{215}⚙ ${jobs_count}%f"
+  else
+    export DOVES_PROMPT_JOBS=""
+  fi
+
+  if [[ -n "${vcs_info_msg_0_}" ]]; then
+    export DOVES_PROMPT_GIT=" ${vcs_info_msg_0_}"
+  else
+    export DOVES_PROMPT_GIT=""
+  fi
 }
 
 add-zsh-hook precmd _doves_prompt_precmd
 
-PROMPT='%F{39}%2~%f${vcs_info_msg_0_}
-%(?.%F{70}›%f.%F{160}›%f) '
-RPROMPT='%(?..%F{160}exit %?%f )%F{244}%*%f'
+PROMPT='%F{45}╭─%f %B%F{117}%n@%m%f%b %F{45}in%f %B%F{111}%~%f%b${DOVES_PROMPT_GIT}${DOVES_PROMPT_JOBS}
+%F{45}╰─%f ${DOVES_PROMPT_STATUS} %F{244}[%*]%f ${DOVES_PROMPT_ARROW} '
+RPROMPT=''
