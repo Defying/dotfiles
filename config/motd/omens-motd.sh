@@ -206,11 +206,27 @@ if [[ -n "$TM_NAME" ]]; then
   TM_STATUS="idle"
   [[ "$TM_RUNNING" == "1" ]] && TM_STATUS="running"
 
+  TM_DEVICE=''
+  if [[ -z "$TM_MOUNT" ]]; then
+    TM_DEVICE=$(diskutil apfs list -plist 2>/dev/null | python3 -c 'import plistlib,sys; raw=sys.stdin.buffer.read(); data=plistlib.loads(raw) if raw else {}; target=sys.argv[1];
+for container in data.get("Containers", []):
+  for volume in container.get("Volumes", []):
+    roles=volume.get("Roles") or []
+    name=volume.get("Name") or ""
+    if "Backup" in roles and (not target or name == target):
+      print(volume.get("DeviceIdentifier", ""))
+      raise SystemExit
+' "$TM_NAME" 2>/dev/null)
+  fi
+
   TM_USED_BYTES=0
   TM_LAST_SNAPSHOT=''
+  TM_LOCKED=''
   if [[ -n "$TM_MOUNT" ]]; then
     TM_USED_BYTES=$(diskutil info -plist "$TM_MOUNT" 2>/dev/null | python3 -c 'import plistlib,sys; raw=sys.stdin.buffer.read(); data=plistlib.loads(raw) if raw else {}; print(data.get("CapacityInUse", 0))' 2>/dev/null)
     TM_LAST_SNAPSHOT=$(diskutil info "$TM_MOUNT" 2>/dev/null | awk '/Name:[[:space:]]+com\.apple\.TimeMachine\./ {latest=$NF} END {print latest}')
+  elif [[ -n "$TM_DEVICE" ]]; then
+    read TM_USED_BYTES TM_LOCKED <<<"$(diskutil info -plist "$TM_DEVICE" 2>/dev/null | python3 -c 'import plistlib,sys; raw=sys.stdin.buffer.read(); data=plistlib.loads(raw) if raw else {}; print(data.get("CapacityInUse", 0), int(bool(data.get("Locked", False))))' 2>/dev/null)"
   fi
 
   [[ -n "$TM_USED_BYTES" ]] || TM_USED_BYTES=0
@@ -223,7 +239,11 @@ if [[ -n "$TM_NAME" ]]; then
     if [[ -n "$TM_EPOCH" ]]; then
       TM_AGE=$(human_age $(( $(date +%s) - TM_EPOCH )))
       TM_SUMMARY+=" • ${TM_AGE}"
+    else
+      TM_SUMMARY+=" • latest unknown"
     fi
+  elif [[ "$TM_LOCKED" == "1" && "$TM_USED_BYTES" != "0" ]]; then
+    TM_SUMMARY+=" • destination locked"
   else
     TM_SUMMARY+=" • no backups yet"
   fi

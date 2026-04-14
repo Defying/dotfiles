@@ -383,7 +383,13 @@ run_privileged mkdir -p "$STAGING_DIR/bootfs" "$STAGING_DIR/rootfs" "$STAGING_DI
 
 ensure_boot_mount "$BOOT_PART"
 echo "[info] copying boot partition from $BOOT_MOUNT_POINT"
-run_privileged /usr/bin/rsync -aH --delete --exclude '.DS_Store' "$BOOT_MOUNT_POINT/" "$STAGING_DIR/bootfs/"
+run_privileged /usr/bin/rsync -aH --delete \
+  --exclude '.DS_Store' \
+  --exclude '.Spotlight-V100/' \
+  --exclude '.fseventsd/' \
+  --exclude '.Trashes/' \
+  --exclude '.TemporaryItems/' \
+  "$BOOT_MOUNT_POINT/" "$STAGING_DIR/bootfs/"
 
 echo "[info] dumping ext4 root filesystem from $ROOT_PART"
 run_privileged "$DEBUGFS_BIN" -R "rdump / $STAGING_DIR/rootfs" "$ROOT_PART" >/dev/null
