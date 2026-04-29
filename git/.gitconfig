@@ -1,3 +1,9 @@
 [user]
 	email = 2173281+Defying@users.noreply.github.com
 	name = Ben Weakley
+[credential "https://github.com"]
+	helper = 
+	helper = !/opt/homebrew/bin/gh auth git-credential
+[credential "https://gist.github.com"]
+	helper = 
+	helper = !/opt/homebrew/bin/gh auth git-credential
