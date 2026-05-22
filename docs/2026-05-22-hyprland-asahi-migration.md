@@ -80,6 +80,16 @@ hypr-recovery-card
 
 It prints the login-screen session choices, first-test order, emergency keybindings, TTY fallback, rollback/re-enable commands, log locations, backup bundles, and Btrfs snapshot anchors. It is also available from the `hypr-menu`.
 
+## First-login notice
+
+The normal Hyprland session autostarts a one-time notification after Mako starts:
+
+```text
+~/.local/bin/hypr-first-login-notice
+```
+
+It points at `Cmd + Alt + Space`, `Cmd + K`, `Cmd + Return`, `Cmd + Shift + /`, and `Cmd + Shift + Q`. The safe Hyprland session intentionally does not run this or any other user autostart helper.
+
 ## Command key fix
 
 Goal: Apple Command acts as Linux Super/Win, Option acts as Alt, Control stays Control.

@@ -89,7 +89,7 @@ else
 fi
 
 print_section "Commands"
-for cmd in Hyprland hyprctl jq rg waybar fuzzel mako hypridle hyprlock hyprpaper hyprland-share-picker wl-copy wl-paste cliphist grim slurp swappy brightnessctl playerctl; do
+for cmd in Hyprland hyprctl jq rg notify-send waybar fuzzel mako hypridle hyprlock hyprpaper hyprland-share-picker wl-copy wl-paste cliphist grim slurp swappy brightnessctl playerctl; do
   check_command "$cmd"
 done
 

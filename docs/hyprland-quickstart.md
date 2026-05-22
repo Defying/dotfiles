@@ -55,8 +55,9 @@ The menu at `Cmd + Alt + Space` is the Fedora-safe equivalent of Omarchy's menu 
 
 After the first normal Hyprland login:
 
-1. Press `Cmd + Return`.
-2. Run:
+1. A one-time `Hyprland ready` notification should appear after Mako starts.
+2. Press `Cmd + Return`.
+3. Run:
 
 ```bash
 hypr-doctor
@@ -127,6 +128,7 @@ Live config files are symlinked from this repo:
 ~/.local/bin/hypr-keybindings
 ~/.local/bin/hypr-menu
 ~/.local/bin/hypr-recovery-card
+~/.local/bin/hypr-first-login-notice
 ```
 
 ## Fast fallback

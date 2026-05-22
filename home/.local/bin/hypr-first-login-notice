@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+force=0
+if [ "${1:-}" = "--force" ]; then
+  force=1
+fi
+
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/hyprland"
+marker="$state_dir/first-login-notice.seen"
+
+if [ "$force" -eq 0 ]; then
+  case "${XDG_CURRENT_DESKTOP:-}:${XDG_SESSION_DESKTOP:-}" in
+    *Hyprland*)
+      ;;
+    *)
+      printf 'Not a Hyprland session; skipping first-login notice.\n'
+      exit 0
+      ;;
+  esac
+
+  if [ -z "${WAYLAND_DISPLAY:-}" ]; then
+    printf 'WAYLAND_DISPLAY is not set; skipping first-login notice.\n'
+    exit 0
+  fi
+
+  if [ -e "$marker" ]; then
+    printf 'First-login notice already shown: %s\n' "$marker"
+    exit 0
+  fi
+fi
+
+if ! command -v notify-send >/dev/null 2>&1; then
+  printf 'notify-send is unavailable; skipping first-login notice.\n' >&2
+  exit 0
+fi
+
+body="$(
+  cat <<'EOF'
+Cmd + Alt + Space  menu
+Cmd + K            keybindings
+Cmd + Return       terminal
+Cmd + Shift + /    doctor
+Cmd + Shift + Q    exit Hyprland
+EOF
+)"
+
+if notify-send --app-name="Hyprland" "Hyprland ready" "$body"; then
+  mkdir -p "$state_dir"
+  touch "$marker"
+  printf 'First-login notice shown: %s\n' "$marker"
+else
+  printf 'notify-send failed; first-login notice was not marked seen.\n' >&2
+  exit 1
+fi
