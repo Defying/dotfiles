@@ -27,7 +27,7 @@
   },
 
   "custom/clock": {
-    "exec": "date '+%a %b %d  %H:%M' | tr '[:upper:]' '[:lower:]'",
+    "exec": "date '+%-I:%M'",
     "interval": 30,
     "format": "{}",
     "tooltip": false
