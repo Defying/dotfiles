@@ -84,6 +84,7 @@ Hyprland keys:
 Recovery commands:
   hypr-validate
   hypr-preflight
+  hypr-readiness
   hypr-smoke-test --run
   hypr-login-status
   hypr-login-default plasma

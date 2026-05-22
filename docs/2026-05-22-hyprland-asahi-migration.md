@@ -100,6 +100,14 @@ It refreshes the Plasma/user service environment, keeps Plasma as the remembered
 
 Automation boundary: real login-screen proof is not automated from Codex. Do not force logout, restart `plasmalogin.service`, or enable autologin unless `ben` is at the keyboard and has a confirmed way back into Plasma. The safe automated checks are `hypr-preflight` and, only when explicitly requested, `hypr-smoke-test --run`.
 
+The read-only proof audit is:
+
+```bash
+hypr-readiness
+```
+
+It checks the current session, Plasma greeter default, rollback sessions, backup bundles, Btrfs snapshots, dotfiles cleanliness/push status, `hypr-validate`, the latest nested smoke-test report, and the real-login proof marker. It does not alter login state.
+
 The nested smoke-test helper starts the real configured Hyprland under the current Plasma Wayland session:
 
 ```bash

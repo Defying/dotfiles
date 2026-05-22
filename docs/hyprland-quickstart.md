@@ -35,6 +35,12 @@ Before a real retry, this command runs the whole safe preflight: refreshes the P
 hypr-preflight
 ```
 
+To print a read-only proof audit without changing login/session state:
+
+```bash
+hypr-readiness
+```
+
 To test the actual Hyprland config from inside Plasma without logging out, run:
 
 ```bash
@@ -188,6 +194,7 @@ Live config files are symlinked from this repo:
 ~/.local/bin/hypr-login-default
 ~/.local/bin/hypr-refresh-session-env
 ~/.local/bin/hypr-preflight
+~/.local/bin/hypr-readiness
 ~/.local/bin/hypr-smoke-test
 ~/.local/bin/hypr-logs
 ~/.local/bin/hypr-first-login-notice
