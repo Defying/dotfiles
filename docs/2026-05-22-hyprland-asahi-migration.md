@@ -19,6 +19,17 @@ Btrfs snapshots were created before Hyprland installation or config changes:
 
 The backup bundle contains package manifests, `/etc`, boot config, KDE config, dotfiles, and user config copies. Size when created: about 5.1 GB.
 
+A second read-only checkpoint was created after Hyprland was installed/configured and before any real login-screen Hyprland test:
+
+- Backup ID: `pre-first-hyprland-login-20260522-093108`
+- Device: `/dev/nvme0n1p6`
+- Root snapshot: `/.snapshots/pre-first-hyprland-login-20260522-093108/root`
+- Home snapshot: `/.snapshots/pre-first-hyprland-login-20260522-093108/home`
+- Inspectable manifest bundle: `/home/ben/system-backups/pre-first-hyprland-login-20260522-093108`
+- Dotfiles commit at creation: `011e6a1647ed5a47a5ad4740ffe0f9362f24fd9b`
+
+The second bundle records package state, Btrfs subvolumes, session files, the Hyprland system-file check, dotfiles status/log, and a passing `hypr-validate` run.
+
 ## Initial safety state
 
 - Plasma is still installed and remains the working desktop.

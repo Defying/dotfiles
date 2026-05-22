@@ -62,10 +62,13 @@ check "Plasma package still installed" rpm -q plasma-desktop
 check "dotfiles repo clean" bash -lc 'test -z "$(git -C /home/ben/dotfiles status --porcelain)"'
 check "dotfiles pushed" bash -lc 'local_head="$(git -C /home/ben/dotfiles rev-parse HEAD)"; remote_head="$(git -C /home/ben/dotfiles ls-remote origin refs/heads/main | cut -f1)"; test "$local_head" = "$remote_head"'
 check "backup bundle present" test -d /home/ben/system-backups/pre-hyprland-20260522-083751
+check "first-login backup bundle present" test -d /home/ben/system-backups/pre-first-hyprland-login-20260522-093108
 
 if sudo -n true >/dev/null 2>&1; then
   check "Btrfs root snapshot present" bash -lc 'sudo btrfs subvolume list -a / | rg -q "/.snapshots/pre-hyprland-20260522-083751/root$"'
   check "Btrfs home snapshot present" bash -lc 'sudo btrfs subvolume list -a / | rg -q "/.snapshots/pre-hyprland-20260522-083751/home$"'
+  check "First-login root snapshot present" bash -lc 'sudo btrfs subvolume list -a / | rg -q "/.snapshots/pre-first-hyprland-login-20260522-093108/root$"'
+  check "First-login home snapshot present" bash -lc 'sudo btrfs subvolume list -a / | rg -q "/.snapshots/pre-first-hyprland-login-20260522-093108/home$"'
 else
   printf '%-42sSKIP (sudo unavailable)\n' "Btrfs snapshot checks"
 fi

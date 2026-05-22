@@ -197,4 +197,12 @@ Pre-Hyprland backup:
 /.snapshots/pre-hyprland-20260522-083751/home
 ```
 
+Configured-state checkpoint before the first real Hyprland login:
+
+```text
+/home/ben/system-backups/pre-first-hyprland-login-20260522-093108
+/.snapshots/pre-first-hyprland-login-20260522-093108/root
+/.snapshots/pre-first-hyprland-login-20260522-093108/home
+```
+
 Use the Btrfs snapshots for a full rollback only from a rescue environment or with a deliberate rollback plan. Plasma fallback should be the first recovery path.
