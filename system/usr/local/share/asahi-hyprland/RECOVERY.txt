@@ -1,0 +1,57 @@
+Hyprland emergency recovery
+host: misery
+generated: {{DATE}}
+
+Use this when Hyprland is confusing, black-screened, or you cannot open a terminal.
+
+Login screen recovery:
+  1. Open the session chooser.
+  2. Pick Plasma.
+  3. If normal Plasma still does not work, pick Plasma (Rollback Hyprland).
+
+Hyprland keyboard exits:
+  Ctrl + Alt + Q
+  Ctrl + Alt + Backspace
+  Cmd + Shift + Q
+
+TTY recovery:
+  1. Press Ctrl + Alt + F3.
+  2. Log in as ben.
+  3. Run:
+
+       hypr-emergency
+       /usr/local/bin/asahi-hyprland-disable-config --check
+       /usr/local/bin/asahi-hyprland-disable-config
+       sudo reboot
+
+  4. At the login screen, choose Plasma.
+
+What rollback does:
+  It moves /home/ben/.config/hypr to a timestamped disabled directory.
+  It does not delete the dotfiles repo.
+  It does not restore Btrfs snapshots.
+
+Rollback logs:
+  /home/ben/hyprland-rollback/rollback-*.log
+
+Re-enable from Plasma:
+  hypr-enable
+
+Readiness check from Plasma:
+  hypr-readiness
+
+Static validator from Plasma:
+  hypr-validate
+
+Backups:
+  /home/ben/system-backups/pre-hyprland-20260522-083751
+  /home/ben/system-backups/pre-first-hyprland-login-20260522-093108
+
+Btrfs snapshot anchors:
+  /.snapshots/pre-hyprland-20260522-083751/root
+  /.snapshots/pre-hyprland-20260522-083751/home
+  /.snapshots/pre-first-hyprland-login-20260522-093108/root
+  /.snapshots/pre-first-hyprland-login-20260522-093108/home
+
+Use full Btrfs snapshot rollback only deliberately. Try Plasma, Plasma
+(Rollback Hyprland), and the disable-config command first.

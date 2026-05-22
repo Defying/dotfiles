@@ -104,6 +104,8 @@ The normal Hyprland session opens Ghostty automatically until `hypr-proof` has r
 
 From a terminal, `hypr-help` reopens this quickstart, `hypr-recovery-card` prints the rollback card, `hypr-login-status` shows login-manager state, `hypr-logs` shows the latest attempt logs, `hypr-validate` reruns the static safety checks, `hypr-doctor` checks the live Hyprland session, and `hypr-proof` records proof after a real Hyprland login.
 
+`hypr-emergency` prints a root-owned plain-text recovery card from `/usr/local/share/asahi-hyprland/RECOVERY.txt`, so it still works from a plain TTY without remembering this repo path.
+
 The menu at `Cmd + Alt + Space` is the Fedora-safe equivalent of Omarchy's menu workflow. It opens apps, keybindings, quickstart, recovery card, login status, logs, preflight, doctor, proof, validator, clipboard history, audio/network tools, the Hyprland config, and the power menu.
 
 ## First Login Check
@@ -279,6 +281,7 @@ If Hyprland will not start:
 3. Run the rollback command:
 
 ```bash
+hypr-emergency
 hypr-rollback --check
 hypr-rollback
 ```

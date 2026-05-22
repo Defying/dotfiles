@@ -101,8 +101,11 @@ It refreshes the Plasma/user service environment, keeps Plasma as the remembered
 TTY rollback can be inspected before changing anything:
 
 ```bash
+hypr-emergency
 hypr-rollback --check
 ```
+
+`hypr-emergency` reads `/usr/local/share/asahi-hyprland/RECOVERY.txt`, a root-owned plain-text recovery card installed outside the dotfiles checkout.
 
 The real rollback command moves `~/.config/hypr` aside and leaves the tracked dotfiles untouched:
 

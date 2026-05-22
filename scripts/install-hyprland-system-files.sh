@@ -5,11 +5,13 @@ repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 mode="${1:---install}"
 
 files=(
+  system/usr/local/bin/hypr-emergency
   system/usr/local/bin/asahi-hyprland-disable-config
   system/usr/local/bin/asahi-hyprland-logged
   system/usr/local/bin/asahi-hyprland-recovery
   system/usr/local/bin/asahi-hyprland-rollback-plasma
   system/usr/local/bin/asahi-hyprland-safe
+  system/usr/local/share/asahi-hyprland/RECOVERY.txt
   system/usr/local/share/asahi-hyprland/hyprland-recovery.conf
   system/usr/local/share/asahi-hyprland/hyprland-safe.conf
   system/usr/share/wayland-sessions/hyprland-logged.desktop

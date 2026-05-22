@@ -40,7 +40,7 @@ check "Hyprland XDPH config" bash -lc 'test -f /home/ben/.config/hypr/xdph.conf 
 check "Fuzzel config" fuzzel --check-config --config /home/ben/.config/fuzzel/fuzzel.ini
 check "Waybar JSON" jq empty /home/ben/.config/waybar/config.jsonc
 check "Ghostty terminal command" command -v ghostty
-check "helper scripts" bash -n /home/ben/.local/bin/hypr-power-menu /home/ben/.local/bin/hypr-screenshot /home/ben/.local/bin/hypr-clipboard-menu /home/ben/.local/bin/hypr-rollback /home/ben/.local/bin/hypr-enable /home/ben/.local/bin/hypr-help /home/ben/.local/bin/hypr-doctor /home/ben/.local/bin/hypr-proof /home/ben/.local/bin/hypr-keybindings /home/ben/.local/bin/hypr-menu /home/ben/.local/bin/hypr-recovery-card /home/ben/.local/bin/hypr-logs /home/ben/.local/bin/hypr-login-status /home/ben/.local/bin/hypr-login-default /home/ben/.local/bin/hypr-refresh-session-env /home/ben/.local/bin/hypr-preflight /home/ben/.local/bin/hypr-readiness /home/ben/.local/bin/hypr-smoke-test /home/ben/.local/bin/hypr-first-login-notice /home/ben/.local/bin/hypr-first-login-terminal /home/ben/.local/bin/hypr-session-autocheck /home/ben/dotfiles/system/usr/local/bin/asahi-hyprland-recovery /home/ben/dotfiles/scripts/install-hyprland-system-files.sh
+check "helper scripts" bash -n /home/ben/.local/bin/hypr-power-menu /home/ben/.local/bin/hypr-screenshot /home/ben/.local/bin/hypr-clipboard-menu /home/ben/.local/bin/hypr-rollback /home/ben/.local/bin/hypr-enable /home/ben/.local/bin/hypr-help /home/ben/.local/bin/hypr-doctor /home/ben/.local/bin/hypr-proof /home/ben/.local/bin/hypr-keybindings /home/ben/.local/bin/hypr-menu /home/ben/.local/bin/hypr-recovery-card /home/ben/.local/bin/hypr-logs /home/ben/.local/bin/hypr-login-status /home/ben/.local/bin/hypr-login-default /home/ben/.local/bin/hypr-refresh-session-env /home/ben/.local/bin/hypr-preflight /home/ben/.local/bin/hypr-readiness /home/ben/.local/bin/hypr-smoke-test /home/ben/.local/bin/hypr-first-login-notice /home/ben/.local/bin/hypr-first-login-terminal /home/ben/.local/bin/hypr-session-autocheck /home/ben/dotfiles/system/usr/local/bin/hypr-emergency /home/ben/dotfiles/system/usr/local/bin/asahi-hyprland-recovery /home/ben/dotfiles/scripts/install-hyprland-system-files.sh
 check_link "Hyprland config linked" /home/ben/.config/hypr/hyprland.conf config/hypr/hyprland.conf
 check_link "Hyprpaper config linked" /home/ben/.config/hypr/hyprpaper.conf config/hypr/hyprpaper.conf
 check_link "Hypridle config linked" /home/ben/.config/hypr/hypridle.conf config/hypr/hypridle.conf
@@ -78,6 +78,10 @@ check "Hyprland logged session desktop" desktop-file-validate /usr/share/wayland
 check "Hyprland logged script" test -x /usr/local/bin/asahi-hyprland-logged
 check_match "Hyprland logged session installed" system/usr/share/wayland-sessions/hyprland-logged.desktop /usr/share/wayland-sessions/hyprland-logged.desktop
 check_match "Hyprland logged script installed" system/usr/local/bin/asahi-hyprland-logged /usr/local/bin/asahi-hyprland-logged
+check "Hypr emergency command" test -x /usr/local/bin/hypr-emergency
+check "Hypr emergency card" test -f /usr/local/share/asahi-hyprland/RECOVERY.txt
+check_match "Hypr emergency command installed" system/usr/local/bin/hypr-emergency /usr/local/bin/hypr-emergency
+check_match "Hypr emergency card installed" system/usr/local/share/asahi-hyprland/RECOVERY.txt /usr/local/share/asahi-hyprland/RECOVERY.txt
 check "Hyprland safe config" Hyprland --verify-config -c /usr/local/share/asahi-hyprland/hyprland-safe.conf
 check "Hyprland safe session file" test -f /usr/share/wayland-sessions/hyprland-safe.desktop
 check "Hyprland safe session desktop" desktop-file-validate /usr/share/wayland-sessions/hyprland-safe.desktop

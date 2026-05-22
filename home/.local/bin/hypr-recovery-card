@@ -94,6 +94,7 @@ Recovery commands:
   hypr-logs
   hypr-doctor
   hypr-proof
+  hypr-emergency
   hypr-rollback --check
   hypr-rollback
   hypr-enable
@@ -102,6 +103,7 @@ Recovery commands:
 TTY fallback:
   Ctrl + Alt + F3
   log in as ben
+  hypr-emergency
   hypr-rollback --check
   hypr-rollback
   sudo reboot

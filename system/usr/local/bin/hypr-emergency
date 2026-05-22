@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+card="/usr/local/share/asahi-hyprland/RECOVERY.txt"
+
+if [ -r "$card" ]; then
+  sed "s/{{DATE}}/$(date --iso-8601=seconds)/g" "$card"
+else
+  cat <<'EOF'
+Hyprland emergency recovery
+
+At the login screen:
+  1. Open the session chooser.
+  2. Pick Plasma.
+  3. If Plasma still fails, pick Plasma (Rollback Hyprland).
+
+From a TTY:
+  Ctrl + Alt + F3
+  log in as ben
+  /usr/local/bin/asahi-hyprland-disable-config --check
+  /usr/local/bin/asahi-hyprland-disable-config
+  sudo reboot
+  choose Plasma
+EOF
+fi
