@@ -5,12 +5,12 @@
   "height": 28,
   "spacing": 0,
   "modules-left": ["custom/launcher", "hyprland/workspaces"],
-  "modules-center": ["clock"],
+  "modules-center": ["custom/clock"],
   "modules-right": ["tray", "network", "pulseaudio", "battery", "custom/power"],
 
   "custom/launcher": {
     "format": "⌘",
-    "tooltip": "Launcher: Cmd + Space",
+    "tooltip": "launcher: cmd + space",
     "on-click": "fuzzel --show drun"
   },
 
@@ -26,9 +26,10 @@
     }
   },
 
-  "clock": {
-    "format": "{:%a %b %d  %H:%M}",
-    "format-alt": "{:%Y-%m-%d  week %V}",
+  "custom/clock": {
+    "exec": "date '+%a %b %d  %H:%M' | tr '[:upper:]' '[:lower:]'",
+    "interval": 30,
+    "format": "{}",
     "tooltip": false
   },
 
@@ -38,8 +39,8 @@
     "format-disconnected": "",
     "format-icons": ["", "", ""],
     "tooltip-format-wifi": "{essid} ({signalStrength}%)",
-    "tooltip-format-ethernet": "Ethernet",
-    "tooltip-format-disconnected": "Disconnected",
+    "tooltip-format-ethernet": "ethernet",
+    "tooltip-format-disconnected": "disconnected",
     "on-click": "nm-connection-editor",
     "interval": 3
   },
@@ -72,7 +73,7 @@
 
   "custom/power": {
     "format": "",
-    "tooltip": "Power menu: Cmd + Escape",
+    "tooltip": "power menu: cmd + escape",
     "on-click": "hypr-power-menu"
   }
 }

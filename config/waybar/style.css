@@ -21,7 +21,7 @@ window#waybar {
 #custom-launcher,
 #custom-power,
 #workspaces button,
-#clock,
+#custom-clock,
 #network,
 #pulseaudio,
 #battery,
@@ -59,7 +59,7 @@ window#waybar {
   color: #ff6b6b;
 }
 
-#clock {
+#custom-clock {
   font-family: "SF Mono", monospace;
 }
 
