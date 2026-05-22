@@ -98,6 +98,14 @@ hypr-preflight
 
 It refreshes the Plasma/user service environment, keeps Plasma as the remembered greeter default, clears first-login notice state so the next normal Hyprland attempt is noisy again, runs `hypr-validate`, prints `hypr-login-status`, and prints the fallback keys.
 
+The nested smoke-test helper starts the real configured Hyprland under the current Plasma Wayland session:
+
+```bash
+hypr-smoke-test
+```
+
+It checks Hyprland IPC, launches Ghostty, runs `hypr-doctor` against the nested compositor, writes `~/hyprland-first-login/nested-smoke-*.report`, exits the nested compositor, and refreshes the Plasma session environment. Nested smoke sessions set `HYPR_NESTED_SMOKE=1` so the real-login autocheck does not write misleading proof logs. This is stronger than static validation but still not a replacement for real login-screen proof.
+
 Use a real Plasma logout before the first Hyprland test:
 
 ```text

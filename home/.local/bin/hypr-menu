@@ -20,6 +20,7 @@ choice="$(
     "Login Status" \
     "Logs" \
     "Preflight" \
+    "Smoke Test" \
     "Doctor" \
     "Proof" \
     "Validate" \
@@ -52,6 +53,9 @@ case "$choice" in
     ;;
   "Preflight")
     run_terminal "/home/ben/.local/bin/hypr-preflight"
+    ;;
+  "Smoke Test")
+    run_terminal "/home/ben/.local/bin/hypr-smoke-test"
     ;;
   "Doctor")
     run_terminal "/home/ben/.local/bin/hypr-doctor"

@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
+if [ "${HYPR_NESTED_SMOKE:-}" = "1" ]; then
+  printf 'Nested smoke test session; skipping real-login autocheck.\n'
+  exit 0
+fi
+
 case "${XDG_CURRENT_DESKTOP:-}:${XDG_SESSION_DESKTOP:-}" in
   *Hyprland*)
     ;;

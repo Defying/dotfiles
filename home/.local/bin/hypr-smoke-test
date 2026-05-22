@@ -1,0 +1,145 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+uid="$(id -u)"
+runtime="${XDG_RUNTIME_DIR:-/run/user/$uid}"
+log_dir="$HOME/hyprland-first-login"
+ts="$(date +%Y%m%d-%H%M%S)"
+log_file="$log_dir/nested-smoke-$ts.log"
+report_file="$log_dir/nested-smoke-$ts.report"
+before_dirs="$(mktemp -t hypr-smoke-dirs-before.XXXXXX)"
+after_dirs="$(mktemp -t hypr-smoke-dirs-after.XXXXXX)"
+before_pids="$(mktemp -t hypr-smoke-pids-before.XXXXXX)"
+launcher_pid=""
+signature=""
+status=1
+
+mkdir -p "$log_dir"
+
+cleanup_new_processes() {
+  local pid comm
+
+  ps -u "$uid" -o pid=,comm= | while read -r pid comm; do
+    [ -n "${pid:-}" ] || continue
+    [ "$pid" != "$$" ] || continue
+    if ! grep -qx "$pid" "$before_pids" 2>/dev/null; then
+      case "$comm" in
+        Hyprland|start-hyprland|waybar|hyprpaper|hypridle|hyprpolkitagent|nm-applet|wl-paste|mako|fuzzel|ghostty)
+          kill "$pid" >/dev/null 2>&1 || true
+          ;;
+      esac
+    fi
+  done
+}
+
+cleanup() {
+  if [ -n "$signature" ]; then
+    HYPRLAND_INSTANCE_SIGNATURE="$signature" hyprctl dispatch exit >/dev/null 2>&1 || true
+  fi
+
+  if [ -n "$launcher_pid" ] && kill -0 "$launcher_pid" >/dev/null 2>&1; then
+    kill "$launcher_pid" >/dev/null 2>&1 || true
+    sleep 1
+  fi
+
+  if [ -n "$launcher_pid" ] && kill -0 "$launcher_pid" >/dev/null 2>&1; then
+    kill -9 "$launcher_pid" >/dev/null 2>&1 || true
+  fi
+
+  cleanup_new_processes
+  /home/ben/.local/bin/hypr-refresh-session-env >/dev/null 2>&1 || true
+  rm -f "$before_dirs" "$after_dirs" "$before_pids"
+}
+
+trap cleanup EXIT
+
+find "$runtime/hypr" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort > "$before_dirs"
+ps -u "$uid" -o pid= | awk '{ print $1 }' | sort -n > "$before_pids"
+
+(
+  env \
+    WLR_BACKENDS=wayland \
+    WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}" \
+    XDG_CURRENT_DESKTOP=Hyprland \
+    XDG_SESSION_DESKTOP=Hyprland \
+    XDG_SESSION_TYPE=wayland \
+    HYPR_NESTED_SMOKE=1 \
+    /usr/bin/start-hyprland
+) > "$log_file" 2>&1 &
+launcher_pid="$!"
+
+for _ in $(seq 1 40); do
+  find "$runtime/hypr" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' 2>/dev/null | sort > "$after_dirs"
+  signature="$(comm -13 "$before_dirs" "$after_dirs" | tail -n 1)"
+  [ -n "$signature" ] && break
+  sleep 0.5
+done
+
+{
+  printf 'Hyprland nested smoke test\n'
+  printf 'timestamp=%s\n' "$(date --iso-8601=seconds)"
+  printf 'host=%s\n' "$(hostname)"
+  printf 'user=%s\n' "$(id -un)"
+  printf 'launcher_pid=%s\n' "$launcher_pid"
+  printf 'signature=%s\n' "$signature"
+  printf 'log=%s\n' "$log_file"
+  printf 'real_login_proof=not attempted; this is a nested Plasma smoke test\n'
+
+  if [ -z "$signature" ]; then
+    printf '\nFAIL: no nested Hyprland instance appeared.\n'
+    exit 1
+  fi
+
+  export HYPRLAND_INSTANCE_SIGNATURE="$signature"
+
+  printf '\n== Monitors ==\n'
+  if hyprctl monitors; then
+    printf 'OK: hyprctl monitors\n'
+  else
+    printf 'FAIL: hyprctl monitors\n'
+    exit 1
+  fi
+
+  printf '\n== Workspaces ==\n'
+  if hyprctl workspaces; then
+    printf 'OK: hyprctl workspaces\n'
+  else
+    printf 'FAIL: hyprctl workspaces\n'
+    exit 1
+  fi
+
+  printf '\n== Ghostty launch ==\n'
+  if hyprctl dispatch exec ghostty; then
+    printf 'OK: dispatched Ghostty\n'
+  else
+    printf 'FAIL: Ghostty dispatch failed\n'
+    exit 1
+  fi
+
+  sleep 6
+
+  printf '\n== Clients ==\n'
+  hyprctl clients || true
+
+  printf '\n== Doctor ==\n'
+  if env \
+    XDG_CURRENT_DESKTOP=Hyprland \
+    XDG_SESSION_DESKTOP=Hyprland \
+    XDG_SESSION_TYPE=wayland \
+    HYPRLAND_INSTANCE_SIGNATURE="$signature" \
+    /home/ben/.local/bin/hypr-doctor; then
+    printf 'OK: nested Hyprland doctor\n'
+  else
+    printf 'FAIL: nested Hyprland doctor\n'
+    exit 1
+  fi
+
+  printf '\nHyprland nested smoke test passed.\n'
+} > "$report_file" 2>&1
+status=$?
+
+printf 'report=%s\n' "$report_file"
+printf 'log=%s\n' "$log_file"
+sed -n '1,260p' "$report_file"
+
+exit "$status"

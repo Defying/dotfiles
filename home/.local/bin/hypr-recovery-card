@@ -79,6 +79,7 @@ Hyprland keys:
 Recovery commands:
   hypr-validate
   hypr-preflight
+  hypr-smoke-test
   hypr-login-status
   hypr-login-default plasma
   hypr-refresh-session-env
@@ -98,6 +99,7 @@ TTY fallback:
 
 Logs:
   ~/hyprland-first-login/session-*.log
+  ~/hyprland-first-login/nested-smoke-*.report
   ~/hyprland-first-login/autocheck-*.log
   ~/hyprland-first-login/proof-*.log
   ~/hyprland-first-login/doctor-*.log

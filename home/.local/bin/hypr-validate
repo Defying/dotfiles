@@ -40,7 +40,7 @@ check "Hyprland XDPH config" bash -lc 'test -f /home/ben/.config/hypr/xdph.conf 
 check "Fuzzel config" fuzzel --check-config --config /home/ben/.config/fuzzel/fuzzel.ini
 check "Waybar JSON" jq empty /home/ben/.config/waybar/config.jsonc
 check "Ghostty terminal command" command -v ghostty
-check "helper scripts" bash -n /home/ben/.local/bin/hypr-power-menu /home/ben/.local/bin/hypr-screenshot /home/ben/.local/bin/hypr-clipboard-menu /home/ben/.local/bin/hypr-rollback /home/ben/.local/bin/hypr-enable /home/ben/.local/bin/hypr-help /home/ben/.local/bin/hypr-doctor /home/ben/.local/bin/hypr-proof /home/ben/.local/bin/hypr-keybindings /home/ben/.local/bin/hypr-menu /home/ben/.local/bin/hypr-recovery-card /home/ben/.local/bin/hypr-logs /home/ben/.local/bin/hypr-login-status /home/ben/.local/bin/hypr-login-default /home/ben/.local/bin/hypr-refresh-session-env /home/ben/.local/bin/hypr-preflight /home/ben/.local/bin/hypr-first-login-notice /home/ben/.local/bin/hypr-first-login-terminal /home/ben/.local/bin/hypr-session-autocheck /home/ben/dotfiles/scripts/install-hyprland-system-files.sh
+check "helper scripts" bash -n /home/ben/.local/bin/hypr-power-menu /home/ben/.local/bin/hypr-screenshot /home/ben/.local/bin/hypr-clipboard-menu /home/ben/.local/bin/hypr-rollback /home/ben/.local/bin/hypr-enable /home/ben/.local/bin/hypr-help /home/ben/.local/bin/hypr-doctor /home/ben/.local/bin/hypr-proof /home/ben/.local/bin/hypr-keybindings /home/ben/.local/bin/hypr-menu /home/ben/.local/bin/hypr-recovery-card /home/ben/.local/bin/hypr-logs /home/ben/.local/bin/hypr-login-status /home/ben/.local/bin/hypr-login-default /home/ben/.local/bin/hypr-refresh-session-env /home/ben/.local/bin/hypr-preflight /home/ben/.local/bin/hypr-smoke-test /home/ben/.local/bin/hypr-first-login-notice /home/ben/.local/bin/hypr-first-login-terminal /home/ben/.local/bin/hypr-session-autocheck /home/ben/dotfiles/scripts/install-hyprland-system-files.sh
 check_link "Hyprland config linked" /home/ben/.config/hypr/hyprland.conf config/hypr/hyprland.conf
 check_link "Hyprpaper config linked" /home/ben/.config/hypr/hyprpaper.conf config/hypr/hyprpaper.conf
 check_link "Hypridle config linked" /home/ben/.config/hypr/hypridle.conf config/hypr/hypridle.conf
@@ -67,6 +67,7 @@ check_link "Hypr login status linked" /home/ben/.local/bin/hypr-login-status hom
 check_link "Hypr login default linked" /home/ben/.local/bin/hypr-login-default home/.local/bin/hypr-login-default
 check_link "Hypr refresh session env linked" /home/ben/.local/bin/hypr-refresh-session-env home/.local/bin/hypr-refresh-session-env
 check_link "Hypr preflight linked" /home/ben/.local/bin/hypr-preflight home/.local/bin/hypr-preflight
+check_link "Hypr smoke test linked" /home/ben/.local/bin/hypr-smoke-test home/.local/bin/hypr-smoke-test
 check_link "Hypr first-login notice linked" /home/ben/.local/bin/hypr-first-login-notice home/.local/bin/hypr-first-login-notice
 check_link "Hypr first-login terminal linked" /home/ben/.local/bin/hypr-first-login-terminal home/.local/bin/hypr-first-login-terminal
 check_link "Hypr session autocheck linked" /home/ben/.local/bin/hypr-session-autocheck home/.local/bin/hypr-session-autocheck
@@ -104,6 +105,7 @@ check "Hyprland login status command" test -x /home/ben/.local/bin/hypr-login-st
 check "Hyprland login default command" test -x /home/ben/.local/bin/hypr-login-default
 check "Hyprland refresh session env command" test -x /home/ben/.local/bin/hypr-refresh-session-env
 check "Hyprland preflight command" test -x /home/ben/.local/bin/hypr-preflight
+check "Hyprland smoke test command" test -x /home/ben/.local/bin/hypr-smoke-test
 check "Hyprland first-login notice command" test -x /home/ben/.local/bin/hypr-first-login-notice
 check "Hyprland first-login terminal command" test -x /home/ben/.local/bin/hypr-first-login-terminal
 check "Plasma Login remembered session readable" bash -lc 'sudo -n test -r /var/lib/plasmalogin/.local/state/plasma-login-greeterstaterc'

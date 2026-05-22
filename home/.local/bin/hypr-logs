@@ -47,7 +47,7 @@ latest_log() {
 latest_any_log() {
   find "$HOME/hyprland-first-login" "$HOME/hyprland-rollback" \
     -maxdepth 1 -type f \
-    \( -name 'session-*.log' -o -name 'autocheck-*.log' -o -name 'proof-*.log' -o -name 'doctor-*.log' -o -name 'rollback-*.log' \) \
+    \( -name 'session-*.log' -o -name 'autocheck-*.log' -o -name 'nested-smoke-*.report' -o -name 'proof-*.log' -o -name 'doctor-*.log' -o -name 'rollback-*.log' \) \
     -printf '%T@ %p\n' 2>/dev/null |
     sort -n |
     tail -n 1 |
@@ -108,6 +108,7 @@ show_staleness_warning
 
 show_latest "Logged session startup" "$HOME/hyprland-first-login" 'session-*.log'
 show_latest "Session autocheck" "$HOME/hyprland-first-login" 'autocheck-*.log'
+show_latest "Nested smoke test" "$HOME/hyprland-first-login" 'nested-smoke-*.report'
 show_latest "Real-login proof" "$HOME/hyprland-first-login" 'proof-*.log'
 show_latest "Doctor" "$HOME/hyprland-first-login" 'doctor-*.log'
 show_latest "Rollback" "$HOME/hyprland-rollback" 'rollback-*.log'
@@ -123,5 +124,6 @@ printf '\nCommands:\n'
 printf '  hypr-logs --list\n'
 printf '  hypr-logs --tail 200\n'
 printf '  hypr-validate\n'
+printf '  hypr-smoke-test\n'
 printf '  hypr-proof\n'
 printf '  hypr-recovery-card\n'
