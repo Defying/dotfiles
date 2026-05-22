@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_hypr="/home/ben/dotfiles/config/hypr"
+target_hypr="$HOME/.config/hypr"
+
+if [ ! -d "$repo_hypr" ]; then
+  printf 'Missing tracked Hyprland config at %s\n' "$repo_hypr" >&2
+  exit 1
+fi
+
+mkdir -p "$HOME/.config"
+
+if [ -e "$target_hypr" ] || [ -L "$target_hypr" ]; then
+  if [ -d "$target_hypr" ] && [ ! -L "$target_hypr" ]; then
+    all_linked=1
+    while IFS= read -r -d '' source; do
+      name="$(basename "$source")"
+      target="$target_hypr/$name"
+      if [ ! -L "$target" ] || [ "$(readlink "$target")" != "$source" ]; then
+        all_linked=0
+        break
+      fi
+    done < <(find "$repo_hypr" -maxdepth 1 -type f -print0 | sort -z)
+
+    if [ "$all_linked" -eq 1 ]; then
+      printf 'Hyprland config is already linked at %s\n' "$target_hypr"
+      exit 0
+    fi
+  fi
+
+  ts="$(date +%Y%m%d-%H%M%S)"
+  mv "$target_hypr" "$HOME/.config/hypr.pre-enable-$ts"
+  printf 'Moved existing Hyprland config to ~/.config/hypr.pre-enable-%s\n' "$ts"
+fi
+
+mkdir -p "$target_hypr"
+
+while IFS= read -r -d '' source; do
+  name="$(basename "$source")"
+  ln -s "$source" "$target_hypr/$name"
+  printf 'linked ~/.config/hypr/%s -> %s\n' "$name" "$source"
+done < <(find "$repo_hypr" -maxdepth 1 -type f -print0 | sort -z)
+
+Hyprland --verify-config -c "$target_hypr/hyprland.conf"

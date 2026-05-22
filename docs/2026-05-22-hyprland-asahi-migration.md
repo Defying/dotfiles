@@ -219,3 +219,9 @@ TTY/manual rollback command:
 ```bash
 hypr-rollback
 ```
+
+Re-enable command after rollback:
+
+```bash
+hypr-enable
+```

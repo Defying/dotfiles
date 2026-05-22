@@ -103,6 +103,12 @@ Then it starts Plasma. It writes a log under:
 ~/hyprland-rollback/
 ```
 
+To re-enable the Git-tracked Hyprland config later from Plasma:
+
+```bash
+hypr-enable
+```
+
 If Hyprland will not start:
 
 1. Switch to a TTY with `Ctrl + Alt + F3`.
