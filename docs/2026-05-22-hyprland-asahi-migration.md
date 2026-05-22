@@ -1,0 +1,157 @@
+# Hyprland migration notes - Fedora Asahi
+
+Date: 2026-05-22
+Host: `misery`
+OS: Fedora Linux Asahi Remix 44 KDE Plasma Desktop Edition
+Arch: `aarch64`
+
+This note records the pre-Hyprland state and intended MacBook-oriented setup before changing the desktop session. Keep KDE/Plasma installed until Hyprland has been tested from the login screen.
+
+## Rollback anchors
+
+Btrfs snapshots were created before Hyprland installation or config changes:
+
+- Backup ID: `pre-hyprland-20260522-083751`
+- Device: `/dev/nvme0n1p6`
+- Root snapshot: `/.snapshots/pre-hyprland-20260522-083751/root`
+- Home snapshot: `/.snapshots/pre-hyprland-20260522-083751/home`
+- Inspectable backup bundle: `/home/ben/system-backups/pre-hyprland-20260522-083751`
+
+The backup bundle contains package manifests, `/etc`, boot config, KDE config, dotfiles, and user config copies. Size when created: about 5.1 GB.
+
+## Current safety state
+
+- Plasma is still installed and remains the working desktop.
+- `plasmalogin.service` is the active display manager.
+- Hyprland packages were not installed yet when this note was first committed.
+- The Hyprland COPR repo file exists but is disabled by default: `/etc/yum.repos.d/_copr_sdegler-hyprland.repo`.
+- The repo is only meant to be enabled for explicit Hyprland package installation.
+
+Do not run Omarchy's Arch installer on Fedora Asahi. Use Omarchy as a configuration reference only.
+
+## Command key fix
+
+Goal: Apple Command acts as Linux Super/Win, Option acts as Alt, Control stays Control.
+
+Persistent kernel module config:
+
+```conf
+# /etc/modprobe.d/99-apple-command-super.conf
+options hid_apple swap_opt_cmd=0 swap_ctrl_cmd=0
+```
+
+Current XKB/KDE intent:
+
+```text
+layout: us
+model: applealu_ansi
+options: ctrl:nocaps,terminate:ctrl_alt_bksp
+```
+
+KDE user config also sets:
+
+```text
+~/.config/kxkbrc
+LayoutList=us
+Model=applealu_ansi
+Options=ctrl:nocaps
+```
+
+## Fonts
+
+Use Apple fonts already installed locally:
+
+- UI font: `SF Pro` / `SF Pro Text`
+- Display font: `SF Pro Display`
+- Mono font: `SF Mono`
+
+Font paths are under `/usr/local/share/fonts/apple/`.
+
+## Proposed Hyprland bindings
+
+Modifier mapping:
+
+```text
+Command = Super
+Option = Alt
+Control = Control
+Caps Lock = Control
+```
+
+Core commands:
+
+```text
+Cmd + Space              app launcher
+Cmd + Return             Ghostty terminal
+Cmd + W                  close active window
+Cmd + Shift + Q          exit Hyprland session
+Cmd + F                  fullscreen
+Cmd + T                  toggle floating/tiling
+Cmd + J                  toggle split direction
+```
+
+Workspaces:
+
+```text
+Cmd + 1..9 / 0           switch workspace 1..10
+Cmd + Shift + 1..9 / 0   move window to workspace 1..10
+Cmd + Tab                next workspace
+Cmd + Shift + Tab        previous workspace
+```
+
+Window movement:
+
+```text
+Cmd + Arrow              focus window in that direction
+Cmd + Shift + Arrow      move/swap window in that direction
+Cmd + Alt + Arrow        resize window
+Cmd + Left Mouse         drag window
+Cmd + Right Mouse        resize window
+```
+
+Mac-style editing helpers:
+
+```text
+Cmd + C                  copy via Ctrl+C
+Cmd + V                  paste via Ctrl+V
+Cmd + X                  cut via Ctrl+X
+Cmd + A                  select all via Ctrl+A
+Cmd + Z                  undo via Ctrl+Z
+Cmd + Shift + C          terminal copy fallback
+Cmd + Shift + V          terminal paste fallback
+```
+
+Utilities:
+
+```text
+Cmd + Shift + 3          full screenshot
+Cmd + Shift + 4          region screenshot
+Cmd + Shift + 5          screenshot region and open editor
+Volume/Brightness/Media  MacBook function/media keys
+Cmd + L                  lock screen
+Cmd + Escape             power/logout menu
+```
+
+## Intended install direction
+
+Install Hyprland as an additional login session, not as a Plasma replacement:
+
+- `hyprland`
+- `hyprpaper`
+- `hypridle`
+- `hyprlock`
+- `hyprpolkitagent`
+- `xdg-desktop-portal-hyprland`
+- `waybar`
+- `fuzzel` or `wofi`
+- `mako`
+- `grim`
+- `slurp`
+- `swappy`
+- `brightnessctl`
+- `playerctl`
+- `cliphist`
+- `network-manager-applet`
+- `pavucontrol`
+
+Keep Plasma and `xdg-desktop-portal-kde` installed for fallback.
