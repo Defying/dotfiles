@@ -144,7 +144,9 @@ Next real Hyprland attempt:
   1. Save work in Plasma.
   2. Use Leave -> Log Out, not Lock or Switch User.
   3. At the login screen, confirm the session picker.
-  4. Start with Hyprland (Safe), then try Hyprland or Hyprland (Logged).
+  4. Start with Hyprland (Recovery Terminal) if you want Ghostty opened for you.
+  5. Try normal Hyprland after the recovery-terminal session exits cleanly.
+  6. Use Hyprland (Logged) if normal Hyprland fails before a terminal opens.
 
 Rollback from the login screen:
   Plasma

@@ -28,6 +28,17 @@ exec zsh -l
 
 The installer backs up existing non-symlink files into `backups/<timestamp>/` before linking the repo into `$HOME`.
 
+## Hyprland on Fedora Asahi
+
+The Hyprland setup keeps Plasma installed as the default fallback and documents
+the rollback path for this MacBook Air M1:
+
+- `docs/hyprland-quickstart.md` has the current login, keybinding, and rollback card.
+- `docs/2026-05-22-hyprland-asahi-migration.md` records the backup/snapshot anchors.
+- `hypr-readiness` is the read-only audit before any real login-screen attempt.
+- `Hyprland (Recovery Terminal)` is the terminal-first test session.
+- `Plasma (Rollback Hyprland)` disables `~/.config/hypr` from the login screen.
+
 ## auto sync
 
 Use `scripts/auto-sync.sh` to keep this repo archived to GitHub.
