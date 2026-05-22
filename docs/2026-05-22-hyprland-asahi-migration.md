@@ -189,4 +189,10 @@ timeout --kill-after=3s 8s env HOME=/tmp/codex-hypr-test-home \
 
 Result: Hyprland started and ran until the timeout killed it. The visible warnings were XKB/Xwayland warnings, not Hyprland config failures.
 
+An additional nested smoke test used the full autostart config. It reached Hyprland startup with the expected nested-session caveats:
+
+- `hyprpolkitagent` could not register because Plasma already had an auth agent in the current session.
+- Killing `/usr/bin/start-hyprland` via `timeout` produced a small coredump from the wrapper shutdown path.
+- No autostart child processes were left running afterward.
+
 Remaining manual proof: log out of Plasma, choose the `Hyprland` session, and confirm the real user session starts with autostart enabled.
