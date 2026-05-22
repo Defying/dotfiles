@@ -146,7 +146,17 @@ The normal Hyprland session autostarts a one-time notification after Mako starts
 ~/.local/bin/hypr-first-login-notice
 ```
 
-It points at `Cmd + Alt + Space`, `Cmd + K`, `Cmd + Return`, `Cmd + Shift + /`, and `Cmd + Shift + Q`. The safe Hyprland session intentionally does not run this or any other user autostart helper.
+It points at `Cmd + Alt + Space`, `Cmd + K`, `Cmd + Return`, `Cmd + Shift + /`, and `Cmd + Shift + Q`, plus non-Super fallbacks: `Ctrl + Alt + T`, `F12`, `Ctrl + Alt + Space`, and `Ctrl + Alt + Q`. The safe Hyprland session intentionally does not run this or any other user autostart helper.
+
+## First-login terminal
+
+The normal Hyprland session also autostarts Ghostty until `hypr-proof` records a real-login proof marker:
+
+```text
+~/.local/bin/hypr-first-login-terminal
+```
+
+It prints `hypr-recovery-card`, lists the non-Super fallback keys, and leaves a login shell open. This makes the first normal Hyprland login recoverable even if Command/Super is confusing or not yet trusted.
 
 ## Session autocheck
 
@@ -214,8 +224,16 @@ Core commands:
 ```text
 Cmd + Space              app launcher
 Cmd + Return             Ghostty terminal
+Ctrl + Alt + T           Ghostty terminal fallback
+Ctrl + Alt + Return      Ghostty terminal fallback
+Alt + Return             Ghostty terminal fallback
+F12                      Ghostty terminal fallback
+Ctrl + Alt + Space       menu fallback
+Ctrl + Alt + K           keybindings fallback
 Cmd + W                  close active window
 Cmd + Shift + Q          exit Hyprland session
+Ctrl + Alt + Q           exit Hyprland fallback
+Ctrl + Alt + Backspace   exit Hyprland fallback
 Cmd + F                  fullscreen
 Cmd + T                  toggle floating/tiling
 Cmd + J                  toggle split direction
@@ -329,6 +347,8 @@ An additional nested smoke test used the full autostart config. It reached Hyprl
 Remaining manual proof: fully log out of Plasma, choose the `Hyprland` session, and confirm the real user session starts with autostart enabled.
 
 Observed 2026-05-22: selecting a Hyprland session from the greeter while the original Plasma session was still active returned to Plasma. `loginctl` showed the original KDE session from 01:05 was still active, and `/var/lib/plasmalogin/.local/state/plasma-login-greeterstaterc` recorded `LastLoggedInSession=hyprland-safe.desktop`. This was Plasma Login Manager session reuse, not proof that Hyprland failed to start.
+
+Observed 2026-05-22 during the first real logged Hyprland attempt: Hyprland started from Plasma Login Manager, set `XDG_CURRENT_DESKTOP=Hyprland`, exposed Hyprland IPC, and launched the normal autostarts. The session was still not usable enough because the live login PATH did not include `rg`, causing `hypr-doctor` portal checks to fail, and the terminal/menu bindings were not discoverable under stress. The runtime helpers were changed to use `grep` instead of `rg`, Ghostty now opens automatically on first normal login, and non-Super fallbacks were added for terminal, menu, keybindings, and exit.
 
 ## Graphical rollback session
 

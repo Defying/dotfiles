@@ -89,7 +89,7 @@ else
 fi
 
 print_section "Commands"
-for cmd in Hyprland hyprctl jq rg notify-send waybar fuzzel mako hypridle hyprlock hyprpaper hyprland-share-picker wl-copy wl-paste cliphist grim slurp swappy brightnessctl playerctl; do
+for cmd in Hyprland hyprctl jq notify-send waybar fuzzel mako hypridle hyprlock hyprpaper hyprland-share-picker wl-copy wl-paste cliphist grim slurp swappy brightnessctl playerctl; do
   check_command "$cmd"
 done
 
@@ -142,7 +142,7 @@ check_process "cliphist image watcher" 'wl-paste --type image --watch cliphist s
 
 print_section "User Services"
 if have systemctl; then
-  systemctl --user --no-pager --plain --type=service --state=running 2>/dev/null | rg 'xdg-desktop-portal|pipewire|wireplumber|dbus|hypr' || true
+  systemctl --user --no-pager --plain --type=service --state=running 2>/dev/null | grep -E 'xdg-desktop-portal|pipewire|wireplumber|dbus|hypr' || true
   if systemctl --user is-active --quiet xdg-desktop-portal.service 2>/dev/null; then
     ok "xdg-desktop-portal user service active"
   else
@@ -154,21 +154,21 @@ fi
 
 print_section "Portals"
 if [ -f /usr/share/xdg-desktop-portal/hyprland-portals.conf ] &&
-  rg -q '^default=hyprland(;|$)' /usr/share/xdg-desktop-portal/hyprland-portals.conf; then
+  grep -Eq '^default=hyprland(;|$)' /usr/share/xdg-desktop-portal/hyprland-portals.conf; then
   ok "Hyprland portal preference is installed"
 else
   fail "Hyprland portal preference is missing"
 fi
 
 if [ -f /usr/share/xdg-desktop-portal/portals/hyprland.portal ] &&
-  rg -q '^UseIn=.*Hyprland' /usr/share/xdg-desktop-portal/portals/hyprland.portal; then
+  grep -Eq '^UseIn=.*Hyprland' /usr/share/xdg-desktop-portal/portals/hyprland.portal; then
   ok "Hyprland portal descriptor includes Hyprland"
 else
   fail "Hyprland portal descriptor missing Hyprland"
 fi
 
 if [ -f "$HOME/.config/hypr/xdph.conf" ] &&
-  rg -q 'custom_picker_binary = hyprland-share-picker' "$HOME/.config/hypr/xdph.conf"; then
+  grep -q 'custom_picker_binary = hyprland-share-picker' "$HOME/.config/hypr/xdph.conf"; then
   ok "XDPH share picker config points at hyprland-share-picker"
 else
   warn "XDPH share picker config not found"

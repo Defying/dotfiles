@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+force=0
+if [ "${1:-}" = "--force" ]; then
+  force=1
+fi
+
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/hyprland"
+proof_marker="$state_dir/real-login-proof"
+log_file="${XDG_RUNTIME_DIR:-/tmp}/hypr-first-login-terminal.log"
+
+if [ "$force" -eq 0 ]; then
+  case "${XDG_CURRENT_DESKTOP:-}:${XDG_SESSION_DESKTOP:-}" in
+    *Hyprland*)
+      ;;
+    *)
+      printf 'Not a Hyprland session; skipping first-login terminal.\n'
+      exit 0
+      ;;
+  esac
+
+  if [ -z "${WAYLAND_DISPLAY:-}" ]; then
+    printf 'WAYLAND_DISPLAY is not set; skipping first-login terminal.\n'
+    exit 0
+  fi
+
+  if [ -e "$proof_marker" ]; then
+    printf 'Real-login proof exists; skipping first-login terminal: %s\n' "$proof_marker"
+    exit 0
+  fi
+fi
+
+terminal=""
+for candidate in ghostty konsole alacritty foot kgx; do
+  if command -v "$candidate" >/dev/null 2>&1; then
+    terminal="$(command -v "$candidate")"
+    break
+  fi
+done
+
+if [ -z "$terminal" ]; then
+  if command -v notify-send >/dev/null 2>&1; then
+    notify-send --urgency=critical --app-name="Hyprland" \
+      "No terminal found" \
+      "Use Ctrl+Alt+Q to exit Hyprland, then choose Plasma." || true
+  fi
+  printf 'No supported terminal found.\n' >&2
+  exit 1
+fi
+
+mkdir -p "$state_dir"
+
+terminal_command="$(
+  cat <<'EOF'
+/home/ben/.local/bin/hypr-recovery-card
+printf '\nFallback keys that do not need Command/Super:\n'
+printf '  Ctrl+Alt+T       open Ghostty\n'
+printf '  Ctrl+Alt+Return  open Ghostty\n'
+printf '  Alt+Return       open Ghostty\n'
+printf '  F12              open Ghostty\n'
+printf '  Ctrl+Alt+Space   open Hyprland menu\n'
+printf '  Ctrl+Alt+K       show keybindings\n'
+printf '  Ctrl+Alt+Q       exit Hyprland\n'
+printf '  Ctrl+Alt+Backspace exit Hyprland\n'
+printf '\nUseful commands: hypr-doctor  hypr-proof  hypr-logs  hypr-login-status\n'
+printf 'This shell stays open so you are not stranded.\n\n'
+exec bash -l
+EOF
+)"
+
+nohup "$terminal" -e bash -lc "$terminal_command" >"$log_file" 2>&1 &
+printf 'Started first-login terminal with %s; log=%s\n' "$terminal" "$log_file"

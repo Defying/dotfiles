@@ -51,15 +51,25 @@ First keys to remember:
 
 ```text
 Cmd + Return             open Ghostty
+Ctrl + Alt + T           open Ghostty fallback
+Ctrl + Alt + Return      open Ghostty fallback
+Alt + Return             open Ghostty fallback
+F12                      open Ghostty fallback
 Cmd + Space              open app launcher
 Cmd + Alt + Space        open Hyprland menu
+Ctrl + Alt + Space       open Hyprland menu fallback
 Cmd + K                  show keybindings
+Ctrl + Alt + K           show keybindings fallback
 Cmd + W                  close window
 Cmd + Shift + Q          exit Hyprland session
+Ctrl + Alt + Q           exit Hyprland fallback
+Ctrl + Alt + Backspace   exit Hyprland fallback
 Cmd + Shift + /          run Hyprland doctor
 Cmd + Escape             power/logout menu
 Cmd + L                  lock
 ```
+
+The normal Hyprland session opens Ghostty automatically until `hypr-proof` has recorded a real-login proof marker. The terminal prints the recovery card and leaves a shell open so the first login is not dependent on remembering a shortcut.
 
 From a terminal, `hypr-help` reopens this quickstart, `hypr-recovery-card` prints the rollback card, `hypr-login-status` shows login-manager state, `hypr-logs` shows the latest attempt logs, `hypr-validate` reruns the static safety checks, `hypr-doctor` checks the live Hyprland session, and `hypr-proof` records proof after a real Hyprland login.
 
@@ -70,9 +80,10 @@ The menu at `Cmd + Alt + Space` is the Fedora-safe equivalent of Omarchy's menu 
 After the first normal Hyprland login:
 
 1. A one-time `Hyprland ready` notification should appear after Mako starts.
-2. A `Hyprland doctor passed` or `Hyprland doctor failed` notification should appear shortly after startup.
-3. Press `Cmd + Return`.
-4. Run:
+2. Ghostty should open automatically with the recovery card and a shell.
+3. A `Hyprland doctor passed` or `Hyprland doctor failed` notification should appear shortly after startup.
+4. If Ghostty did not open, press `Ctrl + Alt + T`, `Ctrl + Alt + Return`, `Alt + Return`, or `F12`.
+5. In Ghostty, run:
 
 ```bash
 hypr-doctor
@@ -91,7 +102,7 @@ Reports are written under:
 ~/hyprland-first-login/
 ```
 
-If the session is unstable, exit with `Cmd + Shift + Q` and pick `Plasma` or `Plasma (Rollback Hyprland)` at the login screen.
+If the session is unstable, exit with `Ctrl + Alt + Q` or `Cmd + Shift + Q` and pick `Plasma` or `Plasma (Rollback Hyprland)` at the login screen.
 
 ## Navigation
 
@@ -155,6 +166,7 @@ Live config files are symlinked from this repo:
 ~/.local/bin/hypr-login-default
 ~/.local/bin/hypr-logs
 ~/.local/bin/hypr-first-login-notice
+~/.local/bin/hypr-first-login-terminal
 ~/.local/bin/hypr-session-autocheck
 ```
 
@@ -162,14 +174,15 @@ Live config files are symlinked from this repo:
 
 If Hyprland is annoying but the login screen works:
 
-1. `Cmd + Shift + Q` to exit Hyprland.
+1. `Ctrl + Alt + Q` or `Cmd + Shift + Q` to exit Hyprland.
 2. Pick the `Plasma` session at login.
 
 If normal Hyprland fails but you still want a minimal compositor test:
 
 1. Pick `Hyprland (Safe)` at login.
-2. Use `Cmd + Return` for Ghostty or `Cmd + Space` for the app launcher.
-3. Use `Cmd + Shift + Q` to exit.
+2. Use `Ctrl + Alt + T`, `Ctrl + Alt + Return`, `Alt + Return`, `F12`, or `Cmd + Return` for Ghostty.
+3. Use `Ctrl + Alt + Space` or `Cmd + Space` for the app launcher/menu.
+4. Use `Ctrl + Alt + Q` or `Cmd + Shift + Q` to exit.
 
 If normal Hyprland reaches a black screen or returns to login, try `Hyprland (Logged)` once, then inspect:
 

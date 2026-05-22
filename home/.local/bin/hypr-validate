@@ -36,10 +36,10 @@ check_link() {
 }
 
 check "Hyprland config" Hyprland --verify-config -c /home/ben/.config/hypr/hyprland.conf
-check "Hyprland XDPH config" bash -lc 'test -f /home/ben/.config/hypr/xdph.conf && rg -q "custom_picker_binary = hyprland-share-picker" /home/ben/.config/hypr/xdph.conf'
+check "Hyprland XDPH config" bash -lc 'test -f /home/ben/.config/hypr/xdph.conf && grep -q "custom_picker_binary = hyprland-share-picker" /home/ben/.config/hypr/xdph.conf'
 check "Fuzzel config" fuzzel --check-config --config /home/ben/.config/fuzzel/fuzzel.ini
 check "Waybar JSON" jq empty /home/ben/.config/waybar/config.jsonc
-check "helper scripts" bash -n /home/ben/.local/bin/hypr-power-menu /home/ben/.local/bin/hypr-screenshot /home/ben/.local/bin/hypr-clipboard-menu /home/ben/.local/bin/hypr-rollback /home/ben/.local/bin/hypr-enable /home/ben/.local/bin/hypr-help /home/ben/.local/bin/hypr-doctor /home/ben/.local/bin/hypr-proof /home/ben/.local/bin/hypr-keybindings /home/ben/.local/bin/hypr-menu /home/ben/.local/bin/hypr-recovery-card /home/ben/.local/bin/hypr-logs /home/ben/.local/bin/hypr-login-status /home/ben/.local/bin/hypr-login-default /home/ben/.local/bin/hypr-first-login-notice /home/ben/.local/bin/hypr-session-autocheck /home/ben/dotfiles/scripts/install-hyprland-system-files.sh
+check "helper scripts" bash -n /home/ben/.local/bin/hypr-power-menu /home/ben/.local/bin/hypr-screenshot /home/ben/.local/bin/hypr-clipboard-menu /home/ben/.local/bin/hypr-rollback /home/ben/.local/bin/hypr-enable /home/ben/.local/bin/hypr-help /home/ben/.local/bin/hypr-doctor /home/ben/.local/bin/hypr-proof /home/ben/.local/bin/hypr-keybindings /home/ben/.local/bin/hypr-menu /home/ben/.local/bin/hypr-recovery-card /home/ben/.local/bin/hypr-logs /home/ben/.local/bin/hypr-login-status /home/ben/.local/bin/hypr-login-default /home/ben/.local/bin/hypr-first-login-notice /home/ben/.local/bin/hypr-first-login-terminal /home/ben/.local/bin/hypr-session-autocheck /home/ben/dotfiles/scripts/install-hyprland-system-files.sh
 check_link "Hyprland config linked" /home/ben/.config/hypr/hyprland.conf config/hypr/hyprland.conf
 check_link "Hyprpaper config linked" /home/ben/.config/hypr/hyprpaper.conf config/hypr/hyprpaper.conf
 check_link "Hypridle config linked" /home/ben/.config/hypr/hypridle.conf config/hypr/hypridle.conf
@@ -65,6 +65,7 @@ check_link "Hypr logs linked" /home/ben/.local/bin/hypr-logs home/.local/bin/hyp
 check_link "Hypr login status linked" /home/ben/.local/bin/hypr-login-status home/.local/bin/hypr-login-status
 check_link "Hypr login default linked" /home/ben/.local/bin/hypr-login-default home/.local/bin/hypr-login-default
 check_link "Hypr first-login notice linked" /home/ben/.local/bin/hypr-first-login-notice home/.local/bin/hypr-first-login-notice
+check_link "Hypr first-login terminal linked" /home/ben/.local/bin/hypr-first-login-terminal home/.local/bin/hypr-first-login-terminal
 check_link "Hypr session autocheck linked" /home/ben/.local/bin/hypr-session-autocheck home/.local/bin/hypr-session-autocheck
 check "Hyprland session file" test -f /usr/share/wayland-sessions/hyprland.desktop
 check "Hyprland logged session file" test -f /usr/share/wayland-sessions/hyprland-logged.desktop
@@ -99,11 +100,12 @@ check "Hyprland logs command" test -x /home/ben/.local/bin/hypr-logs
 check "Hyprland login status command" test -x /home/ben/.local/bin/hypr-login-status
 check "Hyprland login default command" test -x /home/ben/.local/bin/hypr-login-default
 check "Hyprland first-login notice command" test -x /home/ben/.local/bin/hypr-first-login-notice
+check "Hyprland first-login terminal command" test -x /home/ben/.local/bin/hypr-first-login-terminal
 check "Plasma Login remembered session readable" bash -lc 'sudo -n test -r /var/lib/plasmalogin/.local/state/plasma-login-greeterstaterc'
 check "Hyprland session autocheck command" test -x /home/ben/.local/bin/hypr-session-autocheck
 check "notify-send command" test -x /usr/bin/notify-send
-check "Hyprland portal preference" bash -lc 'rg -q "^default=hyprland(;|$)" /usr/share/xdg-desktop-portal/hyprland-portals.conf'
-check "Hyprland portal descriptor" bash -lc 'rg -q "^UseIn=.*Hyprland" /usr/share/xdg-desktop-portal/portals/hyprland.portal'
+check "Hyprland portal preference" bash -lc 'grep -Eq "^default=hyprland(;|$)" /usr/share/xdg-desktop-portal/hyprland-portals.conf'
+check "Hyprland portal descriptor" bash -lc 'grep -Eq "^UseIn=.*Hyprland" /usr/share/xdg-desktop-portal/portals/hyprland.portal'
 check "Hyprland share picker" test -x /usr/bin/hyprland-share-picker
 check "Plasma login manager active" systemctl is-active --quiet plasmalogin.service
 check "Hyprland package installed" rpm -q hyprland
@@ -114,10 +116,10 @@ check "backup bundle present" test -d /home/ben/system-backups/pre-hyprland-2026
 check "first-login backup bundle present" test -d /home/ben/system-backups/pre-first-hyprland-login-20260522-093108
 
 if sudo -n true >/dev/null 2>&1; then
-  check "Btrfs root snapshot present" bash -lc 'sudo btrfs subvolume list -a / | rg -q "/.snapshots/pre-hyprland-20260522-083751/root$"'
-  check "Btrfs home snapshot present" bash -lc 'sudo btrfs subvolume list -a / | rg -q "/.snapshots/pre-hyprland-20260522-083751/home$"'
-  check "First-login root snapshot present" bash -lc 'sudo btrfs subvolume list -a / | rg -q "/.snapshots/pre-first-hyprland-login-20260522-093108/root$"'
-  check "First-login home snapshot present" bash -lc 'sudo btrfs subvolume list -a / | rg -q "/.snapshots/pre-first-hyprland-login-20260522-093108/home$"'
+  check "Btrfs root snapshot present" bash -lc 'sudo btrfs subvolume list -a / | grep -Eq "/.snapshots/pre-hyprland-20260522-083751/root$"'
+  check "Btrfs home snapshot present" bash -lc 'sudo btrfs subvolume list -a / | grep -Eq "/.snapshots/pre-hyprland-20260522-083751/home$"'
+  check "First-login root snapshot present" bash -lc 'sudo btrfs subvolume list -a / | grep -Eq "/.snapshots/pre-first-hyprland-login-20260522-093108/root$"'
+  check "First-login home snapshot present" bash -lc 'sudo btrfs subvolume list -a / | grep -Eq "/.snapshots/pre-first-hyprland-login-20260522-093108/home$"'
 else
   printf '%-42sSKIP (sudo unavailable)\n' "Btrfs snapshot checks"
 fi

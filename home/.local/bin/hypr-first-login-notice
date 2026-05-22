@@ -40,6 +40,10 @@ body="$(
 Cmd + Alt + Space  menu
 Cmd + K            keybindings
 Cmd + Return       terminal
+Ctrl + Alt + T     terminal fallback
+F12                terminal fallback
+Ctrl + Alt + Space menu fallback
+Ctrl + Alt + Q     exit fallback
 Cmd + Shift + /    doctor
 Cmd + Shift + Q    exit Hyprland
 EOF

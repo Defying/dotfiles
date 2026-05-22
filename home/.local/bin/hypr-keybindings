@@ -4,11 +4,19 @@ set -euo pipefail
 bindings="$(
   cat <<'EOF'
 Cmd + Return             open Ghostty
+Ctrl + Alt + T           open Ghostty fallback
+Ctrl + Alt + Return      open Ghostty fallback
+Alt + Return             open Ghostty fallback
+F12                      open Ghostty fallback
 Cmd + Space              open app launcher
 Cmd + Alt + Space        open Hyprland menu
+Ctrl + Alt + Space       open Hyprland menu fallback
 Cmd + K                  show this keybinding list
+Ctrl + Alt + K           show this keybinding list fallback
 Cmd + W                  close focused window
 Cmd + Shift + Q          exit Hyprland
+Ctrl + Alt + Q           exit Hyprland fallback
+Ctrl + Alt + Backspace   exit Hyprland fallback
 Cmd + F                  fullscreen
 Cmd + Ctrl + F           tiled fullscreen
 Cmd + Alt + F            full width

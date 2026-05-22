@@ -21,7 +21,7 @@ snapshot_line() {
   local pattern="$2"
 
   if sudo -n true >/dev/null 2>&1; then
-    if sudo btrfs subvolume list -a / | rg -q "$pattern"; then
+    if sudo btrfs subvolume list -a / | grep -Eq "$pattern"; then
       printf 'ok      %s\n' "$label"
     else
       printf 'missing %s\n' "$label"
@@ -51,20 +51,29 @@ First test order:
   1. From Plasma, run: hypr-login-status
   2. Use Leave -> Log Out, not Lock or Switch User.
   3. Try Hyprland (Safe).
-  4. If safe works, exit with Cmd + Shift + Q.
+  4. If safe works, exit with Ctrl + Alt + Q or Cmd + Shift + Q.
   5. Try Hyprland.
-  6. In Hyprland, press Cmd + Return and run: hypr-doctor
-  7. Run: hypr-proof
-  8. If normal Hyprland fails before a terminal, try Hyprland (Logged).
-  9. If Hyprland is broken, choose Plasma or Plasma (Rollback Hyprland).
+  6. Ghostty should open automatically; otherwise press Ctrl + Alt + T.
+  7. In Ghostty, run: hypr-doctor
+  8. Run: hypr-proof
+  9. If normal Hyprland fails before a terminal, try Hyprland (Logged).
+  10. If Hyprland is broken, choose Plasma or Plasma (Rollback Hyprland).
 
 Hyprland keys:
   Cmd + Return        terminal
+  Ctrl + Alt + T      terminal fallback
+  Ctrl + Alt + Return terminal fallback
+  Alt + Return        terminal fallback
+  F12                 terminal fallback
   Cmd + Space         app launcher
   Cmd + Alt + Space   menu
+  Ctrl + Alt + Space  menu fallback
   Cmd + K             keybindings
+  Ctrl + Alt + K      keybindings fallback
   Cmd + Shift + /     doctor
   Cmd + Shift + Q     exit Hyprland
+  Ctrl + Alt + Q      exit fallback
+  Ctrl + Alt + Backspace exit fallback
   Cmd + Escape        power menu
 
 Recovery commands:
