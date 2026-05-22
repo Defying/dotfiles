@@ -9,7 +9,7 @@
   "modules-right": ["tray", "network", "pulseaudio", "battery", "custom/power"],
 
   "custom/launcher": {
-    "format": "CMD",
+    "format": "⌘",
     "tooltip": "Launcher: Cmd + Space",
     "on-click": "fuzzel --show drun"
   },
@@ -33,18 +33,21 @@
   },
 
   "network": {
-    "format-wifi": "wifi {essid}",
-    "format-ethernet": "eth",
-    "format-disconnected": "offline",
+    "format-wifi": "{icon}",
+    "format-ethernet": "",
+    "format-disconnected": "",
+    "format-icons": ["", "", ""],
     "tooltip-format-wifi": "{essid} ({signalStrength}%)",
+    "tooltip-format-ethernet": "Ethernet",
     "tooltip-format-disconnected": "Disconnected",
     "on-click": "nm-connection-editor",
     "interval": 3
   },
 
   "pulseaudio": {
-    "format": "vol {volume}%",
-    "format-muted": "muted",
+    "format": "{icon} {volume}%",
+    "format-muted": " muted",
+    "format-icons": ["", "", ""],
     "scroll-step": 5,
     "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
     "on-click-right": "pavucontrol",
@@ -52,9 +55,10 @@
   },
 
   "battery": {
-    "format": "bat {capacity}%",
-    "format-charging": "chg {capacity}%",
-    "format-plugged": "plug {capacity}%",
+    "format": "{icon} {capacity}%",
+    "format-charging": " {capacity}%",
+    "format-plugged": " {capacity}%",
+    "format-icons": ["", "", "", "", ""],
     "states": {
       "warning": 20,
       "critical": 10
@@ -67,7 +71,7 @@
   },
 
   "custom/power": {
-    "format": "power",
+    "format": "",
     "tooltip": "Power menu: Cmd + Escape",
     "on-click": "hypr-power-menu"
   }
