@@ -152,6 +152,16 @@ Cmd + Left Mouse         drag window
 Cmd + Right Mouse        resize window
 ```
 
+## UI Scale
+
+The MacBook internal panel stays at its native `2560x1600` mode, with Hyprland UI scale pinned to `2x`:
+
+```text
+monitor = eDP-1, preferred, auto, 2
+```
+
+That makes the desktop/app coordinate space `1280x800` while keeping native panel pixels. Other displays use Hyprland's preferred mode and `1x` UI scale until configured separately.
+
 ## Mac-style editing
 
 ```text

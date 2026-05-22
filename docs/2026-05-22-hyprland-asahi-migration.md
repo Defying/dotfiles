@@ -269,6 +269,16 @@ Use Apple fonts already installed locally:
 
 Font paths are under `/usr/local/share/fonts/apple/`.
 
+## UI scale
+
+The MacBook internal panel stays at native `2560x1600` and uses Hyprland `2x` UI scale:
+
+```text
+monitor = eDP-1, preferred, auto, 2
+```
+
+This gives a `1280x800` logical desktop/app coordinate space without lowering the panel mode. The generic fallback monitor rule remains `1x` for external displays until they are configured explicitly.
+
 ## Proposed Hyprland bindings
 
 Modifier mapping:
