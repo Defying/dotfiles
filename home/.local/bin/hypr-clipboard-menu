@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+selection="$(cliphist list | fuzzel --dmenu --prompt "clip> ")" || exit 0
+[ -n "$selection" ] || exit 0
+
+printf '%s' "$selection" | cliphist decode | wl-copy

@@ -1,0 +1,69 @@
+* {
+  border: none;
+  border-radius: 0;
+  min-height: 0;
+  font-family: "SF Pro Text", "SF Pro", "Font Awesome 6 Free", "Font Awesome 6 Brands", sans-serif;
+  font-size: 13px;
+}
+
+window#waybar {
+  background: rgba(10, 14, 18, 0.88);
+  color: #f4f7fb;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.modules-left,
+.modules-center,
+.modules-right {
+  padding: 0 8px;
+}
+
+#custom-launcher,
+#custom-power,
+#workspaces button,
+#clock,
+#network,
+#pulseaudio,
+#battery,
+#tray {
+  padding: 0 8px;
+  margin: 0 1px;
+}
+
+#custom-launcher,
+#custom-power {
+  font-family: "SF Mono", monospace;
+  font-size: 12px;
+  color: #7dd3fc;
+}
+
+#workspaces button {
+  color: rgba(244, 247, 251, 0.58);
+  background: transparent;
+}
+
+#workspaces button.active {
+  color: #ffffff;
+  background: rgba(125, 211, 252, 0.18);
+}
+
+#workspaces button.urgent {
+  color: #ff6b6b;
+}
+
+#clock {
+  font-family: "SF Mono", monospace;
+}
+
+#battery.warning {
+  color: #fbbf24;
+}
+
+#battery.critical {
+  color: #ff6b6b;
+}
+
+tooltip {
+  background: rgba(10, 14, 18, 0.96);
+  border: 1px solid rgba(125, 211, 252, 0.35);
+}

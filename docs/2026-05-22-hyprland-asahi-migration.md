@@ -19,7 +19,7 @@ Btrfs snapshots were created before Hyprland installation or config changes:
 
 The backup bundle contains package manifests, `/etc`, boot config, KDE config, dotfiles, and user config copies. Size when created: about 5.1 GB.
 
-## Current safety state
+## Initial safety state
 
 - Plasma is still installed and remains the working desktop.
 - `plasmalogin.service` is the active display manager.
@@ -155,3 +155,15 @@ Install Hyprland as an additional login session, not as a Plasma replacement:
 - `pavucontrol`
 
 Keep Plasma and `xdg-desktop-portal-kde` installed for fallback.
+
+## Installation update
+
+Hyprland was later installed as an additional login session using the disabled-by-default COPR only for the explicit transaction. Plasma was not removed.
+
+Installed session:
+
+```text
+/usr/share/wayland-sessions/hyprland.desktop
+```
+
+Config files are tracked under this dotfiles repo and symlinked into `~/.config`.

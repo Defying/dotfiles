@@ -1,0 +1,74 @@
+{
+  "reload_style_on_change": true,
+  "layer": "top",
+  "position": "top",
+  "height": 28,
+  "spacing": 0,
+  "modules-left": ["custom/launcher", "hyprland/workspaces"],
+  "modules-center": ["clock"],
+  "modules-right": ["tray", "network", "pulseaudio", "battery", "custom/power"],
+
+  "custom/launcher": {
+    "format": "CMD",
+    "tooltip": "Launcher: Cmd + Space",
+    "on-click": "fuzzel --show drun"
+  },
+
+  "hyprland/workspaces": {
+    "on-click": "activate",
+    "format": "{name}",
+    "persistent-workspaces": {
+      "1": [],
+      "2": [],
+      "3": [],
+      "4": [],
+      "5": []
+    }
+  },
+
+  "clock": {
+    "format": "{:%a %b %d  %H:%M}",
+    "format-alt": "{:%Y-%m-%d  week %V}",
+    "tooltip": false
+  },
+
+  "network": {
+    "format-wifi": "wifi {essid}",
+    "format-ethernet": "eth",
+    "format-disconnected": "offline",
+    "tooltip-format-wifi": "{essid} ({signalStrength}%)",
+    "tooltip-format-disconnected": "Disconnected",
+    "on-click": "nm-connection-editor",
+    "interval": 3
+  },
+
+  "pulseaudio": {
+    "format": "vol {volume}%",
+    "format-muted": "muted",
+    "scroll-step": 5,
+    "on-click": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
+    "on-click-right": "pavucontrol",
+    "tooltip-format": "{desc}"
+  },
+
+  "battery": {
+    "format": "bat {capacity}%",
+    "format-charging": "chg {capacity}%",
+    "format-plugged": "plug {capacity}%",
+    "states": {
+      "warning": 20,
+      "critical": 10
+    }
+  },
+
+  "tray": {
+    "icon-size": 14,
+    "spacing": 8
+  },
+
+  "custom/power": {
+    "format": "power",
+    "tooltip": "Power menu: Cmd + Escape",
+    "on-click": "hypr-power-menu"
+  }
+}

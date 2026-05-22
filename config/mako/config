@@ -1,0 +1,23 @@
+anchor=top-right
+layer=overlay
+font=SF Pro Text 13
+background-color=#0a0e12ee
+text-color=#f4f7fbff
+border-color=#33ccffee
+progress-color=over #7dd3fc88
+border-size=2
+border-radius=0
+default-timeout=5000
+width=380
+height=120
+margin=12
+padding=12
+max-icon-size=32
+group-by=app-name,summary,body
+
+[urgency=critical]
+default-timeout=0
+border-color=#ff6b6bee
+
+[mode=do-not-disturb]
+invisible=1

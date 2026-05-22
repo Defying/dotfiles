@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+mode="${1:-region}"
+dir="${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots"
+mkdir -p "$dir"
+file="$dir/$(date +%Y%m%d-%H%M%S).png"
+
+notify_saved() {
+  wl-copy < "$file"
+  notify-send "Screenshot copied" "$file"
+}
+
+case "$mode" in
+  full)
+    grim "$file"
+    notify_saved
+    ;;
+  region)
+    geometry="$(slurp)" || exit 0
+    grim -g "$geometry" "$file"
+    notify_saved
+    ;;
+  edit)
+    geometry="$(slurp)" || exit 0
+    grim -g "$geometry" "$file"
+    wl-copy < "$file"
+    swappy -f "$file"
+    ;;
+  *)
+    printf 'usage: hypr-screenshot [full|region|edit]\n' >&2
+    exit 2
+    ;;
+esac
