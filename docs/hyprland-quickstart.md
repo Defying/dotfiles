@@ -140,6 +140,7 @@ If the session is unstable, exit with `Ctrl + Alt + Q` or `Cmd + Shift + Q` and 
 ```text
 Cmd + 1..9 / 0           switch workspace 1..10
 Cmd + Shift + 1..9 / 0   move window to workspace 1..10
+Cmd + Shift + Alt + 1..0 move window silently to workspace 1..10
 Cmd + Tab                next workspace
 Cmd + Shift + Tab        previous workspace
 Cmd + Arrow              focus a nearby window

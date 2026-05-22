@@ -53,7 +53,7 @@ Relevant upstream behavior:
 - Hyprland defaults are currently organized as Lua modules under `config/hypr` and `default/hypr`.
 - Omarchy exposes keybindings through `Super + K`.
 - Omarchy exposes its main menu through `Super + Alt + Space`.
-- Omarchy's current look-and-feel values match the already staged gaps, border gradient, shadow, blur, animation, dwindle, cursor, and XWayland choices.
+- Omarchy's current look-and-feel values match the already staged gaps, border gradient, shadow, blur, animation, group styling, dwindle, scrolling, cursor, and XWayland choices.
 
 Fedora Asahi keeps the validated classic Hyprland config instead of switching to Omarchy's Lua stack, because this machine is on Fedora packages and does not have Omarchy's Arch-specific helper commands. Fedora-safe equivalents were added:
 
@@ -286,6 +286,7 @@ Workspaces:
 ```text
 Cmd + 1..9 / 0           switch workspace 1..10
 Cmd + Shift + 1..9 / 0   move window to workspace 1..10
+Cmd + Shift + Alt + 1..0 move window silently to workspace 1..10
 Cmd + Tab                next workspace
 Cmd + Shift + Tab        previous workspace
 ```
