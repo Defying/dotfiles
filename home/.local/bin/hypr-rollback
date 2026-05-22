@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ -x /usr/local/bin/asahi-hyprland-disable-config ]; then
+  /usr/local/bin/asahi-hyprland-disable-config
+else
+  ts="$(date +%Y%m%d-%H%M%S)"
+  mkdir -p "$HOME/hyprland-rollback" "$HOME/.config"
+  if [ -e "$HOME/.config/hypr" ] || [ -L "$HOME/.config/hypr" ]; then
+    mv "$HOME/.config/hypr" "$HOME/.config/hypr.disabled-$ts"
+    printf 'Moved ~/.config/hypr to ~/.config/hypr.disabled-%s\n' "$ts"
+  else
+    printf '~/.config/hypr does not exist; nothing to disable\n'
+  fi
+fi
+
+printf 'Use the normal Plasma session at the login screen.\n'

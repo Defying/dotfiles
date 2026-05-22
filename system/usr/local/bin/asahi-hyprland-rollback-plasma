@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+/usr/local/bin/asahi-hyprland-disable-config || true
+
+export XDG_CURRENT_DESKTOP=KDE
+export XDG_SESSION_DESKTOP=KDE
+export DESKTOP_SESSION=plasma
+
+exec /usr/libexec/plasma-dbus-run-session-if-needed /usr/bin/startplasma-wayland

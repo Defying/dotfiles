@@ -196,3 +196,26 @@ An additional nested smoke test used the full autostart config. It reached Hyprl
 - No autostart child processes were left running afterward.
 
 Remaining manual proof: log out of Plasma, choose the `Hyprland` session, and confirm the real user session starts with autostart enabled.
+
+## Graphical rollback session
+
+A dedicated rollback session was added to the login screen:
+
+```text
+/usr/share/wayland-sessions/plasma-rollback-hyprland.desktop
+Name=Plasma (Rollback Hyprland)
+```
+
+It runs:
+
+```text
+/usr/local/bin/asahi-hyprland-rollback-plasma
+```
+
+That wrapper calls `/usr/local/bin/asahi-hyprland-disable-config`, which moves `~/.config/hypr` to a timestamped `~/.config/hypr.disabled-*` directory, writes a log to `~/hyprland-rollback/`, then starts Plasma using Fedora Asahi's normal Plasma Wayland command.
+
+TTY/manual rollback command:
+
+```bash
+hypr-rollback
+```

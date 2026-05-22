@@ -83,14 +83,34 @@ If Hyprland is annoying but the login screen works:
 1. `Cmd + Shift + Q` to exit Hyprland.
 2. Pick the `Plasma` session at login.
 
+## Login-Screen Rollback
+
+If Hyprland is broken and you want the login screen to disable it for you:
+
+1. At the login screen, open the session chooser.
+2. Pick `Plasma (Rollback Hyprland)`.
+3. Log in as `ben`.
+
+That session moves `~/.config/hypr` to a timestamped disabled directory like:
+
+```text
+~/.config/hypr.disabled-20260522-091500
+```
+
+Then it starts Plasma. It writes a log under:
+
+```text
+~/hyprland-rollback/
+```
+
 If Hyprland will not start:
 
 1. Switch to a TTY with `Ctrl + Alt + F3`.
 2. Log in.
-3. Move the config out of the way:
+3. Run the rollback command:
 
 ```bash
-mv ~/.config/hypr/hyprland.conf ~/.config/hypr/hyprland.conf.disabled
+hypr-rollback
 ```
 
 4. Return to the login screen with `Ctrl + Alt + F1` or reboot.

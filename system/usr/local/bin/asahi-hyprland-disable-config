@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+user_name="${SUDO_USER:-$(id -un)}"
+home_dir="$(getent passwd "$user_name" | cut -d: -f6)"
+user_uid="$(id -u "$user_name")"
+user_gid="$(id -g "$user_name")"
+mode="${1:-run}"
+
+if [ -z "$home_dir" ] || [ ! -d "$home_dir" ]; then
+  printf 'Could not determine a usable home directory for %s\n' "$user_name" >&2
+  exit 1
+fi
+
+ts="$(date +%Y%m%d-%H%M%S)"
+rollback_dir="$home_dir/hyprland-rollback"
+log_file="$rollback_dir/rollback-$ts.log"
+hypr_dir="$home_dir/.config/hypr"
+disabled_dir="$home_dir/.config/hypr.disabled-$ts"
+
+case "$mode" in
+  run|--run)
+    ;;
+  --check)
+    printf 'user=%s\nhome=%s\nhypr_config=%s\nwould_move_to=%s\n' "$user_name" "$home_dir" "$hypr_dir" "$disabled_dir"
+    exit 0
+    ;;
+  *)
+    printf 'usage: %s [--check]\n' "$0" >&2
+    exit 2
+    ;;
+esac
+
+mkdir -p "$rollback_dir" "$home_dir/.config"
+chown "$user_uid:$user_gid" "$rollback_dir" "$home_dir/.config" 2>/dev/null || true
+
+{
+  printf 'timestamp=%s\n' "$(date --iso-8601=seconds)"
+  printf 'user=%s\n' "$user_name"
+  printf 'home=%s\n' "$home_dir"
+  printf 'action=disable-hyprland-config\n'
+} > "$log_file"
+chown "$user_uid:$user_gid" "$log_file" 2>/dev/null || true
+
+if [ -e "$hypr_dir" ] || [ -L "$hypr_dir" ]; then
+  mv "$hypr_dir" "$disabled_dir"
+  chown -hR "$user_uid:$user_gid" "$disabled_dir" 2>/dev/null || true
+  printf 'moved=%s -> %s\n' "$hypr_dir" "$disabled_dir" >> "$log_file"
+else
+  printf 'moved=none; %s did not exist\n' "$hypr_dir" >> "$log_file"
+fi
+
+if [ -d "$home_dir/dotfiles" ]; then
+  git -C "$home_dir/dotfiles" status --short --branch >> "$log_file" 2>&1 || true
+fi
+
+printf '%s\n' "$log_file"

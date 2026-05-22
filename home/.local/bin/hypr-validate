@@ -23,6 +23,10 @@ check "Waybar JSON" jq empty /home/ben/.config/waybar/config.jsonc
 check "helper scripts" bash -n /home/ben/.local/bin/hypr-power-menu /home/ben/.local/bin/hypr-screenshot /home/ben/.local/bin/hypr-clipboard-menu
 check "Hyprland session file" test -f /usr/share/wayland-sessions/hyprland.desktop
 check "Plasma fallback session file" test -f /usr/share/wayland-sessions/plasma.desktop
+check "Rollback Plasma session file" test -f /usr/share/wayland-sessions/plasma-rollback-hyprland.desktop
+check "Rollback Plasma script" test -x /usr/local/bin/asahi-hyprland-rollback-plasma
+check "Disable Hyprland script" test -x /usr/local/bin/asahi-hyprland-disable-config
+check "Disable Hyprland dry-run" /usr/local/bin/asahi-hyprland-disable-config --check
 check "Plasma login manager active" systemctl is-active --quiet plasmalogin.service
 check "Hyprland package installed" rpm -q hyprland
 check "Plasma package still installed" rpm -q plasma-desktop

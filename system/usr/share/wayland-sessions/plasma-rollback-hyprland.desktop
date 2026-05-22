@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Plasma (Rollback Hyprland)
+Comment=Disable the Hyprland user config, then start Plasma
+Exec=/usr/local/bin/asahi-hyprland-rollback-plasma
+TryExec=/usr/bin/startplasma-wayland
+Type=Application
+Keywords=rollback;recovery;hyprland;plasma;kde;
