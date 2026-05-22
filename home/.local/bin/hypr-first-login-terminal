@@ -64,6 +64,7 @@ printf '  Ctrl+Alt+K       show keybindings\n'
 printf '  Ctrl+Alt+Q       exit Hyprland\n'
 printf '  Ctrl+Alt+Backspace exit Hyprland\n'
 printf '\nUseful commands: hypr-doctor  hypr-proof  hypr-logs  hypr-login-status\n'
+printf 'Recovery commands: hypr-emergency  hypr-rollback --check  hypr-rollback\n'
 printf 'This shell stays open so you are not stranded.\n\n'
 exec bash -l
 EOF

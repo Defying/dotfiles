@@ -17,6 +17,7 @@ choice="$(
     "Keybindings" \
     "Quickstart" \
     "Recovery Card" \
+    "Emergency Card" \
     "Login Status" \
     "Logs" \
     "Preflight" \
@@ -43,6 +44,9 @@ case "$choice" in
     ;;
   "Recovery Card")
     run_terminal "/home/ben/.local/bin/hypr-recovery-card"
+    ;;
+  "Emergency Card")
+    run_terminal "hypr-emergency"
     ;;
   "Login Status")
     run_terminal "/home/ben/.local/bin/hypr-login-status"

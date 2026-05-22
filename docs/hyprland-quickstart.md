@@ -106,7 +106,7 @@ From a terminal, `hypr-help` reopens this quickstart, `hypr-recovery-card` print
 
 `hypr-emergency` prints a root-owned plain-text recovery card from `/usr/local/share/asahi-hyprland/RECOVERY.txt`, so it still works from a plain TTY without remembering this repo path.
 
-The menu at `Cmd + Alt + Space` is the Fedora-safe equivalent of Omarchy's menu workflow. It opens apps, keybindings, quickstart, recovery card, login status, logs, preflight, doctor, proof, validator, clipboard history, audio/network tools, the Hyprland config, and the power menu.
+The menu at `Cmd + Alt + Space` is the Fedora-safe equivalent of Omarchy's menu workflow. It opens apps, keybindings, quickstart, recovery cards, login status, logs, preflight, doctor, proof, validator, clipboard history, audio/network tools, the Hyprland config, and the power menu.
 
 ## First Login Check
 
