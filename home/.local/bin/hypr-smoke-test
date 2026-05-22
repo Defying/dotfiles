@@ -10,6 +10,7 @@ report_file="$log_dir/nested-smoke-$ts.report"
 before_dirs="$(mktemp -t hypr-smoke-dirs-before.XXXXXX)"
 after_dirs="$(mktemp -t hypr-smoke-dirs-after.XXXXXX)"
 before_pids="$(mktemp -t hypr-smoke-pids-before.XXXXXX)"
+monitor_probe="$(mktemp -t hypr-smoke-monitors.XXXXXX)"
 launcher_pid=""
 signature=""
 status=1
@@ -48,7 +49,7 @@ cleanup() {
 
   cleanup_new_processes
   /home/ben/.local/bin/hypr-refresh-session-env >/dev/null 2>&1 || true
-  rm -f "$before_dirs" "$after_dirs" "$before_pids"
+  rm -f "$before_dirs" "$after_dirs" "$before_pids" "$monitor_probe"
 }
 
 trap cleanup EXIT
@@ -59,6 +60,7 @@ ps -u "$uid" -o pid= | awk '{ print $1 }' | sort -n > "$before_pids"
 (
   env \
     WLR_BACKENDS=wayland \
+    WLR_WL_OUTPUTS=1 \
     WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-wayland-0}" \
     XDG_CURRENT_DESKTOP=Hyprland \
     XDG_SESSION_DESKTOP=Hyprland \
@@ -92,6 +94,23 @@ done
 
   export HYPRLAND_INSTANCE_SIGNATURE="$signature"
 
+  monitor_ready=0
+  for _ in $(seq 1 30); do
+    if hyprctl monitors > "$monitor_probe" 2>/dev/null &&
+      grep -q '^Monitor ' "$monitor_probe"; then
+      monitor_ready=1
+      break
+    fi
+    sleep 0.5
+  done
+
+  if [ "$monitor_ready" -ne 1 ]; then
+    printf '\nFAIL: nested Hyprland instance never reported a real monitor.\n'
+    printf '\n== Last monitor probe ==\n'
+    sed -n '1,120p' "$monitor_probe"
+    exit 1
+  fi
+
   printf '\n== Monitors ==\n'
   if hyprctl monitors; then
     printf 'OK: hyprctl monitors\n'
@@ -116,7 +135,7 @@ done
     exit 1
   fi
 
-  sleep 6
+  sleep 10
 
   printf '\n== Clients ==\n'
   hyprctl clients || true
