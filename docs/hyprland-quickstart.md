@@ -114,6 +114,7 @@ Live config files are symlinked from this repo:
 ~/.config/hypr/hyprpaper.conf
 ~/.config/hypr/hypridle.conf
 ~/.config/hypr/hyprlock.conf
+~/.config/hypr/xdph.conf
 ~/.config/waybar/config.jsonc
 ~/.config/waybar/style.css
 ~/.config/fuzzel/fuzzel.ini
@@ -213,3 +214,14 @@ Configured-state checkpoint before the first real Hyprland login:
 ```
 
 Use the Btrfs snapshots for a full rollback only from a rescue environment or with a deliberate rollback plan. Plasma fallback should be the first recovery path.
+
+## Portals
+
+Fedora keeps KDE and Hyprland portals installed side by side. Hyprland sessions use:
+
+```text
+/usr/share/xdg-desktop-portal/hyprland-portals.conf
+~/.config/hypr/xdph.conf
+```
+
+The tracked XDPH config points screen-share picking at Fedora's `hyprland-share-picker`.

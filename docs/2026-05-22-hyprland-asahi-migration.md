@@ -62,6 +62,14 @@ Cmd + K             hypr-keybindings
 Cmd + Alt + Space   hypr-menu
 ```
 
+Omarchy also configures XDPH screencopy behavior. Fedora Asahi now tracks the local equivalent at:
+
+```text
+~/.config/hypr/xdph.conf
+```
+
+It keeps `allow_token_by_default = true` and uses Fedora's installed `hyprland-share-picker` binary for screen-share source selection.
+
 ## Recovery card
 
 A compact recovery reference command was added:
