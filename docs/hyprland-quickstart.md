@@ -8,6 +8,7 @@ Login-screen session choices:
 Plasma                       normal KDE fallback
 Plasma (Rollback Hyprland)   disable ~/.config/hypr, then start KDE
 Hyprland                     normal configured Hyprland
+Hyprland (Logged)            normal Hyprland, with startup logs
 Hyprland (Safe)              minimal Hyprland, no Waybar/Mako/Hypridle/autostart
 ```
 
@@ -25,6 +26,12 @@ If you want to test the compositor before trusting the normal config, choose `Hy
 ```
 
 It has the same core MacBook navigation bindings but skips all user autostart services.
+
+If the normal session fails before you can open a terminal, use `Hyprland (Logged)` on the next try. It runs the normal config and writes startup output under:
+
+```text
+~/hyprland-first-login/session-*.log
+```
 
 First keys to remember:
 
@@ -126,6 +133,12 @@ If normal Hyprland fails but you still want a minimal compositor test:
 1. Pick `Hyprland (Safe)` at login.
 2. Use `Cmd + Return` for Ghostty or `Cmd + Space` for the app launcher.
 3. Use `Cmd + Shift + Q` to exit.
+
+If normal Hyprland reaches a black screen or returns to login, try `Hyprland (Logged)` once, then inspect:
+
+```text
+~/hyprland-first-login/session-*.log
+```
 
 ## Login-Screen Rollback
 

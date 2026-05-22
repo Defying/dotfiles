@@ -32,6 +32,11 @@ check "Fuzzel config" fuzzel --check-config --config /home/ben/.config/fuzzel/fu
 check "Waybar JSON" jq empty /home/ben/.config/waybar/config.jsonc
 check "helper scripts" bash -n /home/ben/.local/bin/hypr-power-menu /home/ben/.local/bin/hypr-screenshot /home/ben/.local/bin/hypr-clipboard-menu /home/ben/.local/bin/hypr-rollback /home/ben/.local/bin/hypr-enable /home/ben/.local/bin/hypr-help /home/ben/.local/bin/hypr-doctor
 check "Hyprland session file" test -f /usr/share/wayland-sessions/hyprland.desktop
+check "Hyprland logged session file" test -f /usr/share/wayland-sessions/hyprland-logged.desktop
+check "Hyprland logged session desktop" desktop-file-validate /usr/share/wayland-sessions/hyprland-logged.desktop
+check "Hyprland logged script" test -x /usr/local/bin/asahi-hyprland-logged
+check_match "Hyprland logged session installed" system/usr/share/wayland-sessions/hyprland-logged.desktop /usr/share/wayland-sessions/hyprland-logged.desktop
+check_match "Hyprland logged script installed" system/usr/local/bin/asahi-hyprland-logged /usr/local/bin/asahi-hyprland-logged
 check "Hyprland safe config" Hyprland --verify-config -c /usr/local/share/asahi-hyprland/hyprland-safe.conf
 check "Hyprland safe session file" test -f /usr/share/wayland-sessions/hyprland-safe.desktop
 check "Hyprland safe session desktop" desktop-file-validate /usr/share/wayland-sessions/hyprland-safe.desktop

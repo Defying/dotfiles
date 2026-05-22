@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Hyprland (Logged)
+Comment=Start the normal Hyprland session and save startup logs
+Exec=/usr/local/bin/asahi-hyprland-logged
+TryExec=/usr/bin/start-hyprland
+Type=Application
+Keywords=logged;debug;recovery;hyprland;wayland;

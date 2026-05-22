@@ -254,6 +254,39 @@ timeout --kill-after=3s 8s env HOME=/tmp/codex-hypr-safe-test-home \
 
 Result: Hyprland started with `/usr/local/share/asahi-hyprland/hyprland-safe.conf` and ran until the timeout killed it. The visible warnings were XKB/Xwayland warnings. As with the normal wrapper smoke test, killing `start-hyprland` by timeout produced a wrapper coredump during shutdown; no `Hyprland` or `start-hyprland` processes remained afterward.
 
+## Logged Hyprland session
+
+A logged normal Hyprland session was added to the login screen:
+
+```text
+/usr/share/wayland-sessions/hyprland-logged.desktop
+Name=Hyprland (Logged)
+```
+
+It runs:
+
+```text
+/usr/local/bin/asahi-hyprland-logged
+```
+
+That wrapper preserves the normal Fedora `/usr/bin/start-hyprland` launch path and writes startup output to:
+
+```text
+~/hyprland-first-login/session-*.log
+```
+
+Use it when the normal `Hyprland` login fails before a terminal can be opened. It is diagnostic only; it does not change the normal Hyprland config.
+
+Nested smoke test used a throwaway home with the safe config symlinked as `hyprland.conf`:
+
+```text
+timeout --kill-after=3s 8s env HOME=/tmp/codex-hypr-logged-test-home \
+  XDG_CONFIG_HOME=/tmp/codex-hypr-logged-test-home/.config \
+  /usr/local/bin/asahi-hyprland-logged
+```
+
+Result: the wrapper wrote `session-*.log`, `start-hyprland` reached Hyprland startup, and no `Hyprland` or `start-hyprland` processes remained afterward. Killing the nested wrapper by timeout produced the same shutdown-path coredump caveat as the other nested smoke tests.
+
 ## First-login doctor
 
 A post-login session checker was added:
