@@ -190,6 +190,14 @@ if [ -n "$smoke_report" ]; then
   else
     warn "latest nested smoke test did not record success"
   fi
+
+  if [ -d /home/ben/dotfiles/.git ]; then
+    commit_ts="$(git -C /home/ben/dotfiles log -1 --format=%ct 2>/dev/null || true)"
+    smoke_ts="$(stat -c '%Y' "$smoke_report" 2>/dev/null || true)"
+    if [ -n "$commit_ts" ] && [ -n "$smoke_ts" ] && [ "$smoke_ts" -lt "$commit_ts" ]; then
+      warn "latest nested smoke test predates current dotfiles commit"
+    fi
+  fi
 else
   todo "no nested smoke-test report found; optional: hypr-smoke-test --run"
 fi

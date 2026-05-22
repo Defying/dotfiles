@@ -123,6 +123,8 @@ hypr-readiness
 
 It checks the current session, Plasma greeter default, rollback sessions, backup bundles, Btrfs snapshots, dotfiles cleanliness/push status, `hypr-validate`, the latest nested smoke-test report, and the real-login proof marker. It does not alter login state.
 
+If the latest nested smoke-test report predates the current dotfiles commit, `hypr-readiness` reports that as a warning. That warning is expected after static config hardening and means the most recent nested smoke test no longer proves the exact current commit.
+
 The nested smoke-test helper starts the real configured Hyprland under the current Plasma Wayland session:
 
 ```bash
