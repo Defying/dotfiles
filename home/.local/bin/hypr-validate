@@ -27,11 +27,40 @@ check_match() {
   check "$name" cmp -s "/home/ben/dotfiles/$repo_path" "$installed_path"
 }
 
+check_link() {
+  local name="$1"
+  local live_path="$2"
+  local repo_path="$3"
+
+  check "$name" bash -lc "test -L '$live_path' && test \"\$(readlink -f '$live_path')\" = '/home/ben/dotfiles/$repo_path'"
+}
+
 check "Hyprland config" Hyprland --verify-config -c /home/ben/.config/hypr/hyprland.conf
 check "Hyprland XDPH config" bash -lc 'test -f /home/ben/.config/hypr/xdph.conf && rg -q "custom_picker_binary = hyprland-share-picker" /home/ben/.config/hypr/xdph.conf'
 check "Fuzzel config" fuzzel --check-config --config /home/ben/.config/fuzzel/fuzzel.ini
 check "Waybar JSON" jq empty /home/ben/.config/waybar/config.jsonc
 check "helper scripts" bash -n /home/ben/.local/bin/hypr-power-menu /home/ben/.local/bin/hypr-screenshot /home/ben/.local/bin/hypr-clipboard-menu /home/ben/.local/bin/hypr-rollback /home/ben/.local/bin/hypr-enable /home/ben/.local/bin/hypr-help /home/ben/.local/bin/hypr-doctor /home/ben/.local/bin/hypr-keybindings /home/ben/.local/bin/hypr-menu /home/ben/.local/bin/hypr-recovery-card /home/ben/.local/bin/hypr-first-login-notice /home/ben/dotfiles/scripts/install-hyprland-system-files.sh
+check_link "Hyprland config linked" /home/ben/.config/hypr/hyprland.conf config/hypr/hyprland.conf
+check_link "Hyprpaper config linked" /home/ben/.config/hypr/hyprpaper.conf config/hypr/hyprpaper.conf
+check_link "Hypridle config linked" /home/ben/.config/hypr/hypridle.conf config/hypr/hypridle.conf
+check_link "Hyprlock config linked" /home/ben/.config/hypr/hyprlock.conf config/hypr/hyprlock.conf
+check_link "Hyprland XDPH config linked" /home/ben/.config/hypr/xdph.conf config/hypr/xdph.conf
+check_link "Waybar config linked" /home/ben/.config/waybar/config.jsonc config/waybar/config.jsonc
+check_link "Waybar style linked" /home/ben/.config/waybar/style.css config/waybar/style.css
+check_link "Fuzzel config linked" /home/ben/.config/fuzzel/fuzzel.ini config/fuzzel/fuzzel.ini
+check_link "Mako config linked" /home/ben/.config/mako/config config/mako/config
+check_link "Swappy config linked" /home/ben/.config/swappy/config config/swappy/config
+check_link "Hypr power menu linked" /home/ben/.local/bin/hypr-power-menu home/.local/bin/hypr-power-menu
+check_link "Hypr screenshot linked" /home/ben/.local/bin/hypr-screenshot home/.local/bin/hypr-screenshot
+check_link "Hypr clipboard menu linked" /home/ben/.local/bin/hypr-clipboard-menu home/.local/bin/hypr-clipboard-menu
+check_link "Hypr rollback linked" /home/ben/.local/bin/hypr-rollback home/.local/bin/hypr-rollback
+check_link "Hypr enable linked" /home/ben/.local/bin/hypr-enable home/.local/bin/hypr-enable
+check_link "Hypr help linked" /home/ben/.local/bin/hypr-help home/.local/bin/hypr-help
+check_link "Hypr doctor linked" /home/ben/.local/bin/hypr-doctor home/.local/bin/hypr-doctor
+check_link "Hypr keybindings linked" /home/ben/.local/bin/hypr-keybindings home/.local/bin/hypr-keybindings
+check_link "Hypr menu linked" /home/ben/.local/bin/hypr-menu home/.local/bin/hypr-menu
+check_link "Hypr recovery card linked" /home/ben/.local/bin/hypr-recovery-card home/.local/bin/hypr-recovery-card
+check_link "Hypr first-login notice linked" /home/ben/.local/bin/hypr-first-login-notice home/.local/bin/hypr-first-login-notice
 check "Hyprland session file" test -f /usr/share/wayland-sessions/hyprland.desktop
 check "Hyprland logged session file" test -f /usr/share/wayland-sessions/hyprland-logged.desktop
 check "Hyprland logged session desktop" desktop-file-validate /usr/share/wayland-sessions/hyprland-logged.desktop
