@@ -287,6 +287,23 @@ timeout --kill-after=3s 8s env HOME=/tmp/codex-hypr-logged-test-home \
 
 Result: the wrapper wrote `session-*.log`, `start-hyprland` reached Hyprland startup, and no `Hyprland` or `start-hyprland` processes remained afterward. Killing the nested wrapper by timeout produced the same shutdown-path coredump caveat as the other nested smoke tests.
 
+## System-file reinstall command
+
+The root-owned login and recovery files are tracked under `system/`. They can be reinstalled from a fresh clone with:
+
+```bash
+cd ~/dotfiles
+scripts/install-hyprland-system-files.sh --install
+```
+
+Verification:
+
+```bash
+scripts/install-hyprland-system-files.sh --check
+```
+
+The script installs only the tracked Hyprland recovery/session files. It does not modify Fedora's package-owned `hyprland.desktop` or `plasma.desktop`.
+
 ## First-login doctor
 
 A post-login session checker was added:

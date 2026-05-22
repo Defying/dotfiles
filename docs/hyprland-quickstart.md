@@ -166,6 +166,14 @@ To re-enable the Git-tracked Hyprland config later from Plasma:
 hypr-enable
 ```
 
+To reinstall or verify the root-owned login/recovery files from this repo:
+
+```bash
+cd ~/dotfiles
+scripts/install-hyprland-system-files.sh --install
+scripts/install-hyprland-system-files.sh --check
+```
+
 If Hyprland will not start:
 
 1. Switch to a TTY with `Ctrl + Alt + F3`.

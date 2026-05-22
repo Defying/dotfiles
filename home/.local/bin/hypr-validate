@@ -30,7 +30,7 @@ check_match() {
 check "Hyprland config" Hyprland --verify-config -c /home/ben/.config/hypr/hyprland.conf
 check "Fuzzel config" fuzzel --check-config --config /home/ben/.config/fuzzel/fuzzel.ini
 check "Waybar JSON" jq empty /home/ben/.config/waybar/config.jsonc
-check "helper scripts" bash -n /home/ben/.local/bin/hypr-power-menu /home/ben/.local/bin/hypr-screenshot /home/ben/.local/bin/hypr-clipboard-menu /home/ben/.local/bin/hypr-rollback /home/ben/.local/bin/hypr-enable /home/ben/.local/bin/hypr-help /home/ben/.local/bin/hypr-doctor
+check "helper scripts" bash -n /home/ben/.local/bin/hypr-power-menu /home/ben/.local/bin/hypr-screenshot /home/ben/.local/bin/hypr-clipboard-menu /home/ben/.local/bin/hypr-rollback /home/ben/.local/bin/hypr-enable /home/ben/.local/bin/hypr-help /home/ben/.local/bin/hypr-doctor /home/ben/dotfiles/scripts/install-hyprland-system-files.sh
 check "Hyprland session file" test -f /usr/share/wayland-sessions/hyprland.desktop
 check "Hyprland logged session file" test -f /usr/share/wayland-sessions/hyprland-logged.desktop
 check "Hyprland logged session desktop" desktop-file-validate /usr/share/wayland-sessions/hyprland-logged.desktop
@@ -52,6 +52,7 @@ check "Disable Hyprland script" test -x /usr/local/bin/asahi-hyprland-disable-co
 check_match "Rollback Plasma session installed" system/usr/share/wayland-sessions/plasma-rollback-hyprland.desktop /usr/share/wayland-sessions/plasma-rollback-hyprland.desktop
 check_match "Rollback Plasma script installed" system/usr/local/bin/asahi-hyprland-rollback-plasma /usr/local/bin/asahi-hyprland-rollback-plasma
 check_match "Disable Hyprland script installed" system/usr/local/bin/asahi-hyprland-disable-config /usr/local/bin/asahi-hyprland-disable-config
+check "Hyprland system installer check" /home/ben/dotfiles/scripts/install-hyprland-system-files.sh --check
 check "Disable Hyprland dry-run" /usr/local/bin/asahi-hyprland-disable-config --check
 check "Enable Hyprland command" test -x /home/ben/.local/bin/hypr-enable
 check "Hyprland doctor command" test -x /home/ben/.local/bin/hypr-doctor
