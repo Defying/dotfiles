@@ -96,7 +96,7 @@ The preflight helper runs the current safe-before-retry checklist from Plasma:
 hypr-preflight
 ```
 
-It refreshes the Plasma/user service environment, keeps Plasma as the remembered greeter default, clears first-login notice state so the next normal Hyprland attempt is noisy again, runs `hypr-validate`, prints `hypr-login-status`, and prints the fallback keys.
+It refreshes the Plasma/user service environment, keeps Plasma as the remembered greeter default, clears first-login notice state so the next normal Hyprland attempt is noisy again, runs `hypr-validate`, runs `hypr-readiness`, prints `hypr-login-status`, and prints the fallback keys.
 
 TTY rollback can be inspected before changing anything:
 

@@ -30,7 +30,7 @@ Before logging out, this command shows the current desktop, the session remember
 hypr-login-status
 ```
 
-Before a real retry, this command runs the whole safe preflight: refreshes the Plasma/user session environment, keeps Plasma as the remembered default, resets first-login notice state, runs static validation, and prints the retry keys:
+Before a real retry, this command runs the whole safe preflight: refreshes the Plasma/user session environment, keeps Plasma as the remembered default, resets first-login notice state, runs static validation, runs the readiness audit, and prints the retry keys:
 
 ```bash
 hypr-preflight

@@ -46,6 +46,7 @@ rm -f "$state_dir/first-login-notice.seen" "$state_dir/first-login-terminal.seen
 printf 'OK: first-login notice state cleared\n'
 
 run_required "Static Hyprland validation" /home/ben/.local/bin/hypr-validate
+run_required "Readiness audit" /home/ben/.local/bin/hypr-readiness
 
 step "Current login status"
 /home/ben/.local/bin/hypr-login-status || failures=$((failures + 1))
@@ -87,3 +88,4 @@ if [ "$failures" -ne 0 ]; then
 fi
 
 printf '\nHyprland preflight passed. Plasma remains the remembered default; choose Hyprland (Recovery Terminal) manually only when ready.\n'
+printf 'Readiness may still show stale nested-smoke and missing real-login-proof status until those exact tests are rerun.\n'
