@@ -113,6 +113,19 @@ for path in \
   fi
 done
 
+section "Emergency Recovery"
+if [ -x /usr/local/bin/hypr-emergency ]; then
+  ok "emergency command present: /usr/local/bin/hypr-emergency"
+else
+  fail "emergency command missing: /usr/local/bin/hypr-emergency"
+fi
+
+if [ -r /usr/local/share/asahi-hyprland/RECOVERY.txt ]; then
+  ok "emergency recovery card present: /usr/local/share/asahi-hyprland/RECOVERY.txt"
+else
+  fail "emergency recovery card missing: /usr/local/share/asahi-hyprland/RECOVERY.txt"
+fi
+
 section "Backups"
 for path in \
   /home/ben/system-backups/pre-hyprland-20260522-083751 \
