@@ -152,4 +152,8 @@ if [ "$failures" -ne 0 ]; then
   exit 1
 fi
 
-printf '\nHyprland static validation passed. Real-session proof still requires logging into the Hyprland session.\n'
+if [ -f /home/ben/.local/state/hyprland/real-login-proof ]; then
+  printf '\nHyprland static validation passed. Real-session proof marker exists; run hypr-readiness for the full audit.\n'
+else
+  printf '\nHyprland static validation passed. Real-session proof still requires logging into the Hyprland session.\n'
+fi
