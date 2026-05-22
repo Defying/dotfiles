@@ -16,7 +16,7 @@ trap cleanup EXIT
 
 usage() {
   cat <<'EOF'
-usage: hypr-login-default [status|plasma|hyprland|safe|logged]
+usage: hypr-login-default [status|plasma|hyprland|recovery|safe|logged]
 
 Set the Plasma Login Manager remembered session for ben.
 
@@ -24,6 +24,8 @@ Recommended before first Hyprland testing:
   hypr-login-default plasma
 
 Then choose Hyprland manually from the login screen.
+Use recovery only when you explicitly want the login screen to remember the
+terminal-first Hyprland recovery session.
 EOF
 }
 
@@ -31,6 +33,7 @@ session_file_for_choice() {
   case "$1" in
     plasma) printf 'plasma.desktop\n' ;;
     hyprland) printf 'hyprland.desktop\n' ;;
+    recovery) printf 'hyprland-recovery.desktop\n' ;;
     safe) printf 'hyprland-safe.desktop\n' ;;
     logged) printf 'hyprland-logged.desktop\n' ;;
     *)
@@ -151,7 +154,7 @@ case "$choice" in
   status)
     read_state
     ;;
-  plasma|hyprland|safe|logged)
+  plasma|hyprland|recovery|safe|logged)
     session_file="$(session_file_for_choice "$choice")"
     set_state "$session_file"
     printf 'Plasma Login remembered session set to %s' "$session_file"

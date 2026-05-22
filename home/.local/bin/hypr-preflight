@@ -55,7 +55,8 @@ cat <<'EOF'
 From the login screen:
   Plasma                       known-good fallback
   Plasma (Rollback Hyprland)   disables ~/.config/hypr, then starts KDE
-  Hyprland (Safe)              minimal compositor test
+  Hyprland (Recovery Terminal) minimal compositor test, opens Ghostty card
+  Hyprland (Safe)              minimal compositor test, no autostart
   Hyprland                     normal session, opens Ghostty automatically
   Hyprland (Logged)            normal session with startup log
 
@@ -68,6 +69,13 @@ Inside Hyprland:
   Ctrl + Alt + Q       exit Hyprland fallback
   Ctrl + Alt + Backspace exit Hyprland fallback
 
+TTY fallback:
+  Ctrl + Alt + F3
+  log in as ben
+  hypr-emergency
+  hypr-rollback --check
+  hypr-rollback
+
 After normal Hyprland opens Ghostty:
   hypr-doctor
   hypr-proof
@@ -78,4 +86,4 @@ if [ "$failures" -ne 0 ]; then
   exit 1
 fi
 
-printf '\nHyprland preflight passed. Plasma remains the remembered default; choose Hyprland manually only when ready.\n'
+printf '\nHyprland preflight passed. Plasma remains the remembered default; choose Hyprland (Recovery Terminal) manually only when ready.\n'
