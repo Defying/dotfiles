@@ -39,6 +39,7 @@ check "Hyprland config" Hyprland --verify-config -c /home/ben/.config/hypr/hyprl
 check "Hyprland XDPH config" bash -lc 'test -f /home/ben/.config/hypr/xdph.conf && grep -q "custom_picker_binary = hyprland-share-picker" /home/ben/.config/hypr/xdph.conf'
 check "Fuzzel config" fuzzel --check-config --config /home/ben/.config/fuzzel/fuzzel.ini
 check "Waybar JSON" jq empty /home/ben/.config/waybar/config.jsonc
+check "Ghostty terminal command" command -v ghostty
 check "helper scripts" bash -n /home/ben/.local/bin/hypr-power-menu /home/ben/.local/bin/hypr-screenshot /home/ben/.local/bin/hypr-clipboard-menu /home/ben/.local/bin/hypr-rollback /home/ben/.local/bin/hypr-enable /home/ben/.local/bin/hypr-help /home/ben/.local/bin/hypr-doctor /home/ben/.local/bin/hypr-proof /home/ben/.local/bin/hypr-keybindings /home/ben/.local/bin/hypr-menu /home/ben/.local/bin/hypr-recovery-card /home/ben/.local/bin/hypr-logs /home/ben/.local/bin/hypr-login-status /home/ben/.local/bin/hypr-login-default /home/ben/.local/bin/hypr-refresh-session-env /home/ben/.local/bin/hypr-preflight /home/ben/.local/bin/hypr-first-login-notice /home/ben/.local/bin/hypr-first-login-terminal /home/ben/.local/bin/hypr-session-autocheck /home/ben/dotfiles/scripts/install-hyprland-system-files.sh
 check_link "Hyprland config linked" /home/ben/.config/hypr/hyprland.conf config/hypr/hyprland.conf
 check_link "Hyprpaper config linked" /home/ben/.config/hypr/hyprpaper.conf config/hypr/hyprpaper.conf

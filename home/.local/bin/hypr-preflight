@@ -38,6 +38,7 @@ printf 'host=%s user=%s date=%s\n' "$(hostname)" "$(id -un)" "$(date --iso-8601=
 
 run_optional "Refresh Plasma/user session environment" /home/ben/.local/bin/hypr-refresh-session-env
 run_required "Keep Plasma as remembered login default" /home/ben/.local/bin/hypr-login-default plasma
+run_required "Ghostty terminal is installed" command -v ghostty
 
 step "Reset first-login notices"
 mkdir -p "$state_dir"
