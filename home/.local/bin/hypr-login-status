@@ -57,6 +57,13 @@ session_property() {
   loginctl show-session "$session_id" -p "$property" --value 2>/dev/null
 }
 
+user_env_property() {
+  local key="$1"
+
+  systemctl --user show-environment 2>/dev/null |
+    awk -F= -v key="$key" '$1 == key { print $2; exit }'
+}
+
 current_desktop="${XDG_CURRENT_DESKTOP:-unknown}"
 current_session="${DESKTOP_SESSION:-unknown}"
 current_session_id="${XDG_SESSION_ID:-unknown}"
@@ -64,6 +71,9 @@ loginctl_desktop="$(session_property Desktop)"
 loginctl_type="$(session_property Type)"
 loginctl_service="$(session_property Service)"
 loginctl_state="$(session_property State)"
+user_env_desktop="$(user_env_property XDG_CURRENT_DESKTOP)"
+user_env_session_desktop="$(user_env_property XDG_SESSION_DESKTOP)"
+user_env_wayland="$(user_env_property WAYLAND_DISPLAY)"
 remembered_user="$(read_key "$state_file" LastLoggedInUser)"
 remembered_session="$(read_key "$state_file" LastLoggedInSession)"
 remembered_name="$(session_name "$remembered_session")"
@@ -83,6 +93,11 @@ Current session:
   loginctl Service=${loginctl_service:-unknown}
   loginctl State=${loginctl_state:-unknown}
 
+User service environment:
+  XDG_CURRENT_DESKTOP=${user_env_desktop:-unknown}
+  XDG_SESSION_DESKTOP=${user_env_session_desktop:-unknown}
+  WAYLAND_DISPLAY=${user_env_wayland:-unknown}
+
 Plasma Login Manager:
   service=$(systemctl is-active plasmalogin.service 2>/dev/null || printf unknown)
   remembered user=${remembered_user:-unknown}
@@ -99,6 +114,18 @@ else
 fi
 printf '\n'
 
+if [ "$current_desktop" != "unknown" ] &&
+  [ -n "$user_env_desktop" ] &&
+  [ "$user_env_desktop" != "$current_desktop" ]; then
+  cat <<EOF
+Session environment warning:
+  User service environment does not match the current desktop.
+  This can break Plasma logout after desktop switching tests.
+  Repair it with: hypr-refresh-session-env
+
+EOF
+fi
+
 if [ "$current_desktop" = "Hyprland" ] || [ "${loginctl_desktop:-}" = "Hyprland" ]; then
   cat <<'EOF'
 Status:
@@ -111,6 +138,7 @@ Status:
   If an existing Plasma session is still running, Plasma Login may reuse it
   instead of launching the selected Hyprland session.
   To keep Plasma as the remembered default, run: hypr-login-default plasma
+  If Plasma's logout button does nothing, run: hypr-refresh-session-env
 
 Next real Hyprland attempt:
   1. Save work in Plasma.

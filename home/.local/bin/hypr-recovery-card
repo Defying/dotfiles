@@ -80,6 +80,7 @@ Recovery commands:
   hypr-validate
   hypr-login-status
   hypr-login-default plasma
+  hypr-refresh-session-env
   hypr-logs
   hypr-doctor
   hypr-proof

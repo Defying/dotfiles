@@ -106,6 +106,14 @@ hypr-login-default plasma
 
 That keeps Hyprland as an explicit login-screen choice rather than an accidental default.
 
+If Plasma's logout button stops responding after a desktop-switching test, refresh the user service and DBus activation environment from the current session:
+
+```bash
+hypr-refresh-session-env
+```
+
+`hypr-login-status` reports the user service environment alongside the current session and warns when `XDG_CURRENT_DESKTOP` does not match.
+
 ## Log reader
 
 The latest Hyprland attempt logs can be read with:

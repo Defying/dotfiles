@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+vars=(
+  WAYLAND_DISPLAY
+  DISPLAY
+  XDG_CURRENT_DESKTOP
+  XDG_SESSION_DESKTOP
+  XDG_SESSION_TYPE
+  DESKTOP_SESSION
+  KDE_FULL_SESSION
+  HYPRLAND_INSTANCE_SIGNATURE
+)
+
+systemctl --user import-environment "${vars[@]}" 2>/dev/null || true
+dbus-update-activation-environment --systemd "${vars[@]}" 2>/dev/null || true
+
+printf 'Refreshed user service and DBus activation environment.\n'
+printf 'XDG_CURRENT_DESKTOP=%s\n' "${XDG_CURRENT_DESKTOP:-}"
+printf 'XDG_SESSION_DESKTOP=%s\n' "${XDG_SESSION_DESKTOP:-}"
+printf 'DESKTOP_SESSION=%s\n' "${DESKTOP_SESSION:-}"
+printf 'WAYLAND_DISPLAY=%s\n' "${WAYLAND_DISPLAY:-}"
