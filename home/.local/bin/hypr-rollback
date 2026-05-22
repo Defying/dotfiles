@@ -1,9 +1,39 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+mode="${1:---run}"
+
+usage() {
+  printf 'usage: %s [--run|--check]\n' "$0" >&2
+}
+
+case "$mode" in
+  --run|run)
+    mode="--run"
+    ;;
+  --check|check)
+    mode="--check"
+    ;;
+  -h|--help)
+    usage
+    exit 0
+    ;;
+  *)
+    usage
+    exit 2
+    ;;
+esac
+
 if [ -x /usr/local/bin/asahi-hyprland-disable-config ]; then
-  /usr/local/bin/asahi-hyprland-disable-config
+  /usr/local/bin/asahi-hyprland-disable-config "$mode"
 else
+  if [ "$mode" = "--check" ]; then
+    ts="$(date +%Y%m%d-%H%M%S)"
+    printf 'user=%s\nhome=%s\nhypr_config=%s\nwould_move_to=%s\n' \
+      "$(id -un)" "$HOME" "$HOME/.config/hypr" "$HOME/.config/hypr.disabled-$ts"
+    exit 0
+  fi
+
   ts="$(date +%Y%m%d-%H%M%S)"
   mkdir -p "$HOME/hyprland-rollback" "$HOME/.config"
   if [ -e "$HOME/.config/hypr" ] || [ -L "$HOME/.config/hypr" ]; then
@@ -14,4 +44,6 @@ else
   fi
 fi
 
-printf 'Use the normal Plasma session at the login screen.\n'
+if [ "$mode" = "--run" ]; then
+  printf 'Use the normal Plasma session at the login screen.\n'
+fi

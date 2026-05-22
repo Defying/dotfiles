@@ -279,8 +279,11 @@ If Hyprland will not start:
 3. Run the rollback command:
 
 ```bash
+hypr-rollback --check
 hypr-rollback
 ```
+
+`hypr-rollback --check` prints the exact `~/.config/hypr` path that would be moved before anything is changed.
 
 4. Return to the login screen with `Ctrl + Alt + F1` or reboot.
 5. Choose `Plasma`.

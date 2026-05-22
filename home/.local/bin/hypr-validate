@@ -102,6 +102,7 @@ check_match "Rollback Plasma script installed" system/usr/local/bin/asahi-hyprla
 check_match "Disable Hyprland script installed" system/usr/local/bin/asahi-hyprland-disable-config /usr/local/bin/asahi-hyprland-disable-config
 check "Hyprland system installer check" /home/ben/dotfiles/scripts/install-hyprland-system-files.sh --check
 check "Disable Hyprland dry-run" /usr/local/bin/asahi-hyprland-disable-config --check
+check "Hypr rollback dry-run" /home/ben/.local/bin/hypr-rollback --check
 check "Enable Hyprland command" test -x /home/ben/.local/bin/hypr-enable
 check "Hyprland doctor command" test -x /home/ben/.local/bin/hypr-doctor
 check "Hyprland proof command" test -x /home/ben/.local/bin/hypr-proof

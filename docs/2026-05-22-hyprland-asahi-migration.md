@@ -98,6 +98,18 @@ hypr-preflight
 
 It refreshes the Plasma/user service environment, keeps Plasma as the remembered greeter default, clears first-login notice state so the next normal Hyprland attempt is noisy again, runs `hypr-validate`, prints `hypr-login-status`, and prints the fallback keys.
 
+TTY rollback can be inspected before changing anything:
+
+```bash
+hypr-rollback --check
+```
+
+The real rollback command moves `~/.config/hypr` aside and leaves the tracked dotfiles untouched:
+
+```bash
+hypr-rollback
+```
+
 Automation boundary: real login-screen proof is not automated from Codex. Do not force logout, restart `plasmalogin.service`, or enable autologin unless `ben` is at the keyboard and has a confirmed way back into Plasma. The safe automated checks are `hypr-preflight` and, only when explicitly requested, `hypr-smoke-test --run`.
 
 The read-only proof audit is:
