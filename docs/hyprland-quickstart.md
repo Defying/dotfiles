@@ -33,11 +33,31 @@ Cmd + Return             open Ghostty
 Cmd + Space              open app launcher
 Cmd + W                  close window
 Cmd + Shift + Q          exit Hyprland session
+Cmd + Shift + /          run Hyprland doctor
 Cmd + Escape             power/logout menu
 Cmd + L                  lock
 ```
 
-From a terminal, `hypr-help` reopens this quickstart and `hypr-validate` reruns the static safety checks.
+From a terminal, `hypr-help` reopens this quickstart, `hypr-validate` reruns the static safety checks, and `hypr-doctor` checks the live Hyprland session.
+
+## First Login Check
+
+After the first normal Hyprland login:
+
+1. Press `Cmd + Return`.
+2. Run:
+
+```bash
+hypr-doctor
+```
+
+It writes a timestamped report under:
+
+```text
+~/hyprland-first-login/
+```
+
+If the session is unstable, exit with `Cmd + Shift + Q` and pick `Plasma` or `Plasma (Rollback Hyprland)` at the login screen.
 
 ## Navigation
 
@@ -91,6 +111,7 @@ Live config files are symlinked from this repo:
 ~/.local/bin/hypr-power-menu
 ~/.local/bin/hypr-screenshot
 ~/.local/bin/hypr-clipboard-menu
+~/.local/bin/hypr-doctor
 ```
 
 ## Fast fallback

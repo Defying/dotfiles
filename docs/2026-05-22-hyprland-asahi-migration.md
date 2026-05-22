@@ -253,3 +253,25 @@ timeout --kill-after=3s 8s env HOME=/tmp/codex-hypr-safe-test-home \
 ```
 
 Result: Hyprland started with `/usr/local/share/asahi-hyprland/hyprland-safe.conf` and ran until the timeout killed it. The visible warnings were XKB/Xwayland warnings. As with the normal wrapper smoke test, killing `start-hyprland` by timeout produced a wrapper coredump during shutdown; no `Hyprland` or `start-hyprland` processes remained afterward.
+
+## First-login doctor
+
+A post-login session checker was added:
+
+```bash
+hypr-doctor
+```
+
+It is also bound in the normal Hyprland config:
+
+```text
+Cmd + Shift + /
+```
+
+The doctor checks the active session environment, Hyprland IPC, monitor/workspace visibility, core autostart processes, portal-related user services, and whether the live Hyprland config still parses. Logs are written under:
+
+```text
+~/hyprland-first-login/
+```
+
+When run from the current KDE session, it correctly fails the Hyprland session checks while confirming the command/config pieces are present. The meaningful final run is after logging into the real Hyprland session.

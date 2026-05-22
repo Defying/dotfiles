@@ -30,7 +30,7 @@ check_match() {
 check "Hyprland config" Hyprland --verify-config -c /home/ben/.config/hypr/hyprland.conf
 check "Fuzzel config" fuzzel --check-config --config /home/ben/.config/fuzzel/fuzzel.ini
 check "Waybar JSON" jq empty /home/ben/.config/waybar/config.jsonc
-check "helper scripts" bash -n /home/ben/.local/bin/hypr-power-menu /home/ben/.local/bin/hypr-screenshot /home/ben/.local/bin/hypr-clipboard-menu /home/ben/.local/bin/hypr-rollback /home/ben/.local/bin/hypr-enable /home/ben/.local/bin/hypr-help
+check "helper scripts" bash -n /home/ben/.local/bin/hypr-power-menu /home/ben/.local/bin/hypr-screenshot /home/ben/.local/bin/hypr-clipboard-menu /home/ben/.local/bin/hypr-rollback /home/ben/.local/bin/hypr-enable /home/ben/.local/bin/hypr-help /home/ben/.local/bin/hypr-doctor
 check "Hyprland session file" test -f /usr/share/wayland-sessions/hyprland.desktop
 check "Hyprland safe config" Hyprland --verify-config -c /usr/local/share/asahi-hyprland/hyprland-safe.conf
 check "Hyprland safe session file" test -f /usr/share/wayland-sessions/hyprland-safe.desktop
@@ -49,6 +49,7 @@ check_match "Rollback Plasma script installed" system/usr/local/bin/asahi-hyprla
 check_match "Disable Hyprland script installed" system/usr/local/bin/asahi-hyprland-disable-config /usr/local/bin/asahi-hyprland-disable-config
 check "Disable Hyprland dry-run" /usr/local/bin/asahi-hyprland-disable-config --check
 check "Enable Hyprland command" test -x /home/ben/.local/bin/hypr-enable
+check "Hyprland doctor command" test -x /home/ben/.local/bin/hypr-doctor
 check "Plasma login manager active" systemctl is-active --quiet plasmalogin.service
 check "Hyprland package installed" rpm -q hyprland
 check "Plasma package still installed" rpm -q plasma-desktop

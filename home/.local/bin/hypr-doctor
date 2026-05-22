@@ -1,0 +1,179 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+ts="$(date +%Y%m%d-%H%M%S)"
+log_dir="$HOME/hyprland-first-login"
+log_file="$log_dir/doctor-$ts.log"
+failures=0
+warnings=0
+tmp="$(mktemp -t hypr-doctor-config.XXXXXX)"
+
+mkdir -p "$log_dir"
+
+exec > >(tee "$log_file") 2>&1
+trap 'rm -f "$tmp"' EXIT
+
+ok() {
+  printf 'OK    %s\n' "$1"
+}
+
+warn() {
+  printf 'WARN  %s\n' "$1"
+  warnings=$((warnings + 1))
+}
+
+fail() {
+  printf 'FAIL  %s\n' "$1"
+  failures=$((failures + 1))
+}
+
+have() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+check_command() {
+  if have "$1"; then
+    ok "command available: $1"
+  else
+    fail "missing command: $1"
+  fi
+}
+
+check_process() {
+  local name="$1"
+  local pattern="$2"
+
+  if pgrep -f "$pattern" >/dev/null 2>&1; then
+    ok "process running: $name"
+  else
+    warn "process not found: $name"
+  fi
+}
+
+print_section() {
+  printf '\n== %s ==\n' "$1"
+}
+
+printf 'Hyprland first-login doctor\n'
+printf 'timestamp=%s\n' "$(date --iso-8601=seconds)"
+printf 'host=%s\n' "$(hostname)"
+printf 'user=%s\n' "$(id -un)"
+printf 'log=%s\n' "$log_file"
+
+print_section "Session"
+printf 'XDG_SESSION_TYPE=%s\n' "${XDG_SESSION_TYPE:-}"
+printf 'XDG_CURRENT_DESKTOP=%s\n' "${XDG_CURRENT_DESKTOP:-}"
+printf 'XDG_SESSION_DESKTOP=%s\n' "${XDG_SESSION_DESKTOP:-}"
+printf 'WAYLAND_DISPLAY=%s\n' "${WAYLAND_DISPLAY:-}"
+printf 'HYPRLAND_INSTANCE_SIGNATURE=%s\n' "${HYPRLAND_INSTANCE_SIGNATURE:-}"
+
+if [ "${XDG_SESSION_TYPE:-}" = "wayland" ]; then
+  ok "Wayland session"
+else
+  fail "not a Wayland session"
+fi
+
+case "${XDG_CURRENT_DESKTOP:-}:${XDG_SESSION_DESKTOP:-}" in
+  *Hyprland*)
+    ok "desktop environment reports Hyprland"
+    ;;
+  *)
+    fail "desktop environment does not report Hyprland"
+    ;;
+esac
+
+if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
+  ok "Hyprland instance signature present"
+else
+  fail "Hyprland instance signature missing"
+fi
+
+print_section "Commands"
+for cmd in Hyprland hyprctl jq rg waybar fuzzel mako hypridle hyprlock hyprpaper wl-copy wl-paste cliphist grim slurp swappy brightnessctl playerctl; do
+  check_command "$cmd"
+done
+
+print_section "Hyprland IPC"
+if have hyprctl; then
+  if monitors_json="$(hyprctl monitors -j 2>/dev/null)" && [ -n "$monitors_json" ]; then
+    monitor_count="$(printf '%s\n' "$monitors_json" | jq 'length' 2>/dev/null || printf '0')"
+    printf 'monitors=%s\n' "$monitor_count"
+    if [ "${monitor_count:-0}" -ge 1 ] 2>/dev/null; then
+      ok "Hyprland reports at least one monitor"
+      printf '%s\n' "$monitors_json" | jq -r '.[] | "monitor=\(.name) desc=\(.description) scale=\(.scale) focused=\(.focused)"' 2>/dev/null
+    else
+      fail "Hyprland reports no monitors"
+    fi
+  else
+    fail "hyprctl monitors failed"
+  fi
+
+  if workspaces_json="$(hyprctl workspaces -j 2>/dev/null)" && [ -n "$workspaces_json" ]; then
+    workspace_count="$(printf '%s\n' "$workspaces_json" | jq 'length' 2>/dev/null || printf '0')"
+    printf 'workspaces=%s\n' "$workspace_count"
+    if [ "${workspace_count:-0}" -ge 1 ] 2>/dev/null; then
+      ok "Hyprland reports workspaces"
+    else
+      warn "Hyprland reports no workspaces yet"
+    fi
+  else
+    fail "hyprctl workspaces failed"
+  fi
+
+  if active_json="$(hyprctl activeworkspace -j 2>/dev/null)" && [ -n "$active_json" ]; then
+    printf 'active_workspace=%s\n' "$(printf '%s\n' "$active_json" | jq -r '.name // .id // "unknown"' 2>/dev/null)"
+    ok "active workspace readable"
+  else
+    warn "active workspace not readable"
+  fi
+else
+  fail "hyprctl unavailable"
+fi
+
+print_section "Autostart"
+check_process "hyprpaper" '(^|/| )hyprpaper($| )'
+check_process "waybar" '(^|/| )waybar($| )'
+check_process "mako" '(^|/| )mako($| )'
+check_process "hypridle" '(^|/| )hypridle($| )'
+check_process "hyprpolkitagent" 'hyprpolkitagent'
+check_process "NetworkManager applet" '(^|/| )nm-applet($| )'
+check_process "cliphist text watcher" 'wl-paste --type text --watch cliphist store'
+check_process "cliphist image watcher" 'wl-paste --type image --watch cliphist store'
+
+print_section "User Services"
+if have systemctl; then
+  systemctl --user --no-pager --plain --type=service --state=running 2>/dev/null | rg 'xdg-desktop-portal|pipewire|wireplumber|dbus|hypr' || true
+  if systemctl --user is-active --quiet xdg-desktop-portal.service 2>/dev/null; then
+    ok "xdg-desktop-portal user service active"
+  else
+    warn "xdg-desktop-portal user service not active"
+  fi
+else
+  warn "systemctl unavailable"
+fi
+
+print_section "Config"
+if Hyprland --verify-config -c "$HOME/.config/hypr/hyprland.conf" >"$tmp" 2>&1; then
+  ok "live Hyprland config parses"
+else
+  fail "live Hyprland config parse failed"
+  sed 's/^/  /' "$tmp"
+fi
+
+if [ -L "$HOME/.config/hypr/hyprland.conf" ]; then
+  ok "Hyprland config is linked to dotfiles"
+  printf 'hyprland.conf -> %s\n' "$(readlink "$HOME/.config/hypr/hyprland.conf")"
+else
+  warn "Hyprland config is not a symlink"
+fi
+
+print_section "Summary"
+printf 'failures=%s warnings=%s\n' "$failures" "$warnings"
+printf 'log=%s\n' "$log_file"
+
+if [ "$failures" -ne 0 ]; then
+  printf 'Hyprland doctor found failures. Use Plasma or Plasma (Rollback Hyprland) if the session is unstable.\n'
+  exit 1
+fi
+
+printf 'Hyprland doctor passed with %s warning(s).\n' "$warnings"
