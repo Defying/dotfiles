@@ -55,9 +55,9 @@ Cmd + Escape             power/logout menu
 Cmd + L                  lock
 ```
 
-From a terminal, `hypr-help` reopens this quickstart, `hypr-recovery-card` prints the rollback card, `hypr-login-status` shows login-manager state, `hypr-logs` shows the latest attempt logs, `hypr-validate` reruns the static safety checks, and `hypr-doctor` checks the live Hyprland session.
+From a terminal, `hypr-help` reopens this quickstart, `hypr-recovery-card` prints the rollback card, `hypr-login-status` shows login-manager state, `hypr-logs` shows the latest attempt logs, `hypr-validate` reruns the static safety checks, `hypr-doctor` checks the live Hyprland session, and `hypr-proof` records proof after a real Hyprland login.
 
-The menu at `Cmd + Alt + Space` is the Fedora-safe equivalent of Omarchy's menu workflow. It opens apps, keybindings, quickstart, recovery card, login status, logs, doctor, validator, clipboard history, audio/network tools, the Hyprland config, and the power menu.
+The menu at `Cmd + Alt + Space` is the Fedora-safe equivalent of Omarchy's menu workflow. It opens apps, keybindings, quickstart, recovery card, login status, logs, doctor, proof, validator, clipboard history, audio/network tools, the Hyprland config, and the power menu.
 
 ## First Login Check
 
@@ -70,9 +70,16 @@ After the first normal Hyprland login:
 
 ```bash
 hypr-doctor
+hypr-proof
 ```
 
-It writes a timestamped report under:
+The normal session autocheck also runs these after startup. `hypr-proof` writes a timestamped proof log and, only when the session is a real normal-config Hyprland login through Plasma Login Manager, updates:
+
+```text
+~/.local/state/hyprland/real-login-proof
+```
+
+Reports are written under:
 
 ```text
 ~/hyprland-first-login/
@@ -134,6 +141,7 @@ Live config files are symlinked from this repo:
 ~/.local/bin/hypr-screenshot
 ~/.local/bin/hypr-clipboard-menu
 ~/.local/bin/hypr-doctor
+~/.local/bin/hypr-proof
 ~/.local/bin/hypr-keybindings
 ~/.local/bin/hypr-menu
 ~/.local/bin/hypr-recovery-card
@@ -165,7 +173,9 @@ hypr-logs
 ```text
 ~/hyprland-first-login/session-*.log
 ~/hyprland-first-login/autocheck-*.log
+~/hyprland-first-login/proof-*.log
 ~/hyprland-first-login/doctor-*.log
+~/.local/state/hyprland/real-login-proof
 ```
 
 ## Login-Screen Rollback

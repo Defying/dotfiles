@@ -32,6 +32,10 @@ mkdir -p "$log_dir"
 set +e
 /home/ben/.local/bin/hypr-doctor >> "$log_file" 2>&1
 status=$?
+if [ "$status" -eq 0 ]; then
+  /home/ben/.local/bin/hypr-proof >> "$log_file" 2>&1
+  status=$?
+fi
 set -e
 
 doctor_log="$(sed -n 's/^log=//p' "$log_file" | tail -n 1)"
@@ -39,14 +43,14 @@ doctor_log="$(sed -n 's/^log=//p' "$log_file" | tail -n 1)"
 
 if command -v notify-send >/dev/null 2>&1; then
   if [ "$status" -eq 0 ]; then
-    notify-send --app-name="Hyprland" "Hyprland doctor passed" "Log: $doctor_log" || true
+    notify-send --app-name="Hyprland" "Hyprland verified" "Proof: $HOME/.local/state/hyprland/real-login-proof" || true
   else
-    notify-send --urgency=critical --app-name="Hyprland" "Hyprland doctor failed" "Use Plasma or rollback if unstable. Log: $doctor_log" || true
+    notify-send --urgency=critical --app-name="Hyprland" "Hyprland verification failed" "Use Plasma or rollback if unstable. Log: $doctor_log" || true
   fi
 fi
 
 if [ "$status" -eq 0 ]; then
-  printf 'Hyprland session autocheck passed. Log: %s\n' "$doctor_log"
+  printf 'Hyprland session autocheck passed. Proof: %s\n' "$HOME/.local/state/hyprland/real-login-proof"
 else
   printf 'Hyprland session autocheck failed. Log: %s\n' "$doctor_log" >&2
 fi

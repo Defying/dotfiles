@@ -1,0 +1,167 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+log_dir="$HOME/hyprland-first-login"
+state_dir="$HOME/.local/state/hyprland"
+ts="$(date +%Y%m%d-%H%M%S)"
+log_file="$log_dir/proof-$ts.log"
+marker="$state_dir/real-login-proof"
+tmp_marker="$state_dir/real-login-proof.tmp"
+failures=0
+
+mkdir -p "$log_dir" "$state_dir"
+
+exec > >(tee "$log_file") 2>&1
+
+ok() {
+  printf 'OK    %s\n' "$1"
+}
+
+fail() {
+  printf 'FAIL  %s\n' "$1"
+  failures=$((failures + 1))
+}
+
+check_process() {
+  local name="$1"
+  local pattern="$2"
+
+  if pgrep -u "$(id -u)" -f "$pattern" >/dev/null 2>&1; then
+    ok "process running: $name"
+  else
+    fail "process not found: $name"
+  fi
+}
+
+session_property() {
+  local property="$1"
+  local session_id="${XDG_SESSION_ID:-}"
+
+  [ -n "$session_id" ] || return 0
+  loginctl show-session "$session_id" -p "$property" --value 2>/dev/null
+}
+
+printf 'Hyprland real-login proof\n'
+printf 'timestamp=%s\n' "$(date --iso-8601=seconds)"
+printf 'host=%s\n' "$(hostname)"
+printf 'user=%s\n' "$(id -un)"
+printf 'log=%s\n' "$log_file"
+printf 'dotfiles_commit=%s\n' "$(git -C /home/ben/dotfiles rev-parse --short HEAD 2>/dev/null || printf unknown)"
+
+printf '\n== Session ==\n'
+printf 'XDG_SESSION_ID=%s\n' "${XDG_SESSION_ID:-}"
+printf 'XDG_SESSION_TYPE=%s\n' "${XDG_SESSION_TYPE:-}"
+printf 'XDG_CURRENT_DESKTOP=%s\n' "${XDG_CURRENT_DESKTOP:-}"
+printf 'XDG_SESSION_DESKTOP=%s\n' "${XDG_SESSION_DESKTOP:-}"
+printf 'DESKTOP_SESSION=%s\n' "${DESKTOP_SESSION:-}"
+printf 'WAYLAND_DISPLAY=%s\n' "${WAYLAND_DISPLAY:-}"
+printf 'HYPRLAND_INSTANCE_SIGNATURE=%s\n' "${HYPRLAND_INSTANCE_SIGNATURE:-}"
+
+loginctl_desktop="$(session_property Desktop)"
+loginctl_type="$(session_property Type)"
+loginctl_service="$(session_property Service)"
+loginctl_state="$(session_property State)"
+
+printf 'loginctl Desktop=%s\n' "${loginctl_desktop:-}"
+printf 'loginctl Type=%s\n' "${loginctl_type:-}"
+printf 'loginctl Service=%s\n' "${loginctl_service:-}"
+printf 'loginctl State=%s\n' "${loginctl_state:-}"
+
+if [ "${XDG_SESSION_TYPE:-}" = "wayland" ] && [ "${loginctl_type:-}" = "wayland" ]; then
+  ok "Wayland session is active"
+else
+  fail "session is not confirmed as Wayland"
+fi
+
+case "${XDG_CURRENT_DESKTOP:-}:${XDG_SESSION_DESKTOP:-}:${loginctl_desktop:-}" in
+  *Hyprland*)
+    ok "session identity reports Hyprland"
+    ;;
+  *)
+    fail "session identity does not report Hyprland"
+    ;;
+esac
+
+if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ]; then
+  ok "Hyprland instance signature present"
+else
+  fail "Hyprland instance signature missing"
+fi
+
+if [ "${loginctl_service:-}" = "plasmalogin" ]; then
+  ok "session came from Plasma Login Manager"
+else
+  fail "session is not a Plasma Login Manager session"
+fi
+
+printf '\n== Hyprland IPC ==\n'
+if command -v hyprctl >/dev/null 2>&1; then
+  if monitors_json="$(hyprctl monitors -j 2>/dev/null)" && [ -n "$monitors_json" ]; then
+    monitor_count="$(printf '%s\n' "$monitors_json" | jq 'length' 2>/dev/null || printf '0')"
+    printf 'monitors=%s\n' "$monitor_count"
+    if [ "${monitor_count:-0}" -ge 1 ] 2>/dev/null; then
+      ok "Hyprland reports at least one monitor"
+      printf '%s\n' "$monitors_json" | jq -r '.[] | "monitor=\(.name) desc=\(.description) scale=\(.scale) focused=\(.focused)"' 2>/dev/null
+    else
+      fail "Hyprland reports no monitors"
+    fi
+  else
+    fail "hyprctl monitors failed"
+  fi
+
+  if workspaces_json="$(hyprctl workspaces -j 2>/dev/null)" && [ -n "$workspaces_json" ]; then
+    workspace_count="$(printf '%s\n' "$workspaces_json" | jq 'length' 2>/dev/null || printf '0')"
+    printf 'workspaces=%s\n' "$workspace_count"
+    if [ "${workspace_count:-0}" -ge 1 ] 2>/dev/null; then
+      ok "Hyprland reports workspaces"
+    else
+      fail "Hyprland reports no workspaces"
+    fi
+  else
+    fail "hyprctl workspaces failed"
+  fi
+else
+  fail "hyprctl unavailable"
+fi
+
+printf '\n== Process ==\n'
+if pgrep -u "$(id -u)" -x Hyprland >/dev/null 2>&1; then
+  ok "Hyprland process is running for this user"
+else
+  fail "Hyprland process not found for this user"
+fi
+
+printf '\n== Normal Config Autostart ==\n'
+check_process "hyprpaper" '(^|/| )hyprpaper($| )'
+check_process "waybar" '(^|/| )waybar($| )'
+check_process "mako" '(^|/| )mako($| )'
+check_process "hypridle" '(^|/| )hypridle($| )'
+
+printf '\n== Config ==\n'
+if [ -L "$HOME/.config/hypr/hyprland.conf" ] &&
+  [ "$(readlink -f "$HOME/.config/hypr/hyprland.conf")" = "/home/ben/dotfiles/config/hypr/hyprland.conf" ]; then
+  ok "Hyprland config is linked to dotfiles"
+else
+  fail "Hyprland config is not linked to dotfiles"
+fi
+
+printf '\n== Summary ==\n'
+printf 'failures=%s\n' "$failures"
+printf 'proof_log=%s\n' "$log_file"
+
+if [ "$failures" -ne 0 ]; then
+  printf 'Real Hyprland login proof failed. This is expected from KDE or nested smoke tests.\n'
+  exit 1
+fi
+
+{
+  printf 'timestamp=%s\n' "$(date --iso-8601=seconds)"
+  printf 'proof_log=%s\n' "$log_file"
+  printf 'dotfiles_commit=%s\n' "$(git -C /home/ben/dotfiles rev-parse --short HEAD 2>/dev/null || printf unknown)"
+  printf 'xdg_session_id=%s\n' "${XDG_SESSION_ID:-}"
+  printf 'desktop_session=%s\n' "${DESKTOP_SESSION:-}"
+  printf 'hyprland_instance_signature=%s\n' "${HYPRLAND_INSTANCE_SIGNATURE:-}"
+} > "$tmp_marker"
+mv "$tmp_marker" "$marker"
+
+printf 'Real Hyprland login proof recorded: %s\n' "$marker"

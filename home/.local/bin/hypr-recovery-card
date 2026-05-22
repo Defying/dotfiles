@@ -54,8 +54,9 @@ First test order:
   4. If safe works, exit with Cmd + Shift + Q.
   5. Try Hyprland.
   6. In Hyprland, press Cmd + Return and run: hypr-doctor
-  7. If normal Hyprland fails before a terminal, try Hyprland (Logged).
-  8. If Hyprland is broken, choose Plasma or Plasma (Rollback Hyprland).
+  7. Run: hypr-proof
+  8. If normal Hyprland fails before a terminal, try Hyprland (Logged).
+  9. If Hyprland is broken, choose Plasma or Plasma (Rollback Hyprland).
 
 Hyprland keys:
   Cmd + Return        terminal
@@ -71,6 +72,7 @@ Recovery commands:
   hypr-login-status
   hypr-logs
   hypr-doctor
+  hypr-proof
   hypr-rollback
   hypr-enable
   cd ~/dotfiles && scripts/install-hyprland-system-files.sh --check
@@ -85,8 +87,10 @@ TTY fallback:
 Logs:
   ~/hyprland-first-login/session-*.log
   ~/hyprland-first-login/autocheck-*.log
+  ~/hyprland-first-login/proof-*.log
   ~/hyprland-first-login/doctor-*.log
   ~/hyprland-rollback/rollback-*.log
+  ~/.local/state/hyprland/real-login-proof
 
 Backup anchors:
 EOF

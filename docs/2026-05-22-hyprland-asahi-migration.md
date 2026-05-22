@@ -106,7 +106,29 @@ The latest Hyprland attempt logs can be read with:
 hypr-logs
 ```
 
-It prints the newest logged-session startup log, session autocheck log, doctor log, and rollback log. It is also available from the `hypr-menu`.
+It prints the newest logged-session startup log, session autocheck log, real-login proof log, doctor log, and rollback log. It is also available from the `hypr-menu`.
+
+## Real-login proof helper
+
+The final proof for this migration is a real normal-config Hyprland session started by Plasma Login Manager, not a nested smoke test from Plasma. The helper below checks for a Hyprland desktop identity, a Hyprland instance signature, Hyprland IPC, a running Hyprland process for the user, normal-config autostart processes, the dotfiles-linked config, and `loginctl Service=plasmalogin`:
+
+```bash
+hypr-proof
+```
+
+It writes proof logs under:
+
+```text
+~/hyprland-first-login/proof-*.log
+```
+
+When all checks pass, it also writes:
+
+```text
+~/.local/state/hyprland/real-login-proof
+```
+
+The normal Hyprland session autocheck runs this automatically after `hypr-doctor` passes. Running `hypr-proof` from Plasma, a nested smoke test, or the safe no-autostart session should fail, which prevents accidental proof from the wrong session.
 
 ## First-login notice
 
@@ -127,6 +149,8 @@ The normal Hyprland session also autostarts:
 ```
 
 It waits for the session to settle, runs `hypr-doctor`, writes `~/hyprland-first-login/autocheck-*.log`, and sends a pass/fail notification. The safe Hyprland session intentionally does not run this helper.
+
+After `hypr-doctor` passes, it runs `hypr-proof` and sends a verified notification only if the real-login proof marker was written.
 
 ## Command key fix
 

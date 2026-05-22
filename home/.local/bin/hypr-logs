@@ -73,11 +73,20 @@ printf 'mode=%s tail=%s\n' "$mode" "$tail_lines"
 
 show_latest "Logged session startup" "$HOME/hyprland-first-login" 'session-*.log'
 show_latest "Session autocheck" "$HOME/hyprland-first-login" 'autocheck-*.log'
+show_latest "Real-login proof" "$HOME/hyprland-first-login" 'proof-*.log'
 show_latest "Doctor" "$HOME/hyprland-first-login" 'doctor-*.log'
 show_latest "Rollback" "$HOME/hyprland-rollback" 'rollback-*.log'
+
+printf '\n== Proof marker ==\n'
+if [ -f "$HOME/.local/state/hyprland/real-login-proof" ]; then
+  sed 's/^/  /' "$HOME/.local/state/hyprland/real-login-proof"
+else
+  printf 'missing: %s\n' "$HOME/.local/state/hyprland/real-login-proof"
+fi
 
 printf '\nCommands:\n'
 printf '  hypr-logs --list\n'
 printf '  hypr-logs --tail 200\n'
 printf '  hypr-validate\n'
+printf '  hypr-proof\n'
 printf '  hypr-recovery-card\n'

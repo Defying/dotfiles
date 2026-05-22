@@ -3,6 +3,7 @@ set -uo pipefail
 
 state_file="/var/lib/plasmalogin/.local/state/plasma-login-greeterstaterc"
 plasmalogin_conf="/etc/plasmalogin.conf"
+proof_marker="$HOME/.local/state/hyprland/real-login-proof"
 
 read_key() {
   local file="$1"
@@ -90,10 +91,18 @@ Plasma Login Manager:
 
 EOF
 
+printf 'Latest proof marker:\n'
+if [ -f "$proof_marker" ]; then
+  sed 's/^/  /' "$proof_marker"
+else
+  printf '  missing: %s\n' "$proof_marker"
+fi
+printf '\n'
+
 if [ "$current_desktop" = "Hyprland" ] || [ "${loginctl_desktop:-}" = "Hyprland" ]; then
   cat <<'EOF'
 Status:
-  You are in Hyprland. Run hypr-doctor for the live session check.
+  You are in Hyprland. Run hypr-proof for the real-login proof marker.
 EOF
 else
   cat <<'EOF'
