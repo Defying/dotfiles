@@ -1,6 +1,33 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
+usage() {
+  cat <<'EOF'
+usage: hypr-smoke-test --run
+
+Runs a nested Hyprland compositor inside the current Plasma Wayland session.
+It does not log out, restart the display manager, or switch sessions, but it
+does start and stop temporary Hyprland/Waybar/Ghostty test processes.
+
+Run this only when you explicitly want that nested test.
+EOF
+}
+
+if [ "${1:-}" != "--run" ]; then
+  usage >&2
+  exit 2
+fi
+
+case "${XDG_CURRENT_DESKTOP:-}:${XDG_SESSION_DESKTOP:-}" in
+  *KDE*|*plasma*|*Plasma*)
+    ;;
+  *)
+    printf 'Refusing to run outside Plasma/KDE. Current desktop: %s:%s\n' \
+      "${XDG_CURRENT_DESKTOP:-}" "${XDG_SESSION_DESKTOP:-}" >&2
+    exit 1
+    ;;
+esac
+
 uid="$(id -u)"
 runtime="${XDG_RUNTIME_DIR:-/run/user/$uid}"
 log_dir="$HOME/hyprland-first-login"

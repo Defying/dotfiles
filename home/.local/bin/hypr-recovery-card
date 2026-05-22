@@ -59,6 +59,11 @@ First test order:
   9. If normal Hyprland fails before a terminal, try Hyprland (Logged).
   10. If Hyprland is broken, choose Plasma or Plasma (Rollback Hyprland).
 
+Automation boundary:
+  These helpers do not log out, restart Plasma Login Manager, or enable
+  autologin. A real login-screen proof requires ben at the keyboard unless a
+  separate passwordless recovery path has been deliberately set up first.
+
 Hyprland keys:
   Cmd + Return        terminal
   Ctrl + Alt + T      terminal fallback
@@ -79,7 +84,7 @@ Hyprland keys:
 Recovery commands:
   hypr-validate
   hypr-preflight
-  hypr-smoke-test
+  hypr-smoke-test --run
   hypr-login-status
   hypr-login-default plasma
   hypr-refresh-session-env

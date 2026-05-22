@@ -21,6 +21,8 @@ Hyprland (Safe)              minimal Hyprland, no Waybar/Mako/Hypridle/autostart
 
 Use a real logout. Do not use Lock or Switch User for the first Hyprland attempt. Plasma Login Manager can reuse an existing Plasma session for the same user, which looks like the Hyprland selection was ignored.
 
+Automated real-login testing is intentionally not enabled. Do not restart Plasma Login Manager, force logout, or enable autologin unless you are at the keyboard and have a confirmed way back into Plasma. The helpers can validate config, run a nested smoke test with explicit `--run`, and prepare rollback paths, but they do not type the login password or recover an unattended greeter.
+
 Before logging out, this command shows the current desktop, the session remembered by the greeter, and whether Plasma Login Manager is likely to reuse the still-running Plasma session:
 
 ```bash
@@ -36,7 +38,7 @@ hypr-preflight
 To test the actual Hyprland config from inside Plasma without logging out, run:
 
 ```bash
-hypr-smoke-test
+hypr-smoke-test --run
 ```
 
 It starts a nested Hyprland compositor, checks Hyprland IPC, launches Ghostty, runs `hypr-doctor` against that nested compositor, writes `~/hyprland-first-login/nested-smoke-*.report`, then exits Hyprland and refreshes the Plasma session environment. This is not a replacement for real login proof, but it catches most config/autostart/terminal failures before you leave KDE.
@@ -93,7 +95,7 @@ The normal Hyprland session opens Ghostty automatically until `hypr-proof` has r
 
 From a terminal, `hypr-help` reopens this quickstart, `hypr-recovery-card` prints the rollback card, `hypr-login-status` shows login-manager state, `hypr-logs` shows the latest attempt logs, `hypr-validate` reruns the static safety checks, `hypr-doctor` checks the live Hyprland session, and `hypr-proof` records proof after a real Hyprland login.
 
-The menu at `Cmd + Alt + Space` is the Fedora-safe equivalent of Omarchy's menu workflow. It opens apps, keybindings, quickstart, recovery card, login status, logs, preflight, smoke test, doctor, proof, validator, clipboard history, audio/network tools, the Hyprland config, and the power menu.
+The menu at `Cmd + Alt + Space` is the Fedora-safe equivalent of Omarchy's menu workflow. It opens apps, keybindings, quickstart, recovery card, login status, logs, preflight, doctor, proof, validator, clipboard history, audio/network tools, the Hyprland config, and the power menu.
 
 ## First Login Check
 
