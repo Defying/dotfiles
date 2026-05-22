@@ -44,6 +44,40 @@ latest_log() {
     cut -d' ' -f2-
 }
 
+latest_any_log() {
+  find "$HOME/hyprland-first-login" "$HOME/hyprland-rollback" \
+    -maxdepth 1 -type f \
+    \( -name 'session-*.log' -o -name 'autocheck-*.log' -o -name 'proof-*.log' -o -name 'doctor-*.log' -o -name 'rollback-*.log' \) \
+    -printf '%T@ %p\n' 2>/dev/null |
+    sort -n |
+    tail -n 1 |
+    cut -d' ' -f2-
+}
+
+show_staleness_warning() {
+  local repo="$HOME/dotfiles"
+  local commit_ts commit_short commit_subject latest latest_ts
+
+  [ -d "$repo/.git" ] || return 0
+
+  commit_ts="$(git -C "$repo" log -1 --format=%ct 2>/dev/null || true)"
+  commit_short="$(git -C "$repo" rev-parse --short HEAD 2>/dev/null || true)"
+  commit_subject="$(git -C "$repo" log -1 --format=%s 2>/dev/null || true)"
+  latest="$(latest_any_log || true)"
+
+  [ -n "$commit_ts" ] || return 0
+  [ -n "$latest" ] || return 0
+
+  latest_ts="$(stat -c '%Y' "$latest" 2>/dev/null || true)"
+  [ -n "$latest_ts" ] || return 0
+
+  printf 'dotfiles_commit=%s %s\n' "${commit_short:-unknown}" "${commit_subject:-}"
+  if [ "$latest_ts" -lt "$commit_ts" ]; then
+    printf 'warning=latest Hyprland logs predate the current dotfiles commit; old failures may already be fixed.\n'
+    printf 'latest_log=%s\n' "$latest"
+  fi
+}
+
 show_latest() {
   local label="$1"
   local dir="$2"
@@ -70,6 +104,7 @@ show_latest() {
 printf 'Hyprland logs\n'
 printf 'host=%s user=%s date=%s\n' "$(hostname)" "$(id -un)" "$(date --iso-8601=seconds)"
 printf 'mode=%s tail=%s\n' "$mode" "$tail_lines"
+show_staleness_warning
 
 show_latest "Logged session startup" "$HOME/hyprland-first-login" 'session-*.log'
 show_latest "Session autocheck" "$HOME/hyprland-first-login" 'autocheck-*.log'
