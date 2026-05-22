@@ -20,6 +20,8 @@ Cmd + Escape             power/logout menu
 Cmd + L                  lock
 ```
 
+From a terminal, `hypr-help` reopens this quickstart and `hypr-validate` reruns the static safety checks.
+
 ## Navigation
 
 ```text

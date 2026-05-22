@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+doc="/home/ben/dotfiles/docs/hyprland-quickstart.md"
+
+if command -v less >/dev/null 2>&1 && [ -t 1 ]; then
+  less -R "$doc"
+else
+  sed -n '1,240p' "$doc"
+fi
