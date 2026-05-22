@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+state_file="/var/lib/plasmalogin/.local/state/plasma-login-greeterstaterc"
+plasmalogin_conf="/etc/plasmalogin.conf"
+
+read_key() {
+  local file="$1"
+  local key="$2"
+
+  if [ -r "$file" ]; then
+    awk -F= -v key="$key" '$1 == key { value = $2 } END { if (value != "") print value }' "$file"
+  elif sudo -n true >/dev/null 2>&1; then
+    sudo awk -F= -v key="$key" '$1 == key { value = $2 } END { if (value != "") print value }' "$file" 2>/dev/null
+  fi
+}
+
+session_name() {
+  local session_file="$1"
+  local desktop_path
+
+  [ -n "$session_file" ] || return 0
+  desktop_path="/usr/share/wayland-sessions/$session_file"
+  if [ -f "$desktop_path" ]; then
+    awk -F= '$1 == "Name" { print $2; exit }' "$desktop_path"
+  fi
+}
+
+effective_reuse_session() {
+  local value
+
+  value="$(
+    awk '
+      /^\[Users\]/ { in_users = 1; next }
+      /^\[/ { in_users = 0 }
+      in_users && $0 ~ /^[[:space:]]*ReuseSession[[:space:]]*=/ {
+        sub(/^[^=]*=/, "")
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "")
+        print
+      }
+    ' "$plasmalogin_conf" 2>/dev/null | tail -n 1
+  )"
+
+  if [ -n "$value" ]; then
+    printf '%s (/etc/plasmalogin.conf)\n' "$value"
+  else
+    printf 'true (package default)\n'
+  fi
+}
+
+session_property() {
+  local property="$1"
+  local session_id="${XDG_SESSION_ID:-}"
+
+  [ -n "$session_id" ] || return 0
+  loginctl show-session "$session_id" -p "$property" --value 2>/dev/null
+}
+
+current_desktop="${XDG_CURRENT_DESKTOP:-unknown}"
+current_session="${DESKTOP_SESSION:-unknown}"
+current_session_id="${XDG_SESSION_ID:-unknown}"
+loginctl_desktop="$(session_property Desktop)"
+loginctl_type="$(session_property Type)"
+loginctl_service="$(session_property Service)"
+loginctl_state="$(session_property State)"
+remembered_user="$(read_key "$state_file" LastLoggedInUser)"
+remembered_session="$(read_key "$state_file" LastLoggedInSession)"
+remembered_name="$(session_name "$remembered_session")"
+reuse_session="$(effective_reuse_session)"
+
+printf 'Hyprland login status\n'
+printf 'host=%s user=%s date=%s\n' "$(hostname)" "$(id -un)" "$(date --iso-8601=seconds)"
+
+cat <<EOF
+
+Current session:
+  XDG_SESSION_ID=$current_session_id
+  XDG_CURRENT_DESKTOP=$current_desktop
+  DESKTOP_SESSION=$current_session
+  loginctl Desktop=${loginctl_desktop:-unknown}
+  loginctl Type=${loginctl_type:-unknown}
+  loginctl Service=${loginctl_service:-unknown}
+  loginctl State=${loginctl_state:-unknown}
+
+Plasma Login Manager:
+  service=$(systemctl is-active plasmalogin.service 2>/dev/null || printf unknown)
+  remembered user=${remembered_user:-unknown}
+  remembered session=${remembered_session:-unknown}${remembered_name:+ ($remembered_name)}
+  ReuseSession=$reuse_session
+
+EOF
+
+if [ "$current_desktop" = "Hyprland" ] || [ "${loginctl_desktop:-}" = "Hyprland" ]; then
+  cat <<'EOF'
+Status:
+  You are in Hyprland. Run hypr-doctor for the live session check.
+EOF
+else
+  cat <<'EOF'
+Status:
+  You are not in Hyprland right now.
+  If an existing Plasma session is still running, Plasma Login may reuse it
+  instead of launching the selected Hyprland session.
+
+Next real Hyprland attempt:
+  1. Save work in Plasma.
+  2. Use Leave -> Log Out, not Lock or Switch User.
+  3. At the login screen, confirm the session picker.
+  4. Start with Hyprland (Safe), then try Hyprland or Hyprland (Logged).
+
+Rollback from the login screen:
+  Plasma
+  Plasma (Rollback Hyprland)
+EOF
+fi

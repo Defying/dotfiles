@@ -19,6 +19,14 @@ Hyprland (Safe)              minimal Hyprland, no Waybar/Mako/Hypridle/autostart
 3. In the Plasma login screen, choose the `Hyprland` session.
 4. Log in as `ben`.
 
+Use a real logout. Do not use Lock or Switch User for the first Hyprland attempt. Plasma Login Manager can reuse an existing Plasma session for the same user, which looks like the Hyprland selection was ignored.
+
+Before logging out, this command shows the current desktop, the session remembered by the greeter, and whether Plasma Login Manager is likely to reuse the still-running Plasma session:
+
+```bash
+hypr-login-status
+```
+
 If you want to test the compositor before trusting the normal config, choose `Hyprland (Safe)` first. It uses a root-owned config at:
 
 ```text
@@ -47,9 +55,9 @@ Cmd + Escape             power/logout menu
 Cmd + L                  lock
 ```
 
-From a terminal, `hypr-help` reopens this quickstart, `hypr-recovery-card` prints the rollback card, `hypr-logs` shows the latest attempt logs, `hypr-validate` reruns the static safety checks, and `hypr-doctor` checks the live Hyprland session.
+From a terminal, `hypr-help` reopens this quickstart, `hypr-recovery-card` prints the rollback card, `hypr-login-status` shows login-manager state, `hypr-logs` shows the latest attempt logs, `hypr-validate` reruns the static safety checks, and `hypr-doctor` checks the live Hyprland session.
 
-The menu at `Cmd + Alt + Space` is the Fedora-safe equivalent of Omarchy's menu workflow. It opens apps, keybindings, quickstart, recovery card, logs, doctor, validator, clipboard history, audio/network tools, the Hyprland config, and the power menu.
+The menu at `Cmd + Alt + Space` is the Fedora-safe equivalent of Omarchy's menu workflow. It opens apps, keybindings, quickstart, recovery card, login status, logs, doctor, validator, clipboard history, audio/network tools, the Hyprland config, and the power menu.
 
 ## First Login Check
 
@@ -129,6 +137,7 @@ Live config files are symlinked from this repo:
 ~/.local/bin/hypr-keybindings
 ~/.local/bin/hypr-menu
 ~/.local/bin/hypr-recovery-card
+~/.local/bin/hypr-login-status
 ~/.local/bin/hypr-logs
 ~/.local/bin/hypr-first-login-notice
 ~/.local/bin/hypr-session-autocheck

@@ -48,12 +48,14 @@ Login-screen choices:
   Hyprland                     normal configured Hyprland
 
 First test order:
-  1. Try Hyprland (Safe).
-  2. If safe works, exit with Cmd + Shift + Q.
-  3. Try Hyprland.
-  4. In Hyprland, press Cmd + Return and run: hypr-doctor
-  5. If normal Hyprland fails before a terminal, try Hyprland (Logged).
-  6. If Hyprland is broken, choose Plasma or Plasma (Rollback Hyprland).
+  1. From Plasma, run: hypr-login-status
+  2. Use Leave -> Log Out, not Lock or Switch User.
+  3. Try Hyprland (Safe).
+  4. If safe works, exit with Cmd + Shift + Q.
+  5. Try Hyprland.
+  6. In Hyprland, press Cmd + Return and run: hypr-doctor
+  7. If normal Hyprland fails before a terminal, try Hyprland (Logged).
+  8. If Hyprland is broken, choose Plasma or Plasma (Rollback Hyprland).
 
 Hyprland keys:
   Cmd + Return        terminal
@@ -66,6 +68,7 @@ Hyprland keys:
 
 Recovery commands:
   hypr-validate
+  hypr-login-status
   hypr-logs
   hypr-doctor
   hypr-rollback

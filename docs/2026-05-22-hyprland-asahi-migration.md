@@ -80,6 +80,24 @@ hypr-recovery-card
 
 It prints the login-screen session choices, first-test order, emergency keybindings, TTY fallback, rollback/re-enable commands, log locations, backup bundles, and Btrfs snapshot anchors. It is also available from the `hypr-menu`.
 
+## Login status helper
+
+The Plasma Login Manager can reuse a still-running session for the same user. If the current Plasma session is only locked or switched away from, selecting Hyprland at the greeter can return to the existing Plasma session instead of starting a new Hyprland session.
+
+The helper below prints the current session, the session remembered by Plasma Login Manager, and the effective `ReuseSession` setting:
+
+```bash
+hypr-login-status
+```
+
+Use a real Plasma logout before the first Hyprland test:
+
+```text
+Leave -> Log Out
+```
+
+Do not use Lock or Switch User for the first test.
+
 ## Log reader
 
 The latest Hyprland attempt logs can be read with:
@@ -276,7 +294,9 @@ An additional nested smoke test used the full autostart config. It reached Hyprl
 - Killing `/usr/bin/start-hyprland` via `timeout` produced a small coredump from the wrapper shutdown path.
 - No autostart child processes were left running afterward.
 
-Remaining manual proof: log out of Plasma, choose the `Hyprland` session, and confirm the real user session starts with autostart enabled.
+Remaining manual proof: fully log out of Plasma, choose the `Hyprland` session, and confirm the real user session starts with autostart enabled.
+
+Observed 2026-05-22: selecting a Hyprland session from the greeter while the original Plasma session was still active returned to Plasma. `loginctl` showed the original KDE session from 01:05 was still active, and `/var/lib/plasmalogin/.local/state/plasma-login-greeterstaterc` recorded `LastLoggedInSession=hyprland-safe.desktop`. This was Plasma Login Manager session reuse, not proof that Hyprland failed to start.
 
 ## Graphical rollback session
 

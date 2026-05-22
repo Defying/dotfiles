@@ -17,6 +17,7 @@ choice="$(
     "Keybindings" \
     "Quickstart" \
     "Recovery Card" \
+    "Login Status" \
     "Logs" \
     "Doctor" \
     "Validate" \
@@ -25,7 +26,7 @@ choice="$(
     "Network" \
     "Edit Hyprland config" \
     "Power" |
-    fuzzel --dmenu --prompt "hypr> " --width 34 --lines 10 --no-sort --only-match
+    fuzzel --dmenu --prompt "hypr> " --width 34 --lines 12 --no-sort --only-match
 )" || exit 0
 
 case "$choice" in
@@ -40,6 +41,9 @@ case "$choice" in
     ;;
   "Recovery Card")
     run_terminal "/home/ben/.local/bin/hypr-recovery-card"
+    ;;
+  "Login Status")
+    run_terminal "/home/ben/.local/bin/hypr-login-status"
     ;;
   "Logs")
     run_terminal "/home/ben/.local/bin/hypr-logs"
