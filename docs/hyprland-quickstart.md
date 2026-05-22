@@ -102,7 +102,7 @@ hypr-doctor
 hypr-proof
 ```
 
-The normal session autocheck also runs these after startup. `hypr-proof` writes a timestamped proof log and, only when the session is a real normal-config Hyprland login through Plasma Login Manager, updates:
+The normal session autocheck also runs these after startup and retries a few times before reporting failure. `hypr-proof` writes a timestamped proof log and, only when the session is a real normal-config Hyprland login through Plasma Login Manager, updates:
 
 ```text
 ~/.local/state/hyprland/real-login-proof

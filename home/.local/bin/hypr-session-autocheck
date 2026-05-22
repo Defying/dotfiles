@@ -18,6 +18,16 @@ fi
 log_dir="$HOME/hyprland-first-login"
 ts="$(date +%Y%m%d-%H%M%S)"
 log_file="$log_dir/autocheck-$ts.log"
+attempts="${HYPR_AUTOCHECK_ATTEMPTS:-3}"
+delay_seconds="${HYPR_AUTOCHECK_DELAY_SECONDS:-6}"
+
+case "$attempts" in
+  ''|*[!0-9]*) attempts=3 ;;
+esac
+case "$delay_seconds" in
+  ''|*[!0-9]*) delay_seconds=6 ;;
+esac
+[ "$attempts" -ge 1 ] 2>/dev/null || attempts=1
 
 mkdir -p "$log_dir"
 
@@ -26,17 +36,39 @@ mkdir -p "$log_dir"
   printf 'timestamp=%s\n' "$(date --iso-8601=seconds)"
   printf 'host=%s\n' "$(hostname)"
   printf 'user=%s\n' "$(id -un)"
+  printf 'attempts=%s\n' "$attempts"
+  printf 'delay_seconds=%s\n' "$delay_seconds"
   printf 'log=%s\n\n' "$log_file"
 } > "$log_file"
 
-set +e
-/home/ben/.local/bin/hypr-doctor >> "$log_file" 2>&1
-status=$?
-if [ "$status" -eq 0 ]; then
-  /home/ben/.local/bin/hypr-proof >> "$log_file" 2>&1
+status=1
+attempt=1
+while [ "$attempt" -le "$attempts" ]; do
+  {
+    printf '\n== Autocheck attempt %s/%s ==\n' "$attempt" "$attempts"
+    printf 'timestamp=%s\n' "$(date --iso-8601=seconds)"
+  } >> "$log_file"
+
+  set +e
+  /home/ben/.local/bin/hypr-doctor >> "$log_file" 2>&1
   status=$?
-fi
-set -e
+  if [ "$status" -eq 0 ]; then
+    /home/ben/.local/bin/hypr-proof >> "$log_file" 2>&1
+    status=$?
+  fi
+  set -e
+
+  if [ "$status" -eq 0 ]; then
+    break
+  fi
+
+  if [ "$attempt" -lt "$attempts" ]; then
+    printf '\nAttempt %s failed; retrying in %s seconds.\n' "$attempt" "$delay_seconds" >> "$log_file"
+    sleep "$delay_seconds"
+  fi
+
+  attempt=$((attempt + 1))
+done
 
 doctor_log="$(sed -n 's/^log=//p' "$log_file" | tail -n 1)"
 [ -n "$doctor_log" ] || doctor_log="$log_file"

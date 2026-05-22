@@ -182,7 +182,7 @@ The normal Hyprland session also autostarts:
 ~/.local/bin/hypr-session-autocheck
 ```
 
-It waits for the session to settle, runs `hypr-doctor`, writes `~/hyprland-first-login/autocheck-*.log`, and sends a pass/fail notification. The safe Hyprland session intentionally does not run this helper.
+It waits for the session to settle, retries the `hypr-doctor`/`hypr-proof` sequence up to three times, writes `~/hyprland-first-login/autocheck-*.log`, and sends a pass/fail notification. The safe Hyprland session intentionally does not run this helper.
 
 After `hypr-doctor` passes, it runs `hypr-proof` and sends a verified notification only if the real-login proof marker was written.
 
