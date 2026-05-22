@@ -30,7 +30,7 @@ check_match() {
 check "Hyprland config" Hyprland --verify-config -c /home/ben/.config/hypr/hyprland.conf
 check "Fuzzel config" fuzzel --check-config --config /home/ben/.config/fuzzel/fuzzel.ini
 check "Waybar JSON" jq empty /home/ben/.config/waybar/config.jsonc
-check "helper scripts" bash -n /home/ben/.local/bin/hypr-power-menu /home/ben/.local/bin/hypr-screenshot /home/ben/.local/bin/hypr-clipboard-menu /home/ben/.local/bin/hypr-rollback /home/ben/.local/bin/hypr-enable /home/ben/.local/bin/hypr-help /home/ben/.local/bin/hypr-doctor /home/ben/.local/bin/hypr-keybindings /home/ben/.local/bin/hypr-menu /home/ben/dotfiles/scripts/install-hyprland-system-files.sh
+check "helper scripts" bash -n /home/ben/.local/bin/hypr-power-menu /home/ben/.local/bin/hypr-screenshot /home/ben/.local/bin/hypr-clipboard-menu /home/ben/.local/bin/hypr-rollback /home/ben/.local/bin/hypr-enable /home/ben/.local/bin/hypr-help /home/ben/.local/bin/hypr-doctor /home/ben/.local/bin/hypr-keybindings /home/ben/.local/bin/hypr-menu /home/ben/.local/bin/hypr-recovery-card /home/ben/dotfiles/scripts/install-hyprland-system-files.sh
 check "Hyprland session file" test -f /usr/share/wayland-sessions/hyprland.desktop
 check "Hyprland logged session file" test -f /usr/share/wayland-sessions/hyprland-logged.desktop
 check "Hyprland logged session desktop" desktop-file-validate /usr/share/wayland-sessions/hyprland-logged.desktop
@@ -58,6 +58,7 @@ check "Enable Hyprland command" test -x /home/ben/.local/bin/hypr-enable
 check "Hyprland doctor command" test -x /home/ben/.local/bin/hypr-doctor
 check "Hyprland keybindings command" test -x /home/ben/.local/bin/hypr-keybindings
 check "Hyprland menu command" test -x /home/ben/.local/bin/hypr-menu
+check "Hyprland recovery card command" test -x /home/ben/.local/bin/hypr-recovery-card
 check "Plasma login manager active" systemctl is-active --quiet plasmalogin.service
 check "Hyprland package installed" rpm -q hyprland
 check "Plasma package still installed" rpm -q plasma-desktop

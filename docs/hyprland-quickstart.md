@@ -47,9 +47,9 @@ Cmd + Escape             power/logout menu
 Cmd + L                  lock
 ```
 
-From a terminal, `hypr-help` reopens this quickstart, `hypr-validate` reruns the static safety checks, and `hypr-doctor` checks the live Hyprland session.
+From a terminal, `hypr-help` reopens this quickstart, `hypr-recovery-card` prints the rollback card, `hypr-validate` reruns the static safety checks, and `hypr-doctor` checks the live Hyprland session.
 
-The menu at `Cmd + Alt + Space` is the Fedora-safe equivalent of Omarchy's menu workflow. It opens apps, keybindings, quickstart, doctor, validator, clipboard history, audio/network tools, the Hyprland config, and the power menu.
+The menu at `Cmd + Alt + Space` is the Fedora-safe equivalent of Omarchy's menu workflow. It opens apps, keybindings, quickstart, recovery card, doctor, validator, clipboard history, audio/network tools, the Hyprland config, and the power menu.
 
 ## First Login Check
 
@@ -125,6 +125,7 @@ Live config files are symlinked from this repo:
 ~/.local/bin/hypr-doctor
 ~/.local/bin/hypr-keybindings
 ~/.local/bin/hypr-menu
+~/.local/bin/hypr-recovery-card
 ```
 
 ## Fast fallback

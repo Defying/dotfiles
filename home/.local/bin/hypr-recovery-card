@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+repo="/home/ben/dotfiles"
+pre_backup="/home/ben/system-backups/pre-hyprland-20260522-083751"
+first_login_backup="/home/ben/system-backups/pre-first-hyprland-login-20260522-093108"
+
+status_line() {
+  local label="$1"
+  local path="$2"
+
+  if [ -e "$path" ]; then
+    printf 'ok      %s: %s\n' "$label" "$path"
+  else
+    printf 'missing %s: %s\n' "$label" "$path"
+  fi
+}
+
+snapshot_line() {
+  local label="$1"
+  local pattern="$2"
+
+  if sudo -n true >/dev/null 2>&1; then
+    if sudo btrfs subvolume list -a / | rg -q "$pattern"; then
+      printf 'ok      %s\n' "$label"
+    else
+      printf 'missing %s\n' "$label"
+    fi
+  else
+    printf 'unknown %s (sudo unavailable)\n' "$label"
+  fi
+}
+
+printf 'Hyprland recovery card\n'
+printf 'host=%s user=%s date=%s\n' "$(hostname)" "$(id -un)" "$(date --iso-8601=seconds)"
+if [ -d "$repo/.git" ]; then
+  printf 'dotfiles=%s\n' "$repo"
+  printf 'commit=%s\n' "$(git -C "$repo" rev-parse --short HEAD 2>/dev/null || printf unknown)"
+fi
+
+cat <<'EOF'
+
+Login-screen choices:
+  Plasma                       normal KDE fallback
+  Plasma (Rollback Hyprland)   disables ~/.config/hypr, then starts KDE
+  Hyprland (Safe)              minimal Hyprland, no user autostart
+  Hyprland (Logged)            normal Hyprland plus startup log
+  Hyprland                     normal configured Hyprland
+
+First test order:
+  1. Try Hyprland (Safe).
+  2. If safe works, exit with Cmd + Shift + Q.
+  3. Try Hyprland.
+  4. In Hyprland, press Cmd + Return and run: hypr-doctor
+  5. If normal Hyprland fails before a terminal, try Hyprland (Logged).
+  6. If Hyprland is broken, choose Plasma or Plasma (Rollback Hyprland).
+
+Hyprland keys:
+  Cmd + Return        terminal
+  Cmd + Space         app launcher
+  Cmd + Alt + Space   menu
+  Cmd + K             keybindings
+  Cmd + Shift + /     doctor
+  Cmd + Shift + Q     exit Hyprland
+  Cmd + Escape        power menu
+
+Recovery commands:
+  hypr-validate
+  hypr-doctor
+  hypr-rollback
+  hypr-enable
+  cd ~/dotfiles && scripts/install-hyprland-system-files.sh --check
+
+TTY fallback:
+  Ctrl + Alt + F3
+  log in as ben
+  hypr-rollback
+  sudo reboot
+  choose Plasma at login
+
+Logs:
+  ~/hyprland-first-login/session-*.log
+  ~/hyprland-first-login/doctor-*.log
+  ~/hyprland-rollback/rollback-*.log
+
+Backup anchors:
+EOF
+
+status_line "pre-Hyprland bundle" "$pre_backup"
+status_line "pre-first-login bundle" "$first_login_backup"
+
+printf '        /.snapshots/pre-hyprland-20260522-083751/root\n'
+printf '        /.snapshots/pre-hyprland-20260522-083751/home\n'
+printf '        /.snapshots/pre-first-hyprland-login-20260522-093108/root\n'
+printf '        /.snapshots/pre-first-hyprland-login-20260522-093108/home\n'
+
+printf '\nSnapshot presence:\n'
+snapshot_line "pre-Hyprland root snapshot" '/.snapshots/pre-hyprland-20260522-083751/root$'
+snapshot_line "pre-Hyprland home snapshot" '/.snapshots/pre-hyprland-20260522-083751/home$'
+snapshot_line "pre-first-login root snapshot" '/.snapshots/pre-first-hyprland-login-20260522-093108/root$'
+snapshot_line "pre-first-login home snapshot" '/.snapshots/pre-first-hyprland-login-20260522-093108/home$'
+
+cat <<'EOF'
+
+Full Btrfs snapshot rollback should be deliberate. Use Plasma/session rollback
+first unless you are intentionally reverting the whole system state.
+EOF

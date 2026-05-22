@@ -62,6 +62,16 @@ Cmd + K             hypr-keybindings
 Cmd + Alt + Space   hypr-menu
 ```
 
+## Recovery card
+
+A compact recovery reference command was added:
+
+```bash
+hypr-recovery-card
+```
+
+It prints the login-screen session choices, first-test order, emergency keybindings, TTY fallback, rollback/re-enable commands, log locations, backup bundles, and Btrfs snapshot anchors. It is also available from the `hypr-menu`.
+
 ## Command key fix
 
 Goal: Apple Command acts as Linux Super/Win, Option acts as Alt, Control stays Control.
