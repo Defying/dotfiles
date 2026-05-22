@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Hyprland (Safe)
+Comment=Start Hyprland with a minimal root-owned config and no autostart
+Exec=/usr/local/bin/asahi-hyprland-safe
+TryExec=/usr/bin/start-hyprland
+Type=Application
+Keywords=safe;recovery;hyprland;wayland;

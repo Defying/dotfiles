@@ -22,8 +22,13 @@ check "Fuzzel config" fuzzel --check-config --config /home/ben/.config/fuzzel/fu
 check "Waybar JSON" jq empty /home/ben/.config/waybar/config.jsonc
 check "helper scripts" bash -n /home/ben/.local/bin/hypr-power-menu /home/ben/.local/bin/hypr-screenshot /home/ben/.local/bin/hypr-clipboard-menu /home/ben/.local/bin/hypr-rollback /home/ben/.local/bin/hypr-enable /home/ben/.local/bin/hypr-help
 check "Hyprland session file" test -f /usr/share/wayland-sessions/hyprland.desktop
+check "Hyprland safe config" Hyprland --verify-config -c /usr/local/share/asahi-hyprland/hyprland-safe.conf
+check "Hyprland safe session file" test -f /usr/share/wayland-sessions/hyprland-safe.desktop
+check "Hyprland safe session desktop" desktop-file-validate /usr/share/wayland-sessions/hyprland-safe.desktop
+check "Hyprland safe script" test -x /usr/local/bin/asahi-hyprland-safe
 check "Plasma fallback session file" test -f /usr/share/wayland-sessions/plasma.desktop
 check "Rollback Plasma session file" test -f /usr/share/wayland-sessions/plasma-rollback-hyprland.desktop
+check "Rollback Plasma session desktop" desktop-file-validate /usr/share/wayland-sessions/plasma-rollback-hyprland.desktop
 check "Rollback Plasma script" test -x /usr/local/bin/asahi-hyprland-rollback-plasma
 check "Disable Hyprland script" test -x /usr/local/bin/asahi-hyprland-disable-config
 check "Disable Hyprland dry-run" /usr/local/bin/asahi-hyprland-disable-config --check

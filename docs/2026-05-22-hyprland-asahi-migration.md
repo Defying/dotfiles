@@ -225,3 +225,31 @@ Re-enable command after rollback:
 ```bash
 hypr-enable
 ```
+
+## Safe Hyprland session
+
+A minimal Hyprland recovery session was added to the login screen:
+
+```text
+/usr/share/wayland-sessions/hyprland-safe.desktop
+Name=Hyprland (Safe)
+```
+
+It runs Fedora's normal Hyprland watchdog wrapper with a separate root-owned config:
+
+```text
+/usr/local/bin/asahi-hyprland-safe
+/usr/local/share/asahi-hyprland/hyprland-safe.conf
+```
+
+That config keeps the same MacBook-oriented core bindings but intentionally has no `exec-once` autostart entries. It does not start Waybar, Mako, Hypridle, clipboard watchers, wallpaper, network tray, or the polkit agent. Use it from the login screen when the normal Hyprland session is suspect but you still want a minimal compositor session before falling back to Plasma.
+
+Nested smoke test:
+
+```text
+timeout --kill-after=3s 8s env HOME=/tmp/codex-hypr-safe-test-home \
+  XDG_CONFIG_HOME=/tmp/codex-hypr-safe-test-home/.config \
+  /usr/local/bin/asahi-hyprland-safe
+```
+
+Result: Hyprland started with `/usr/local/share/asahi-hyprland/hyprland-safe.conf` and ran until the timeout killed it. The visible warnings were XKB/Xwayland warnings. As with the normal wrapper smoke test, killing `start-hyprland` by timeout produced a wrapper coredump during shutdown; no `Hyprland` or `start-hyprland` processes remained afterward.
