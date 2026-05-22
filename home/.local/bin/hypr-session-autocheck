@@ -1,0 +1,54 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+case "${XDG_CURRENT_DESKTOP:-}:${XDG_SESSION_DESKTOP:-}" in
+  *Hyprland*)
+    ;;
+  *)
+    printf 'Not a Hyprland session; skipping session autocheck.\n'
+    exit 0
+    ;;
+esac
+
+if [ -z "${WAYLAND_DISPLAY:-}" ]; then
+  printf 'WAYLAND_DISPLAY is not set; skipping session autocheck.\n'
+  exit 0
+fi
+
+log_dir="$HOME/hyprland-first-login"
+ts="$(date +%Y%m%d-%H%M%S)"
+log_file="$log_dir/autocheck-$ts.log"
+
+mkdir -p "$log_dir"
+
+{
+  printf 'Hyprland session autocheck\n'
+  printf 'timestamp=%s\n' "$(date --iso-8601=seconds)"
+  printf 'host=%s\n' "$(hostname)"
+  printf 'user=%s\n' "$(id -un)"
+  printf 'log=%s\n\n' "$log_file"
+} > "$log_file"
+
+set +e
+/home/ben/.local/bin/hypr-doctor >> "$log_file" 2>&1
+status=$?
+set -e
+
+doctor_log="$(sed -n 's/^log=//p' "$log_file" | tail -n 1)"
+[ -n "$doctor_log" ] || doctor_log="$log_file"
+
+if command -v notify-send >/dev/null 2>&1; then
+  if [ "$status" -eq 0 ]; then
+    notify-send --app-name="Hyprland" "Hyprland doctor passed" "Log: $doctor_log" || true
+  else
+    notify-send --urgency=critical --app-name="Hyprland" "Hyprland doctor failed" "Use Plasma or rollback if unstable. Log: $doctor_log" || true
+  fi
+fi
+
+if [ "$status" -eq 0 ]; then
+  printf 'Hyprland session autocheck passed. Log: %s\n' "$doctor_log"
+else
+  printf 'Hyprland session autocheck failed. Log: %s\n' "$doctor_log" >&2
+fi
+
+exit "$status"

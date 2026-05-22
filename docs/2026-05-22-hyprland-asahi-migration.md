@@ -90,6 +90,16 @@ The normal Hyprland session autostarts a one-time notification after Mako starts
 
 It points at `Cmd + Alt + Space`, `Cmd + K`, `Cmd + Return`, `Cmd + Shift + /`, and `Cmd + Shift + Q`. The safe Hyprland session intentionally does not run this or any other user autostart helper.
 
+## Session autocheck
+
+The normal Hyprland session also autostarts:
+
+```text
+~/.local/bin/hypr-session-autocheck
+```
+
+It waits for the session to settle, runs `hypr-doctor`, writes `~/hyprland-first-login/autocheck-*.log`, and sends a pass/fail notification. The safe Hyprland session intentionally does not run this helper.
+
 ## Command key fix
 
 Goal: Apple Command acts as Linux Super/Win, Option acts as Alt, Control stays Control.

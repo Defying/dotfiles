@@ -56,8 +56,9 @@ The menu at `Cmd + Alt + Space` is the Fedora-safe equivalent of Omarchy's menu 
 After the first normal Hyprland login:
 
 1. A one-time `Hyprland ready` notification should appear after Mako starts.
-2. Press `Cmd + Return`.
-3. Run:
+2. A `Hyprland doctor passed` or `Hyprland doctor failed` notification should appear shortly after startup.
+3. Press `Cmd + Return`.
+4. Run:
 
 ```bash
 hypr-doctor
@@ -129,6 +130,7 @@ Live config files are symlinked from this repo:
 ~/.local/bin/hypr-menu
 ~/.local/bin/hypr-recovery-card
 ~/.local/bin/hypr-first-login-notice
+~/.local/bin/hypr-session-autocheck
 ```
 
 ## Fast fallback
@@ -148,6 +150,8 @@ If normal Hyprland reaches a black screen or returns to login, try `Hyprland (Lo
 
 ```text
 ~/hyprland-first-login/session-*.log
+~/hyprland-first-login/autocheck-*.log
+~/hyprland-first-login/doctor-*.log
 ```
 
 ## Login-Screen Rollback
