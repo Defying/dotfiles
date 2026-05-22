@@ -125,6 +125,8 @@ It checks the current session, Plasma greeter default, rollback sessions, backup
 
 If the latest nested smoke-test report predates the current dotfiles commit, `hypr-readiness` reports that as a warning. That warning is expected after static config hardening and means the most recent nested smoke test no longer proves the exact current commit.
 
+When warnings or pending items remain, `hypr-readiness` prints concrete next actions. Refreshing nested smoke proof remains explicit (`hypr-smoke-test --run`), and final real proof still requires manually choosing the normal Hyprland session from the login screen and running `hypr-proof`.
+
 The nested smoke-test helper starts the real configured Hyprland under the current Plasma Wayland session:
 
 ```bash

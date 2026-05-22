@@ -218,6 +218,17 @@ if [ "$failures" -ne 0 ]; then
   exit 1
 fi
 
+if [ "$warnings" -ne 0 ] || [ "$pending" -ne 0 ]; then
+  printf '\nNext actions:\n'
+  if [ "$warnings" -ne 0 ]; then
+    printf '  - Review warnings above. If the only warning is stale nested smoke proof, refresh it only when explicitly ready with: hypr-smoke-test --run\n'
+  fi
+  if [ "$pending" -ne 0 ]; then
+    printf '  - Real proof requires choosing the normal Hyprland session manually at the login screen, then running: hypr-proof\n'
+  fi
+  printf '  - Emergency recovery card: hypr-emergency\n'
+fi
+
 if [ "$pending" -ne 0 ]; then
   printf 'Hyprland is prepared but not fully proven. Pending items remain.\n'
 else
