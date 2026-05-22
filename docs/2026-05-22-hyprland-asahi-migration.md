@@ -167,3 +167,26 @@ Installed session:
 ```
 
 Config files are tracked under this dotfiles repo and symlinked into `~/.config`.
+
+## Validation update
+
+Static validation passed after installation:
+
+```text
+Hyprland --verify-config -c ~/.config/hypr/hyprland.conf
+fuzzel --check-config --config ~/.config/fuzzel/fuzzel.ini
+jq empty ~/.config/waybar/config.jsonc
+bash -n ~/.local/bin/hypr-power-menu ~/.local/bin/hypr-screenshot ~/.local/bin/hypr-clipboard-menu
+```
+
+The login wrapper was also smoke-tested from the active Plasma Wayland session with a throwaway home/config and autostart disabled:
+
+```text
+timeout --kill-after=3s 8s env HOME=/tmp/codex-hypr-test-home \
+  XDG_CONFIG_HOME=/tmp/codex-hypr-test-home/.config \
+  /usr/bin/start-hyprland
+```
+
+Result: Hyprland started and ran until the timeout killed it. The visible warnings were XKB/Xwayland warnings, not Hyprland config failures.
+
+Remaining manual proof: log out of Plasma, choose the `Hyprland` session, and confirm the real user session starts with autostart enabled.
