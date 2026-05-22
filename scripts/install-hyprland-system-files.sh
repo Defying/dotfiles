@@ -7,10 +7,13 @@ mode="${1:---install}"
 files=(
   system/usr/local/bin/asahi-hyprland-disable-config
   system/usr/local/bin/asahi-hyprland-logged
+  system/usr/local/bin/asahi-hyprland-recovery
   system/usr/local/bin/asahi-hyprland-rollback-plasma
   system/usr/local/bin/asahi-hyprland-safe
+  system/usr/local/share/asahi-hyprland/hyprland-recovery.conf
   system/usr/local/share/asahi-hyprland/hyprland-safe.conf
   system/usr/share/wayland-sessions/hyprland-logged.desktop
+  system/usr/share/wayland-sessions/hyprland-recovery.desktop
   system/usr/share/wayland-sessions/hyprland-safe.desktop
   system/usr/share/wayland-sessions/plasma-rollback-hyprland.desktop
 )

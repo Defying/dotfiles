@@ -116,6 +116,14 @@ hypr-smoke-test --run
 
 It checks Hyprland IPC, launches Ghostty, runs `hypr-doctor` against the nested compositor, writes `~/hyprland-first-login/nested-smoke-*.report`, exits the nested compositor, and refreshes the Plasma session environment. Nested smoke sessions set `HYPR_NESTED_SMOKE=1` so the real-login autocheck does not write misleading proof logs. This is stronger than static validation but still not a replacement for real login-screen proof.
 
+A separate login-screen recovery session exists for a less scary first compositor check:
+
+```text
+Hyprland (Recovery Terminal)
+```
+
+It starts a root-owned minimal Hyprland config, writes `~/hyprland-first-login/recovery-session-*.log`, and auto-opens Ghostty with `hypr-recovery-card`. It does not replace the normal proof path; it is only a terminal-first escape hatch before trying the normal `Hyprland` session.
+
 Use a real Plasma logout before the first Hyprland test:
 
 ```text
@@ -463,6 +471,17 @@ That wrapper preserves the normal Fedora `/usr/bin/start-hyprland` launch path a
 ```
 
 Use it when the normal `Hyprland` login fails before a terminal can be opened. It is diagnostic only; it does not change the normal Hyprland config.
+
+The recovery-terminal session uses a separate root-owned minimal config:
+
+```text
+/usr/share/wayland-sessions/hyprland-recovery.desktop
+/usr/local/bin/asahi-hyprland-recovery
+/usr/local/share/asahi-hyprland/hyprland-recovery.conf
+~/hyprland-first-login/recovery-session-*.log
+```
+
+Use it before the normal session when the priority is getting a visible Ghostty recovery card immediately after login.
 
 Nested smoke test used a throwaway home with the safe config symlinked as `hyprland.conf`:
 

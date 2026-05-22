@@ -104,6 +104,7 @@ for path in \
   /usr/share/wayland-sessions/plasma.desktop \
   /usr/share/wayland-sessions/plasma-rollback-hyprland.desktop \
   /usr/share/wayland-sessions/hyprland-safe.desktop \
+  /usr/share/wayland-sessions/hyprland-recovery.desktop \
   /usr/share/wayland-sessions/hyprland-logged.desktop; do
   if [ -f "$path" ]; then
     ok "session file present: $path"

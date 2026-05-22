@@ -44,20 +44,22 @@ Login-screen choices:
   Plasma                       normal KDE fallback
   Plasma (Rollback Hyprland)   disables ~/.config/hypr, then starts KDE
   Hyprland (Safe)              minimal Hyprland, no user autostart
+  Hyprland (Recovery Terminal) minimal Hyprland, auto-opens Ghostty card
   Hyprland (Logged)            normal Hyprland plus startup log
   Hyprland                     normal configured Hyprland
 
 First test order:
   1. From Plasma, run: hypr-login-status
   2. Use Leave -> Log Out, not Lock or Switch User.
-  3. Try Hyprland (Safe).
-  4. If safe works, exit with Ctrl + Alt + Q or Cmd + Shift + Q.
-  5. Try Hyprland.
-  6. Ghostty should open automatically; otherwise press Ctrl + Alt + T.
-  7. In Ghostty, run: hypr-doctor
-  8. Run: hypr-proof
-  9. If normal Hyprland fails before a terminal, try Hyprland (Logged).
-  10. If Hyprland is broken, choose Plasma or Plasma (Rollback Hyprland).
+  3. Try Hyprland (Recovery Terminal) if you want the least scary test.
+  4. Ghostty should open automatically with this card.
+  5. Exit with Ctrl + Alt + Q or Cmd + Shift + Q.
+  6. Try Hyprland.
+  7. Ghostty should open automatically; otherwise press Ctrl + Alt + T.
+  8. In Ghostty, run: hypr-doctor
+  9. Run: hypr-proof
+  10. If normal Hyprland fails before a terminal, try Hyprland (Logged).
+  11. If Hyprland is broken, choose Plasma or Plasma (Rollback Hyprland).
 
 Automation boundary:
   These helpers do not log out, restart Plasma Login Manager, or enable
@@ -105,6 +107,7 @@ TTY fallback:
 
 Logs:
   ~/hyprland-first-login/session-*.log
+  ~/hyprland-first-login/recovery-session-*.log
   ~/hyprland-first-login/nested-smoke-*.report
   ~/hyprland-first-login/autocheck-*.log
   ~/hyprland-first-login/proof-*.log

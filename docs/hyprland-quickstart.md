@@ -10,6 +10,7 @@ Plasma (Rollback Hyprland)   disable ~/.config/hypr, then start KDE
 Hyprland                     normal configured Hyprland
 Hyprland (Logged)            normal Hyprland, with startup logs
 Hyprland (Safe)              minimal Hyprland, no Waybar/Mako/Hypridle/autostart
+Hyprland (Recovery Terminal) minimal Hyprland, auto-opens Ghostty recovery card
 ```
 
 ## Start Hyprland
@@ -61,7 +62,9 @@ If Plasma's logout button does nothing after a desktop-switching test, refresh t
 hypr-refresh-session-env
 ```
 
-If you want to test the compositor before trusting the normal config, choose `Hyprland (Safe)` first. It uses a root-owned config at:
+If you want the least scary first compositor test, choose `Hyprland (Recovery Terminal)` first. It uses a root-owned minimal config, writes a startup log, and auto-opens Ghostty with the recovery card. Exit it with `Ctrl + Alt + Q` or `Cmd + Shift + Q`, then choose Plasma or continue to the normal `Hyprland` session.
+
+If you want to test the compositor without any user autostart, choose `Hyprland (Safe)`. It uses a root-owned config at:
 
 ```text
 /usr/local/share/asahi-hyprland/hyprland-safe.conf
@@ -211,10 +214,12 @@ If Hyprland is annoying but the login screen works:
 
 If normal Hyprland fails but you still want a minimal compositor test:
 
-1. Pick `Hyprland (Safe)` at login.
-2. Use `Ctrl + Alt + T`, `Ctrl + Alt + Return`, `Alt + Return`, `F12`, or `Cmd + Return` for Ghostty.
+1. Pick `Hyprland (Recovery Terminal)` at login.
+2. Ghostty should open automatically with the recovery card.
 3. Use `Ctrl + Alt + Space` or `Cmd + Space` for the app launcher/menu.
 4. Use `Ctrl + Alt + Q` or `Cmd + Shift + Q` to exit.
+
+If you need the same minimal compositor with no autostart at all, pick `Hyprland (Safe)` and use `Ctrl + Alt + T`, `Ctrl + Alt + Return`, `Alt + Return`, `F12`, or `Cmd + Return` for Ghostty.
 
 If normal Hyprland reaches a black screen or returns to login, try `Hyprland (Logged)` once, then inspect:
 
@@ -224,6 +229,7 @@ hypr-logs
 
 ```text
 ~/hyprland-first-login/session-*.log
+~/hyprland-first-login/recovery-session-*.log
 ~/hyprland-first-login/nested-smoke-*.report
 ~/hyprland-first-login/autocheck-*.log
 ~/hyprland-first-login/proof-*.log

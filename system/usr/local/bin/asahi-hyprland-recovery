@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+home_dir="${HOME:-/home/ben}"
+log_dir="$home_dir/hyprland-first-login"
+ts="$(date +%Y%m%d-%H%M%S)"
+
+if ! mkdir -p "$log_dir" 2>/dev/null; then
+  log_dir="/tmp"
+fi
+
+log_file="$log_dir/recovery-session-$ts.log"
+
+{
+  printf 'Hyprland recovery-terminal session\n'
+  printf 'timestamp=%s\n' "$(date --iso-8601=seconds)"
+  printf 'user=%s\n' "$(id -un)"
+  printf 'home=%s\n' "$home_dir"
+  printf 'wrapper=%s\n' "$0"
+  printf 'command=/usr/bin/start-hyprland\n'
+  printf 'config=/usr/local/share/asahi-hyprland/hyprland-recovery.conf\n'
+  printf '\n'
+} >> "$log_file" 2>&1
+
+export XDG_CURRENT_DESKTOP=Hyprland
+export XDG_SESSION_DESKTOP=Hyprland
+export XDG_SESSION_TYPE=wayland
+export ASAHI_HYPRLAND_RECOVERY=1
+
+exec /usr/bin/start-hyprland -- --config /usr/local/share/asahi-hyprland/hyprland-recovery.conf >> "$log_file" 2>&1

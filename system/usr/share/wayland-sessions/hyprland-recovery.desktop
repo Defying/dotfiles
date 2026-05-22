@@ -1,0 +1,7 @@
+[Desktop Entry]
+Name=Hyprland (Recovery Terminal)
+Comment=Start minimal Hyprland and auto-open a recovery terminal
+Exec=/usr/local/bin/asahi-hyprland-recovery
+TryExec=/usr/bin/start-hyprland
+Type=Application
+Keywords=recovery;terminal;safe;hyprland;wayland;

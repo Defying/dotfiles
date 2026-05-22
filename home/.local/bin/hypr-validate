@@ -40,7 +40,7 @@ check "Hyprland XDPH config" bash -lc 'test -f /home/ben/.config/hypr/xdph.conf 
 check "Fuzzel config" fuzzel --check-config --config /home/ben/.config/fuzzel/fuzzel.ini
 check "Waybar JSON" jq empty /home/ben/.config/waybar/config.jsonc
 check "Ghostty terminal command" command -v ghostty
-check "helper scripts" bash -n /home/ben/.local/bin/hypr-power-menu /home/ben/.local/bin/hypr-screenshot /home/ben/.local/bin/hypr-clipboard-menu /home/ben/.local/bin/hypr-rollback /home/ben/.local/bin/hypr-enable /home/ben/.local/bin/hypr-help /home/ben/.local/bin/hypr-doctor /home/ben/.local/bin/hypr-proof /home/ben/.local/bin/hypr-keybindings /home/ben/.local/bin/hypr-menu /home/ben/.local/bin/hypr-recovery-card /home/ben/.local/bin/hypr-logs /home/ben/.local/bin/hypr-login-status /home/ben/.local/bin/hypr-login-default /home/ben/.local/bin/hypr-refresh-session-env /home/ben/.local/bin/hypr-preflight /home/ben/.local/bin/hypr-readiness /home/ben/.local/bin/hypr-smoke-test /home/ben/.local/bin/hypr-first-login-notice /home/ben/.local/bin/hypr-first-login-terminal /home/ben/.local/bin/hypr-session-autocheck /home/ben/dotfiles/scripts/install-hyprland-system-files.sh
+check "helper scripts" bash -n /home/ben/.local/bin/hypr-power-menu /home/ben/.local/bin/hypr-screenshot /home/ben/.local/bin/hypr-clipboard-menu /home/ben/.local/bin/hypr-rollback /home/ben/.local/bin/hypr-enable /home/ben/.local/bin/hypr-help /home/ben/.local/bin/hypr-doctor /home/ben/.local/bin/hypr-proof /home/ben/.local/bin/hypr-keybindings /home/ben/.local/bin/hypr-menu /home/ben/.local/bin/hypr-recovery-card /home/ben/.local/bin/hypr-logs /home/ben/.local/bin/hypr-login-status /home/ben/.local/bin/hypr-login-default /home/ben/.local/bin/hypr-refresh-session-env /home/ben/.local/bin/hypr-preflight /home/ben/.local/bin/hypr-readiness /home/ben/.local/bin/hypr-smoke-test /home/ben/.local/bin/hypr-first-login-notice /home/ben/.local/bin/hypr-first-login-terminal /home/ben/.local/bin/hypr-session-autocheck /home/ben/dotfiles/system/usr/local/bin/asahi-hyprland-recovery /home/ben/dotfiles/scripts/install-hyprland-system-files.sh
 check_link "Hyprland config linked" /home/ben/.config/hypr/hyprland.conf config/hypr/hyprland.conf
 check_link "Hyprpaper config linked" /home/ben/.config/hypr/hyprpaper.conf config/hypr/hyprpaper.conf
 check_link "Hypridle config linked" /home/ben/.config/hypr/hypridle.conf config/hypr/hypridle.conf
@@ -85,6 +85,13 @@ check "Hyprland safe script" test -x /usr/local/bin/asahi-hyprland-safe
 check_match "Hyprland safe config installed" system/usr/local/share/asahi-hyprland/hyprland-safe.conf /usr/local/share/asahi-hyprland/hyprland-safe.conf
 check_match "Hyprland safe session installed" system/usr/share/wayland-sessions/hyprland-safe.desktop /usr/share/wayland-sessions/hyprland-safe.desktop
 check_match "Hyprland safe script installed" system/usr/local/bin/asahi-hyprland-safe /usr/local/bin/asahi-hyprland-safe
+check "Hyprland recovery config" Hyprland --verify-config -c /usr/local/share/asahi-hyprland/hyprland-recovery.conf
+check "Hyprland recovery session file" test -f /usr/share/wayland-sessions/hyprland-recovery.desktop
+check "Hyprland recovery session desktop" desktop-file-validate /usr/share/wayland-sessions/hyprland-recovery.desktop
+check "Hyprland recovery script" test -x /usr/local/bin/asahi-hyprland-recovery
+check_match "Hyprland recovery config installed" system/usr/local/share/asahi-hyprland/hyprland-recovery.conf /usr/local/share/asahi-hyprland/hyprland-recovery.conf
+check_match "Hyprland recovery session installed" system/usr/share/wayland-sessions/hyprland-recovery.desktop /usr/share/wayland-sessions/hyprland-recovery.desktop
+check_match "Hyprland recovery script installed" system/usr/local/bin/asahi-hyprland-recovery /usr/local/bin/asahi-hyprland-recovery
 check "Plasma fallback session file" test -f /usr/share/wayland-sessions/plasma.desktop
 check "Rollback Plasma session file" test -f /usr/share/wayland-sessions/plasma-rollback-hyprland.desktop
 check "Rollback Plasma session desktop" desktop-file-validate /usr/share/wayland-sessions/plasma-rollback-hyprland.desktop

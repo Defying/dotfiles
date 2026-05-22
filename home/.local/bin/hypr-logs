@@ -47,7 +47,7 @@ latest_log() {
 latest_any_log() {
   find "$HOME/hyprland-first-login" "$HOME/hyprland-rollback" \
     -maxdepth 1 -type f \
-    \( -name 'session-*.log' -o -name 'autocheck-*.log' -o -name 'nested-smoke-*.report' -o -name 'proof-*.log' -o -name 'doctor-*.log' -o -name 'rollback-*.log' \) \
+    \( -name 'session-*.log' -o -name 'recovery-session-*.log' -o -name 'autocheck-*.log' -o -name 'nested-smoke-*.report' -o -name 'proof-*.log' -o -name 'doctor-*.log' -o -name 'rollback-*.log' \) \
     -printf '%T@ %p\n' 2>/dev/null |
     sort -n |
     tail -n 1 |
@@ -107,6 +107,7 @@ printf 'mode=%s tail=%s\n' "$mode" "$tail_lines"
 show_staleness_warning
 
 show_latest "Logged session startup" "$HOME/hyprland-first-login" 'session-*.log'
+show_latest "Recovery session startup" "$HOME/hyprland-first-login" 'recovery-session-*.log'
 show_latest "Session autocheck" "$HOME/hyprland-first-login" 'autocheck-*.log'
 show_latest "Nested smoke test" "$HOME/hyprland-first-login" 'nested-smoke-*.report'
 show_latest "Real-login proof" "$HOME/hyprland-first-login" 'proof-*.log'
