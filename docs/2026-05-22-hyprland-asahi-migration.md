@@ -80,6 +80,16 @@ hypr-recovery-card
 
 It prints the login-screen session choices, first-test order, emergency keybindings, TTY fallback, rollback/re-enable commands, log locations, backup bundles, and Btrfs snapshot anchors. It is also available from the `hypr-menu`.
 
+## Log reader
+
+The latest Hyprland attempt logs can be read with:
+
+```bash
+hypr-logs
+```
+
+It prints the newest logged-session startup log, session autocheck log, doctor log, and rollback log. It is also available from the `hypr-menu`.
+
 ## First-login notice
 
 The normal Hyprland session autostarts a one-time notification after Mako starts:

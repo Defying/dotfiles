@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+tail_lines=100
+mode="show"
+
+usage() {
+  printf 'usage: %s [--tail LINES|--list]\n' "$0" >&2
+}
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --tail)
+      shift
+      if [ "$#" -eq 0 ] || ! [[ "$1" =~ ^[0-9]+$ ]]; then
+        usage
+        exit 2
+      fi
+      tail_lines="$1"
+      ;;
+    --list)
+      mode="list"
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      usage
+      exit 2
+      ;;
+  esac
+  shift
+done
+
+latest_log() {
+  local dir="$1"
+  local pattern="$2"
+
+  [ -d "$dir" ] || return 1
+  find "$dir" -maxdepth 1 -type f -name "$pattern" -printf '%T@ %p\n' 2>/dev/null |
+    sort -n |
+    tail -n 1 |
+    cut -d' ' -f2-
+}
+
+show_latest() {
+  local label="$1"
+  local dir="$2"
+  local pattern="$3"
+  local file
+
+  file="$(latest_log "$dir" "$pattern" || true)"
+  if [ -z "$file" ]; then
+    printf '\n== %s ==\n' "$label"
+    printf 'missing: %s/%s\n' "$dir" "$pattern"
+    return 0
+  fi
+
+  printf '\n== %s ==\n' "$label"
+  printf 'file=%s\n' "$file"
+  stat -c 'modified=%y size=%s bytes' "$file"
+
+  if [ "$mode" = "show" ]; then
+    printf '%s\n' '--- tail ---'
+    tail -n "$tail_lines" "$file"
+  fi
+}
+
+printf 'Hyprland logs\n'
+printf 'host=%s user=%s date=%s\n' "$(hostname)" "$(id -un)" "$(date --iso-8601=seconds)"
+printf 'mode=%s tail=%s\n' "$mode" "$tail_lines"
+
+show_latest "Logged session startup" "$HOME/hyprland-first-login" 'session-*.log'
+show_latest "Session autocheck" "$HOME/hyprland-first-login" 'autocheck-*.log'
+show_latest "Doctor" "$HOME/hyprland-first-login" 'doctor-*.log'
+show_latest "Rollback" "$HOME/hyprland-rollback" 'rollback-*.log'
+
+printf '\nCommands:\n'
+printf '  hypr-logs --list\n'
+printf '  hypr-logs --tail 200\n'
+printf '  hypr-validate\n'
+printf '  hypr-recovery-card\n'

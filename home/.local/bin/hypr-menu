@@ -17,6 +17,7 @@ choice="$(
     "Keybindings" \
     "Quickstart" \
     "Recovery Card" \
+    "Logs" \
     "Doctor" \
     "Validate" \
     "Clipboard" \
@@ -39,6 +40,9 @@ case "$choice" in
     ;;
   "Recovery Card")
     run_terminal "/home/ben/.local/bin/hypr-recovery-card"
+    ;;
+  "Logs")
+    run_terminal "/home/ben/.local/bin/hypr-logs"
     ;;
   "Doctor")
     run_terminal "/home/ben/.local/bin/hypr-doctor"

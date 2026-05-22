@@ -66,6 +66,7 @@ Hyprland keys:
 
 Recovery commands:
   hypr-validate
+  hypr-logs
   hypr-doctor
   hypr-rollback
   hypr-enable
@@ -80,6 +81,7 @@ TTY fallback:
 
 Logs:
   ~/hyprland-first-login/session-*.log
+  ~/hyprland-first-login/autocheck-*.log
   ~/hyprland-first-login/doctor-*.log
   ~/hyprland-rollback/rollback-*.log
 
