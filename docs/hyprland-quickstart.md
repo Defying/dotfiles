@@ -331,3 +331,5 @@ Fedora keeps KDE and Hyprland portals installed side by side. Hyprland sessions 
 ```
 
 The tracked XDPH config points screen-share picking at Fedora's `hyprland-share-picker`.
+
+The normal Hyprland config starts `hyprland-session.target` before the portal stack. On Fedora this keeps `graphical-session.target` active so `xdg-desktop-portal.service`, `xdg-desktop-portal-hyprland.service`, and `xdg-desktop-portal-gtk.service` can run inside Hyprland. Hyprland stops that user target on compositor shutdown.

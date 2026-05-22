@@ -74,12 +74,14 @@ printf 'loginctl Desktop=%s\n' "$(session_property Desktop)"
 printf 'loginctl Type=%s\n' "$(session_property Type)"
 printf 'loginctl Service=%s\n' "$(session_property Service)"
 
+current_session_is_hyprland=0
 case "${XDG_CURRENT_DESKTOP:-}:$(session_property Desktop)" in
   *KDE*|*plasma*|*Plasma*)
     ok "current session is Plasma/KDE"
     ;;
   *Hyprland*)
     ok "current session is Hyprland"
+    current_session_is_hyprland=1
     ;;
   *)
     warn "current desktop is not recognized as Plasma or Hyprland"
@@ -87,9 +89,28 @@ case "${XDG_CURRENT_DESKTOP:-}:$(session_property Desktop)" in
 esac
 
 if pgrep -a -u "$(id -u)" 'Hyprland|start-hyprland|asahi-hyprland|waybar|hyprpaper|hypridle|hyprpolkitagent|wl-paste|nm-applet|fuzzel' >/dev/null 2>&1; then
-  warn "Hyprland-related test/runtime processes are currently running"
+  if [ "$current_session_is_hyprland" -eq 1 ]; then
+    ok "Hyprland runtime processes are running in the current Hyprland session"
+  else
+    warn "Hyprland-related test/runtime processes are currently running"
+  fi
 else
   ok "no Hyprland test/runtime processes are running"
+fi
+
+if [ "$current_session_is_hyprland" -eq 1 ]; then
+  if systemctl --user is-active --quiet graphical-session.target &&
+    systemctl --user is-active --quiet hyprland-session.target; then
+    ok "Hyprland user session target is active"
+  else
+    warn "Hyprland user session target is not fully active"
+  fi
+
+  if systemctl --user is-active --quiet xdg-desktop-portal.service; then
+    ok "xdg-desktop-portal user service is active"
+  else
+    warn "xdg-desktop-portal user service is not active"
+  fi
 fi
 
 section "Login Safety"
@@ -195,7 +216,11 @@ if [ -n "$smoke_report" ]; then
     commit_ts="$(git -C /home/ben/dotfiles log -1 --format=%ct 2>/dev/null || true)"
     smoke_ts="$(stat -c '%Y' "$smoke_report" 2>/dev/null || true)"
     if [ -n "$commit_ts" ] && [ -n "$smoke_ts" ] && [ "$smoke_ts" -lt "$commit_ts" ]; then
-      warn "latest nested smoke test predates current dotfiles commit"
+      if [ -f "$proof_marker" ]; then
+        ok "real login proof supersedes stale nested smoke proof"
+      else
+        warn "latest nested smoke test predates current dotfiles commit"
+      fi
     fi
   fi
 else
@@ -206,6 +231,14 @@ section "Real Login Proof"
 if [ -f "$proof_marker" ]; then
   ok "real login proof marker exists"
   sed 's/^/  /' "$proof_marker"
+  proof_commit="$(awk -F= '$1 == "dotfiles_commit" { print $2; exit }' "$proof_marker")"
+  if [ -n "${commit:-}" ] && [ -n "$proof_commit" ]; then
+    if [ "$proof_commit" = "$commit" ]; then
+      ok "real login proof matches current dotfiles commit"
+    else
+      warn "real login proof was recorded for dotfiles commit $proof_commit, not current commit $commit"
+    fi
+  fi
 else
   todo "real login proof marker missing: $proof_marker"
   printf '        This requires a normal Hyprland session from the login screen.\n'

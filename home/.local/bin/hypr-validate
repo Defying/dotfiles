@@ -72,6 +72,8 @@ check_link "Hypr smoke test linked" /home/ben/.local/bin/hypr-smoke-test home/.l
 check_link "Hypr first-login notice linked" /home/ben/.local/bin/hypr-first-login-notice home/.local/bin/hypr-first-login-notice
 check_link "Hypr first-login terminal linked" /home/ben/.local/bin/hypr-first-login-terminal home/.local/bin/hypr-first-login-terminal
 check_link "Hypr session autocheck linked" /home/ben/.local/bin/hypr-session-autocheck home/.local/bin/hypr-session-autocheck
+check_link "Hyprland session target linked" /home/ben/.config/systemd/user/hyprland-session.target home/.config/systemd/user/hyprland-session.target
+check "Hyprland session target syntax" systemd-analyze --user verify /home/ben/.config/systemd/user/hyprland-session.target
 check "Hyprland session file" test -f /usr/share/wayland-sessions/hyprland.desktop
 check "Hyprland logged session file" test -f /usr/share/wayland-sessions/hyprland-logged.desktop
 check "Hyprland logged session desktop" desktop-file-validate /usr/share/wayland-sessions/hyprland-logged.desktop

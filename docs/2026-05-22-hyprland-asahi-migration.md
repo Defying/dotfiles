@@ -199,6 +199,8 @@ When all checks pass, it also writes:
 
 The normal Hyprland session autocheck runs this automatically after `hypr-doctor` passes. Running `hypr-proof` from Plasma, a nested smoke test, or the safe no-autostart session should fail, which prevents accidental proof from the wrong session.
 
+Fedora's portal service requires `graphical-session.target`. Plasma starts that target itself, but the direct Hyprland session needs to provide an equivalent user target. The tracked config starts `hyprland-session.target`, then starts the Hyprland, GTK, and main xdg-desktop-portal services after exporting the Wayland environment. It stops the target again on Hyprland shutdown.
+
 ## First-login notice
 
 The normal Hyprland session autostarts a one-time notification after Mako starts:
