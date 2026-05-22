@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+bindings="$(
+  cat <<'EOF'
+Cmd + Return             open Ghostty
+Cmd + Space              open app launcher
+Cmd + Alt + Space        open Hyprland menu
+Cmd + K                  show this keybinding list
+Cmd + W                  close focused window
+Cmd + Shift + Q          exit Hyprland
+Cmd + F                  fullscreen
+Cmd + Ctrl + F           tiled fullscreen
+Cmd + Alt + F            full width
+Cmd + T                  toggle floating/tiling
+Cmd + J                  toggle split direction
+Cmd + P                  pseudo tile
+Cmd + 1..9 / 0           switch workspace 1..10
+Cmd + Shift + 1..9 / 0   move window to workspace 1..10
+Cmd + Tab                next workspace
+Cmd + Shift + Tab        previous workspace
+Cmd + Ctrl + Tab         previous workspace
+Cmd + S                  toggle scratchpad
+Cmd + Alt + S            move window to scratchpad
+Cmd + Arrow              focus window
+Cmd + Shift + Arrow      swap window
+Cmd + Alt + Arrow        resize window
+Cmd + Left Mouse         drag window
+Cmd + Right Mouse        resize window
+Alt + Tab                next window
+Alt + Shift + Tab        previous window
+Cmd + C/V/X/A/Z          copy/paste/cut/select all/undo
+Cmd + Shift + C/V        terminal copy/paste fallback
+Cmd + Ctrl + V           clipboard history
+Cmd + Shift + 3          full screenshot
+Cmd + Shift + 4          region screenshot
+Cmd + Shift + 5          region screenshot and edit
+Cmd + L                  lock
+Cmd + Shift + /          run Hyprland doctor
+Cmd + Escape             power/logout menu
+Cmd + Comma              dismiss notification
+Cmd + Shift + Comma      dismiss all notifications
+Cmd + Ctrl + A           audio controls
+Cmd + Ctrl + W           network controls
+EOF
+)"
+
+if command -v fuzzel >/dev/null 2>&1 && [ -n "${WAYLAND_DISPLAY:-}" ]; then
+  selection="$(printf '%s\n' "$bindings" | fuzzel --dmenu --prompt "keys> " --width 82 --lines 24 --no-sort --only-match)" || exit 0
+  if [ -n "$selection" ] && command -v wl-copy >/dev/null 2>&1; then
+    printf '%s' "$selection" | wl-copy
+  fi
+else
+  printf '%s\n' "$bindings"
+fi

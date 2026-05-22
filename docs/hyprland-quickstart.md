@@ -38,6 +38,8 @@ First keys to remember:
 ```text
 Cmd + Return             open Ghostty
 Cmd + Space              open app launcher
+Cmd + Alt + Space        open Hyprland menu
+Cmd + K                  show keybindings
 Cmd + W                  close window
 Cmd + Shift + Q          exit Hyprland session
 Cmd + Shift + /          run Hyprland doctor
@@ -46,6 +48,8 @@ Cmd + L                  lock
 ```
 
 From a terminal, `hypr-help` reopens this quickstart, `hypr-validate` reruns the static safety checks, and `hypr-doctor` checks the live Hyprland session.
+
+The menu at `Cmd + Alt + Space` is the Fedora-safe equivalent of Omarchy's menu workflow. It opens apps, keybindings, quickstart, doctor, validator, clipboard history, audio/network tools, the Hyprland config, and the power menu.
 
 ## First Login Check
 
@@ -119,6 +123,8 @@ Live config files are symlinked from this repo:
 ~/.local/bin/hypr-screenshot
 ~/.local/bin/hypr-clipboard-menu
 ~/.local/bin/hypr-doctor
+~/.local/bin/hypr-keybindings
+~/.local/bin/hypr-menu
 ```
 
 ## Fast fallback

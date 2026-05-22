@@ -40,6 +40,28 @@ The second bundle records package state, Btrfs subvolumes, session files, the Hy
 
 Do not run Omarchy's Arch installer on Fedora Asahi. Use Omarchy as a configuration reference only.
 
+## Omarchy reference check
+
+Current Omarchy upstream was inspected from `basecamp/omarchy` dev commit:
+
+```text
+b911a6f8ba51ac36b7bef9cd07b96207a2c59a18
+```
+
+Relevant upstream behavior:
+
+- Hyprland defaults are currently organized as Lua modules under `config/hypr` and `default/hypr`.
+- Omarchy exposes keybindings through `Super + K`.
+- Omarchy exposes its main menu through `Super + Alt + Space`.
+- Omarchy's current look-and-feel values match the already staged gaps, border gradient, shadow, blur, animation, dwindle, cursor, and XWayland choices.
+
+Fedora Asahi keeps the validated classic Hyprland config instead of switching to Omarchy's Lua stack, because this machine is on Fedora packages and does not have Omarchy's Arch-specific helper commands. Fedora-safe equivalents were added:
+
+```text
+Cmd + K             hypr-keybindings
+Cmd + Alt + Space   hypr-menu
+```
+
 ## Command key fix
 
 Goal: Apple Command acts as Linux Super/Win, Option acts as Alt, Control stays Control.

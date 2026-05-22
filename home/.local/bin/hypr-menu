@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+run_terminal() {
+  local command="$1"
+
+  if command -v ghostty >/dev/null 2>&1; then
+    ghostty -e bash -lc "$command; printf '\\nPress Enter to close...'; read -r _"
+  else
+    bash -lc "$command"
+  fi
+}
+
+choice="$(
+  printf '%s\n' \
+    "Apps" \
+    "Keybindings" \
+    "Quickstart" \
+    "Doctor" \
+    "Validate" \
+    "Clipboard" \
+    "Audio" \
+    "Network" \
+    "Edit Hyprland config" \
+    "Power" |
+    fuzzel --dmenu --prompt "hypr> " --width 34 --lines 10 --no-sort --only-match
+)" || exit 0
+
+case "$choice" in
+  "Apps")
+    fuzzel --show drun
+    ;;
+  "Keybindings")
+    /home/ben/.local/bin/hypr-keybindings
+    ;;
+  "Quickstart")
+    run_terminal "/home/ben/.local/bin/hypr-help"
+    ;;
+  "Doctor")
+    run_terminal "/home/ben/.local/bin/hypr-doctor"
+    ;;
+  "Validate")
+    run_terminal "/home/ben/.local/bin/hypr-validate"
+    ;;
+  "Clipboard")
+    /home/ben/.local/bin/hypr-clipboard-menu
+    ;;
+  "Audio")
+    pavucontrol
+    ;;
+  "Network")
+    nm-connection-editor
+    ;;
+  "Edit Hyprland config")
+    run_terminal '${EDITOR:-nano} /home/ben/dotfiles/config/hypr/hyprland.conf'
+    ;;
+  "Power")
+    /home/ben/.local/bin/hypr-power-menu
+    ;;
+esac
