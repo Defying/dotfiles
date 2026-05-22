@@ -19,6 +19,7 @@ choice="$(
     "Recovery Card" \
     "Login Status" \
     "Logs" \
+    "Preflight" \
     "Doctor" \
     "Proof" \
     "Validate" \
@@ -48,6 +49,9 @@ case "$choice" in
     ;;
   "Logs")
     run_terminal "/home/ben/.local/bin/hypr-logs"
+    ;;
+  "Preflight")
+    run_terminal "/home/ben/.local/bin/hypr-preflight"
     ;;
   "Doctor")
     run_terminal "/home/ben/.local/bin/hypr-doctor"

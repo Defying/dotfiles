@@ -27,6 +27,12 @@ Before logging out, this command shows the current desktop, the session remember
 hypr-login-status
 ```
 
+Before a real retry, this command runs the whole safe preflight: refreshes the Plasma/user session environment, keeps Plasma as the remembered default, resets first-login notice state, runs static validation, and prints the retry keys:
+
+```bash
+hypr-preflight
+```
+
 Keep Plasma as the remembered default so Hyprland is only entered when you explicitly choose it:
 
 ```bash
@@ -79,7 +85,7 @@ The normal Hyprland session opens Ghostty automatically until `hypr-proof` has r
 
 From a terminal, `hypr-help` reopens this quickstart, `hypr-recovery-card` prints the rollback card, `hypr-login-status` shows login-manager state, `hypr-logs` shows the latest attempt logs, `hypr-validate` reruns the static safety checks, `hypr-doctor` checks the live Hyprland session, and `hypr-proof` records proof after a real Hyprland login.
 
-The menu at `Cmd + Alt + Space` is the Fedora-safe equivalent of Omarchy's menu workflow. It opens apps, keybindings, quickstart, recovery card, login status, logs, doctor, proof, validator, clipboard history, audio/network tools, the Hyprland config, and the power menu.
+The menu at `Cmd + Alt + Space` is the Fedora-safe equivalent of Omarchy's menu workflow. It opens apps, keybindings, quickstart, recovery card, login status, logs, preflight, doctor, proof, validator, clipboard history, audio/network tools, the Hyprland config, and the power menu.
 
 ## First Login Check
 
@@ -171,6 +177,7 @@ Live config files are symlinked from this repo:
 ~/.local/bin/hypr-login-status
 ~/.local/bin/hypr-login-default
 ~/.local/bin/hypr-refresh-session-env
+~/.local/bin/hypr-preflight
 ~/.local/bin/hypr-logs
 ~/.local/bin/hypr-first-login-notice
 ~/.local/bin/hypr-first-login-terminal

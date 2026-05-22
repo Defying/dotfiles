@@ -90,6 +90,14 @@ The helper below prints the current session, the session remembered by Plasma Lo
 hypr-login-status
 ```
 
+The preflight helper runs the current safe-before-retry checklist from Plasma:
+
+```bash
+hypr-preflight
+```
+
+It refreshes the Plasma/user service environment, keeps Plasma as the remembered greeter default, clears first-login notice state so the next normal Hyprland attempt is noisy again, runs `hypr-validate`, prints `hypr-login-status`, and prints the fallback keys.
+
 Use a real Plasma logout before the first Hyprland test:
 
 ```text

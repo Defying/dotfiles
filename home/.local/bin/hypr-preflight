@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/hyprland"
+failures=0
+
+step() {
+  printf '\n== %s ==\n' "$1"
+}
+
+run_required() {
+  local label="$1"
+  shift
+
+  step "$label"
+  if "$@"; then
+    printf 'OK: %s\n' "$label"
+  else
+    printf 'FAIL: %s\n' "$label" >&2
+    failures=$((failures + 1))
+  fi
+}
+
+run_optional() {
+  local label="$1"
+  shift
+
+  step "$label"
+  if "$@"; then
+    printf 'OK: %s\n' "$label"
+  else
+    printf 'WARN: %s\n' "$label" >&2
+  fi
+}
+
+printf 'Hyprland preflight\n'
+printf 'host=%s user=%s date=%s\n' "$(hostname)" "$(id -un)" "$(date --iso-8601=seconds)"
+
+run_optional "Refresh Plasma/user session environment" /home/ben/.local/bin/hypr-refresh-session-env
+run_required "Keep Plasma as remembered login default" /home/ben/.local/bin/hypr-login-default plasma
+
+step "Reset first-login notices"
+mkdir -p "$state_dir"
+rm -f "$state_dir/first-login-notice.seen" "$state_dir/first-login-terminal.seen"
+printf 'OK: first-login notice state cleared\n'
+
+run_required "Static Hyprland validation" /home/ben/.local/bin/hypr-validate
+
+step "Current login status"
+/home/ben/.local/bin/hypr-login-status || failures=$((failures + 1))
+
+step "Retry keys"
+cat <<'EOF'
+From the login screen:
+  Plasma                       known-good fallback
+  Plasma (Rollback Hyprland)   disables ~/.config/hypr, then starts KDE
+  Hyprland (Safe)              minimal compositor test
+  Hyprland                     normal session, opens Ghostty automatically
+  Hyprland (Logged)            normal session with startup log
+
+Inside Hyprland:
+  Ctrl + Alt + T       open Ghostty fallback
+  Ctrl + Alt + Return  open Ghostty fallback
+  Alt + Return         open Ghostty fallback
+  F12                  open Ghostty fallback
+  Ctrl + Alt + Space   open menu fallback
+  Ctrl + Alt + Q       exit Hyprland fallback
+  Ctrl + Alt + Backspace exit Hyprland fallback
+
+After normal Hyprland opens Ghostty:
+  hypr-doctor
+  hypr-proof
+EOF
+
+if [ "$failures" -ne 0 ]; then
+  printf '\n%s preflight check(s) failed. Stay in Plasma until fixed.\n' "$failures" >&2
+  exit 1
+fi
+
+printf '\nHyprland preflight passed. Plasma remains the remembered default; choose Hyprland manually only when ready.\n'
