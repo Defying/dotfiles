@@ -27,6 +27,12 @@ Before logging out, this command shows the current desktop, the session remember
 hypr-login-status
 ```
 
+Keep Plasma as the remembered default so Hyprland is only entered when you explicitly choose it:
+
+```bash
+hypr-login-default plasma
+```
+
 If you want to test the compositor before trusting the normal config, choose `Hyprland (Safe)` first. It uses a root-owned config at:
 
 ```text
@@ -146,6 +152,7 @@ Live config files are symlinked from this repo:
 ~/.local/bin/hypr-menu
 ~/.local/bin/hypr-recovery-card
 ~/.local/bin/hypr-login-status
+~/.local/bin/hypr-login-default
 ~/.local/bin/hypr-logs
 ~/.local/bin/hypr-first-login-notice
 ~/.local/bin/hypr-session-autocheck

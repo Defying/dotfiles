@@ -98,6 +98,14 @@ Leave -> Log Out
 
 Do not use Lock or Switch User for the first test.
 
+The remembered greeter session can be reset to Plasma with:
+
+```bash
+hypr-login-default plasma
+```
+
+That keeps Hyprland as an explicit login-screen choice rather than an accidental default.
+
 ## Log reader
 
 The latest Hyprland attempt logs can be read with:

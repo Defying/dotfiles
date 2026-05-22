@@ -70,6 +70,7 @@ Hyprland keys:
 Recovery commands:
   hypr-validate
   hypr-login-status
+  hypr-login-default plasma
   hypr-logs
   hypr-doctor
   hypr-proof

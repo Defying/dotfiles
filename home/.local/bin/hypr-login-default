@@ -1,0 +1,158 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+state_file="/var/lib/plasmalogin/.local/state/plasma-login-greeterstaterc"
+state_dir="$(dirname "$state_file")"
+login_user="${USER:-ben}"
+
+usage() {
+  cat <<'EOF'
+usage: hypr-login-default [status|plasma|hyprland|safe|logged]
+
+Set the Plasma Login Manager remembered session for ben.
+
+Recommended before first Hyprland testing:
+  hypr-login-default plasma
+
+Then choose Hyprland manually from the login screen.
+EOF
+}
+
+session_file_for_choice() {
+  case "$1" in
+    plasma) printf 'plasma.desktop\n' ;;
+    hyprland) printf 'hyprland.desktop\n' ;;
+    safe) printf 'hyprland-safe.desktop\n' ;;
+    logged) printf 'hyprland-logged.desktop\n' ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+session_name() {
+  local session_file="$1"
+  local desktop_path="/usr/share/wayland-sessions/$session_file"
+
+  if [ -f "$desktop_path" ]; then
+    awk -F= '$1 == "Name" { print $2; exit }' "$desktop_path"
+  fi
+}
+
+read_state() {
+  if sudo -n test -r "$state_file" >/dev/null 2>&1; then
+    sudo awk -F= '
+      $1 == "LastLoggedInUser" { user = $2 }
+      $1 == "LastLoggedInSession" { session = $2 }
+      END {
+        printf "remembered user=%s\n", user ? user : "unknown"
+        printf "remembered session=%s\n", session ? session : "unknown"
+      }
+    ' "$state_file"
+  else
+    printf 'remembered user=unknown\n'
+    printf 'remembered session=unknown\n'
+  fi
+}
+
+set_state() {
+  local session_file="$1"
+  local tmp
+
+  if [ ! -f "/usr/share/wayland-sessions/$session_file" ]; then
+    printf 'missing session file: /usr/share/wayland-sessions/%s\n' "$session_file" >&2
+    exit 1
+  fi
+
+  tmp="$(mktemp)"
+  trap 'rm -f "${tmp:-}"' EXIT
+
+  if sudo -n test -f "$state_file" >/dev/null 2>&1; then
+    sudo awk -v session="$session_file" -v user="$login_user" '
+      function emit_general_missing() {
+        if (!wrote_session) {
+          print "LastLoggedInSession=" session
+          wrote_session = 1
+        }
+        if (!wrote_user) {
+          print "LastLoggedInUser=" user
+          wrote_user = 1
+        }
+      }
+
+      /^\[/ {
+        if (in_general) {
+          emit_general_missing()
+        }
+        in_general = ($0 == "[General]")
+        if (in_general) {
+          seen_general = 1
+        }
+        print
+        next
+      }
+
+      in_general && $0 ~ /^LastLoggedInSession=/ {
+        print "LastLoggedInSession=" session
+        wrote_session = 1
+        next
+      }
+
+      in_general && $0 ~ /^LastLoggedInUser=/ {
+        print "LastLoggedInUser=" user
+        wrote_user = 1
+        next
+      }
+
+      { print }
+
+      END {
+        if (in_general) {
+          emit_general_missing()
+        }
+        if (!seen_general) {
+          print ""
+          print "[General]"
+          print "LastLoggedInSession=" session
+          print "LastLoggedInUser=" user
+        }
+      }
+    ' "$state_file" > "$tmp"
+  else
+    {
+      printf '[General]\n'
+      printf 'LastLoggedInSession=%s\n' "$session_file"
+      printf 'LastLoggedInUser=%s\n' "$login_user"
+    } > "$tmp"
+  fi
+
+  sudo install -d -o plasmalogin -g plasmalogin -m 700 "$state_dir"
+  sudo install -o plasmalogin -g plasmalogin -m 600 "$tmp" "$state_file"
+}
+
+choice="${1:-status}"
+
+case "$choice" in
+  -h|--help)
+    usage
+    exit 0
+    ;;
+  status)
+    read_state
+    ;;
+  plasma|hyprland|safe|logged)
+    session_file="$(session_file_for_choice "$choice")"
+    set_state "$session_file"
+    printf 'Plasma Login remembered session set to %s' "$session_file"
+    name="$(session_name "$session_file")"
+    if [ -n "$name" ]; then
+      printf ' (%s)' "$name"
+    fi
+    printf '\n'
+    read_state
+    ;;
+  *)
+    usage >&2
+    exit 2
+    ;;
+esac

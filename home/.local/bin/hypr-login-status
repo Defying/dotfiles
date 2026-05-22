@@ -110,6 +110,7 @@ Status:
   You are not in Hyprland right now.
   If an existing Plasma session is still running, Plasma Login may reuse it
   instead of launching the selected Hyprland session.
+  To keep Plasma as the remembered default, run: hypr-login-default plasma
 
 Next real Hyprland attempt:
   1. Save work in Plasma.
