@@ -3,7 +3,16 @@ set -euo pipefail
 
 state_file="/var/lib/plasmalogin/.local/state/plasma-login-greeterstaterc"
 state_dir="$(dirname "$state_file")"
-login_user="${USER:-ben}"
+login_user="ben"
+cleanup_tmp=""
+
+cleanup() {
+  if [ -n "$cleanup_tmp" ]; then
+    rm -f "$cleanup_tmp"
+  fi
+}
+
+trap cleanup EXIT
 
 usage() {
   cat <<'EOF'
@@ -65,7 +74,7 @@ set_state() {
   fi
 
   tmp="$(mktemp)"
-  trap 'rm -f "${tmp:-}"' EXIT
+  cleanup_tmp="$tmp"
 
   if sudo -n test -f "$state_file" >/dev/null 2>&1; then
     sudo awk -v session="$session_file" -v user="$login_user" '
@@ -128,6 +137,8 @@ set_state() {
 
   sudo install -d -o plasmalogin -g plasmalogin -m 700 "$state_dir"
   sudo install -o plasmalogin -g plasmalogin -m 600 "$tmp" "$state_file"
+  rm -f "$tmp"
+  cleanup_tmp=""
 }
 
 choice="${1:-status}"
