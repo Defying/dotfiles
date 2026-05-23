@@ -2,11 +2,11 @@
   "reload_style_on_change": true,
   "layer": "top",
   "position": "top",
-  "height": 28,
+  "height": 40,
   "spacing": 0,
   "modules-left": ["custom/launcher", "hyprland/workspaces"],
   "modules-center": ["custom/clock"],
-  "modules-right": ["tray", "network", "pulseaudio", "battery", "custom/power"],
+  "modules-right": ["custom/weather", "tray", "network", "pulseaudio", "battery", "custom/power"],
 
   "custom/launcher": {
     "format": "⌘",
@@ -75,5 +75,13 @@
     "format": "",
     "tooltip": "power menu: cmd + escape",
     "on-click": "hypr-power-menu"
+  },
+
+  "custom/weather": {
+    "exec": "curl -s 'wttr.in/?format=%c+%t' | tr -d '+' | sed 's/  */ /g'",
+    "interval": 1800,
+    "format": "{}",
+    "tooltip": false,
+    "on-click": "xdg-open https://wttr.in/"
   }
 }
