@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Apply liquid glass shader regions to live mako notification layers."""
+"""Apply liquid glass shader regions to visible Ghostty windows."""
 
 import fcntl
 import json
@@ -14,40 +14,17 @@ import glass_shader
 
 
 DOTFILES_DIR = Path.home() / "dotfiles"
-ROUNDED_SHADER = DOTFILES_DIR / "config/hypr/shaders/rounded-corners.frag"
-
-
-def choose_runtime_dir():
-    candidates = []
-    if os.environ.get("XDG_RUNTIME_DIR"):
-        candidates.append(Path(os.environ["XDG_RUNTIME_DIR"]))
-    candidates.append(Path("/tmp") / f"notification-glass-{os.getuid()}")
-
-    for path in candidates:
-        try:
-            path.mkdir(mode=0o700, parents=True, exist_ok=True)
-            probe = path / ".write-test"
-            probe.write_text("")
-            probe.unlink()
-            return path
-        except OSError:
-            continue
-
-    return Path("/tmp")
-
-
-RUNTIME_DIR = choose_runtime_dir()
-SHADER_FILE = RUNTIME_DIR / "notification-glass.frag"
-LOCK_FILE = RUNTIME_DIR / "notification-glass.lock"
-DEBUG = os.environ.get("NOTIFICATION_GLASS_DEBUG") == "1"
-IDLE_POLL_SECONDS = 0.45
-ACTIVE_POLL_SECONDS = 0.12
-RADIUS = 18.0
+RUNTIME_DIR = Path(os.environ.get("XDG_RUNTIME_DIR", f"/tmp/ghostty-glass-{os.getuid()}"))
+SHADER_FILE = RUNTIME_DIR / "ghostty-glass.frag"
+LOCK_FILE = RUNTIME_DIR / "ghostty-glass.lock"
+DEBUG = os.environ.get("GHOSTTY_GLASS_DEBUG") == "1"
+POLL_SECONDS = 0.25
+RADIUS = 28.0
 
 
 def debug(message):
     if DEBUG:
-        print(f"notification-glass: {message}", file=sys.stderr, flush=True)
+        print(f"ghostty-glass: {message}", file=sys.stderr, flush=True)
 
 
 def hyprctl(args, *, capture=False):
@@ -65,84 +42,71 @@ def hyprctl(args, *, capture=False):
         return "" if capture else False
 
 
-def current_screen_shader():
-    out = hyprctl(["getoption", "decoration:screen_shader", "-j"], capture=True)
-    if not out:
-        return ""
-
-    try:
-        option = json.loads(out)
-    except json.JSONDecodeError:
-        return ""
-
-    return str(option.get("str") or "") if option.get("set") else ""
-
-
-def focused_monitor_size():
-    fallback = 2560, 1600
+def monitor_map():
+    fallback = 2560, 1600, {0: {"scale": 1.0, "x": 0.0, "y": 0.0}}
     out = hyprctl(["monitors", "-j"], capture=True)
     if not out:
         return fallback
-
     try:
         monitors = json.loads(out)
     except json.JSONDecodeError:
         return fallback
-
     if not monitors:
         return fallback
 
-    monitor = next((item for item in monitors if item.get("focused")), monitors[0])
+    focused = next((item for item in monitors if item.get("focused")), monitors[0])
+    by_id = {}
+    for item in monitors:
+        try:
+            by_id[int(item["id"])] = {
+                "scale": float(item.get("scale") or 1.0),
+                "x": float(item.get("x") or 0.0),
+                "y": float(item.get("y") or 0.0),
+            }
+        except (KeyError, TypeError, ValueError):
+            continue
     try:
-        return int(monitor["width"]), int(monitor["height"])
+        return int(focused["width"]), int(focused["height"]), by_id
     except (KeyError, TypeError, ValueError):
         return fallback
 
 
-def notification_regions():
-    layers_out = hyprctl(["layers", "-j"], capture=True)
-    monitors_out = hyprctl(["monitors", "-j"], capture=True)
-    screen_width, screen_height = focused_monitor_size()
-    if not layers_out or not monitors_out:
+def ghostty_regions():
+    screen_width, screen_height, monitors = monitor_map()
+    out = hyprctl(["clients", "-j"], capture=True)
+    if not out:
         return screen_width, screen_height, []
-
     try:
-        layers = json.loads(layers_out)
-        monitors = {item.get("name"): item for item in json.loads(monitors_out)}
-    except (TypeError, json.JSONDecodeError):
+        clients = json.loads(out)
+    except json.JSONDecodeError:
         return screen_width, screen_height, []
 
     regions = []
-    for monitor_name, monitor_layers in layers.items():
-        monitor = monitors.get(monitor_name) or {}
+    for client in clients:
+        klass = client.get("class") or client.get("initialClass") or ""
+        if klass != "com.mitchellh.ghostty":
+            continue
+        if client.get("hidden") or not client.get("mapped", True):
+            continue
         try:
-            scale = float(monitor.get("scale") or 1.0)
-            screen_width = int(monitor.get("width") or screen_width)
-            screen_height = int(monitor.get("height") or screen_height)
-        except (TypeError, ValueError):
-            scale = 1.0
-
-        for level in (monitor_layers.get("levels") or {}).values():
-            for layer in level:
-                if layer.get("namespace") != "notifications":
-                    continue
-                try:
-                    x = float(layer["x"])
-                    y = float(layer["y"])
-                    width = float(layer["w"])
-                    height = float(layer["h"])
-                except (KeyError, TypeError, ValueError):
-                    continue
-                if width <= 0.0 or height <= 0.0:
-                    continue
-                regions.append((
-                    (x + width * 0.5) * scale,
-                    (y + height * 0.5) * scale,
-                    width * scale,
-                    height * scale,
-                    RADIUS * scale,
-                ))
-
+            x, y = client["at"]
+            width, height = client["size"]
+            monitor_id = int(client.get("monitor", 0))
+        except (KeyError, TypeError, ValueError):
+            continue
+        if width <= 0 or height <= 0:
+            continue
+        monitor = monitors.get(monitor_id, {"scale": 1.0, "x": 0.0, "y": 0.0})
+        scale = monitor["scale"]
+        mx = monitor["x"]
+        my = monitor["y"]
+        regions.append((
+            (float(x) - mx + float(width) * 0.5) * scale,
+            (float(y) - my + float(height) * 0.5) * scale,
+            float(width) * scale,
+            float(height) * scale,
+            RADIUS * scale,
+        ))
     return screen_width, screen_height, regions
 
 
@@ -152,24 +116,24 @@ def shader_source(screen_width, screen_height, regions):
         f"vec2({cx:.3f}, {cy:.3f}), vec2({width:.3f}, {height:.3f}), {radius:.3f});"
         for cx, cy, width, height, radius in regions
     )
-
     return f"""#version 300 es
 precision highp float;
-
 in vec2 v_texcoord;
 out vec4 fragColor;
 uniform sampler2D tex;
 
 const vec2 SCREEN = vec2({screen_width:.3f}, {screen_height:.3f});
 const float SCREEN_RADIUS = 28.0;
-const float DISTORTION_DEPTH = 0.20;
-const float DISTORTION_STRENGTH = 0.13;
-const float CHROMATIC_SHIFT_PX = 2.4;
-const float GLASS_TINT = 0.93;
-const float EDGE_HIGHLIGHT = 0.22;
-const float BLUR_PX = 1.9;
-const float FROST_AMOUNT = 0.25;
-const float FROST_VEIL = 0.13;
+const float DISTORTION_DEPTH = 0.16;
+const float DISTORTION_STRENGTH = 0.02;
+const float CHROMATIC_SHIFT_PX = 0.3;
+const float GLASS_TINT = 0.98;
+const float EDGE_HIGHLIGHT = 0.05;
+const float BLUR_PX = 1.2;
+const float FROST_AMOUNT = 0.18;
+const float FROST_VEIL = 0.04;
+const float TEXT_CONTRAST_LO = 0.03;
+const float TEXT_CONTRAST_HI = 0.14;
 
 float roundedSdf(vec2 p, vec2 halfSize, float radius) {{
     vec2 d = abs(p) - halfSize + vec2(radius);
@@ -177,18 +141,15 @@ float roundedSdf(vec2 p, vec2 halfSize, float radius) {{
 }}
 
 vec3 sampleScreen(vec2 coord) {{
-    vec2 uv = clamp(coord / SCREEN, vec2(0.0), vec2(1.0));
-    return texture(tex, uv).rgb;
+    return texture(tex, clamp(coord / SCREEN, vec2(0.0), vec2(1.0))).rgb;
 }}
 
 vec3 liquidGlass(vec2 pix, vec3 baseColor, vec2 center, vec2 size, float radius) {{
     vec2 glassCoord = pix - center;
     vec2 halfSize = size * 0.5;
-
     if (abs(glassCoord.x) > halfSize.x + 2.0 || abs(glassCoord.y) > halfSize.y + 2.0) {{
         return baseColor;
     }}
-
     float inside = -roundedSdf(glassCoord, halfSize, radius) / max(min(size.x, size.y), 1.0);
     float mask = smoothstep(-0.005, 0.008, inside);
     if (mask <= 0.0) {{
@@ -200,46 +161,43 @@ vec3 liquidGlass(vec2 pix, vec3 baseColor, vec2 center, vec2 size, float radius)
     float distFromCenter = 1.0 - clamp(inside / DISTORTION_DEPTH, 0.0, 1.0);
     float distortion = 1.0 - sqrt(max(1.0 - distFromCenter * distFromCenter, 0.0));
     vec2 coord = pix - distortion * normal * halfSize * DISTORTION_STRENGTH;
-
     float rim = 1.0 - smoothstep(0.0, 0.030, inside);
     vec2 shift = normal * rim * CHROMATIC_SHIFT_PX;
-    vec3 refracted = vec3(
-        sampleScreen(coord - shift).r,
-        sampleScreen(coord).g,
-        sampleScreen(coord + shift).b
-    );
-
-    vec3 blurred = refracted * 0.38;
+    vec3 refracted = vec3(sampleScreen(coord - shift).r, sampleScreen(coord).g, sampleScreen(coord + shift).b);
+    vec3 blurred = refracted * 0.36;
     blurred += sampleScreen(coord + vec2(BLUR_PX, 0.0)) * 0.12;
     blurred += sampleScreen(coord - vec2(BLUR_PX, 0.0)) * 0.12;
     blurred += sampleScreen(coord + vec2(0.0, BLUR_PX)) * 0.12;
     blurred += sampleScreen(coord - vec2(0.0, BLUR_PX)) * 0.12;
-    blurred += sampleScreen(coord + vec2(BLUR_PX, BLUR_PX)) * 0.07;
-    blurred += sampleScreen(coord - vec2(BLUR_PX, BLUR_PX)) * 0.07;
-
-    float topLight = 1.0 - smoothstep(-halfSize.y, -halfSize.y * 0.10, glassCoord.y);
-    float diagonal = 1.0 - smoothstep(-0.6, 0.3, glassCoord.x / halfSize.x + glassCoord.y / halfSize.y);
-    float highlight = clamp(rim * EDGE_HIGHLIGHT + topLight * diagonal * 0.08, 0.0, 0.28);
-
+    blurred += sampleScreen(coord + vec2(BLUR_PX, BLUR_PX)) * 0.08;
+    blurred += sampleScreen(coord - vec2(BLUR_PX, BLUR_PX)) * 0.08;
     float luma = dot(blurred, vec3(0.299, 0.587, 0.114));
     vec3 frosted = mix(mix(blurred, vec3(luma), FROST_AMOUNT), vec3(1.0), FROST_VEIL);
-    vec3 glassColor = mix(frosted, vec3(1.0), highlight) * GLASS_TINT;
-    glassColor = mix(glassColor, vec3(0.75, 0.52, 0.95), 0.03);
+    vec3 glassColor = mix(frosted, vec3(1.0), clamp(rim * EDGE_HIGHLIGHT, 0.0, 0.2)) * GLASS_TINT;
 
-    return mix(baseColor, glassColor, mask);
+    vec2 stride = vec2(1.4) / SCREEN;
+    vec2 tc = pix / SCREEN;
+    float lumC = dot(baseColor, vec3(0.299, 0.587, 0.114));
+    float lumN = 0.0;
+    lumN += dot(texture(tex, tc + vec2( stride.x, 0.0)).rgb, vec3(0.299, 0.587, 0.114));
+    lumN += dot(texture(tex, tc + vec2(-stride.x, 0.0)).rgb, vec3(0.299, 0.587, 0.114));
+    lumN += dot(texture(tex, tc + vec2(0.0,  stride.y)).rgb, vec3(0.299, 0.587, 0.114));
+    lumN += dot(texture(tex, tc + vec2(0.0, -stride.y)).rgb, vec3(0.299, 0.587, 0.114));
+    lumN *= 0.25;
+    float contentMask = smoothstep(TEXT_CONTRAST_LO, TEXT_CONTRAST_HI, abs(lumC - lumN));
+
+    vec3 glassResult = mix(baseColor, glassColor, mask);
+    return mix(glassResult, baseColor, contentMask);
 }}
 
 vec4 roundedScreenCorners(vec2 pix, vec4 color) {{
     vec2 corner = min(pix, SCREEN - pix);
-
     if (corner.x < SCREEN_RADIUS && corner.y < SCREEN_RADIUS) {{
         vec2 d = vec2(SCREEN_RADIUS) - corner;
-        float dist = length(d);
-        float aa = smoothstep(SCREEN_RADIUS - 1.0, SCREEN_RADIUS + 0.5, dist);
+        float aa = smoothstep(SCREEN_RADIUS - 1.0, SCREEN_RADIUS + 0.5, length(d));
         color.rgb = mix(color.rgb, vec3(0.0), aa);
         color.a = mix(color.a, 1.0, aa);
     }}
-
     return color;
 }}
 
@@ -255,6 +213,7 @@ void main() {{
 def write_shader(screen_width, screen_height, regions):
     source = shader_source(screen_width, screen_height, regions)
     try:
+        RUNTIME_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
         if SHADER_FILE.exists() and SHADER_FILE.read_text() == source:
             return True
         SHADER_FILE.write_text(source)
@@ -265,15 +224,12 @@ def write_shader(screen_width, screen_height, regions):
 
 def acquire_lock():
     try:
+        RUNTIME_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
         lock = LOCK_FILE.open("w")
         fcntl.flock(lock.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         return lock
     except OSError:
         return None
-
-
-def restore_if_owned():
-    glass_shader.cleanup("notification-glass")
 
 
 def main():
@@ -295,33 +251,32 @@ def main():
     try:
         glass_shader.reconcile()
         while not stop:
-            screen_width, screen_height, regions = notification_regions()
+            screen_width, screen_height, regions = ghostty_regions()
             signature = (
                 screen_width,
                 screen_height,
                 tuple(tuple(round(value, 3) for value in region) for region in regions),
             )
-
             if regions:
-                if signature != last_signature:
-                    if write_shader(screen_width, screen_height, regions):
-                        if lease is None:
-                            lease = glass_shader.acquire("notification-glass", SHADER_FILE, 20)
-                        else:
-                            lease.acquire()
-                        debug(f"enabled {len(regions)} region(s)")
-                        last_signature = signature
+                if signature != last_signature and write_shader(screen_width, screen_height, regions):
+                    if lease is None:
+                        lease = glass_shader.acquire("ghostty-glass", SHADER_FILE, 10)
+                    else:
+                        lease.acquire()
+                    debug(f"enabled {len(regions)} region(s)")
+                    last_signature = signature
             else:
                 if lease is not None:
                     lease.release()
                     lease = None
-                    debug("restored rounded shader")
+                    debug("released shader lease")
                 last_signature = None
                 glass_shader.reconcile()
-
-            time.sleep(ACTIVE_POLL_SECONDS if regions else IDLE_POLL_SECONDS)
+            time.sleep(POLL_SECONDS)
     finally:
-        restore_if_owned()
+        if lease is not None:
+            lease.release()
+        glass_shader.cleanup("ghostty-glass")
         lock.close()
 
     return 0

@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 import cairo
+import glass_shader
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -244,21 +245,19 @@ def write_shader():
 
 class ShaderController:
     def __init__(self):
-        self.previous_shader = str(ROUNDED_SHADER)
-        self.enabled = False
+        self.lease = None
 
     def enable(self):
-        self.previous_shader = current_screen_shader()
         if not write_shader():
             return False
-        self.enabled = hyprctl(["keyword", "decoration:screen_shader", str(SHADER_FILE)])
-        return self.enabled
+        self.lease = glass_shader.acquire("liquid-launcher", SHADER_FILE, 80)
+        return True
 
     def restore(self):
-        if not self.enabled:
+        if self.lease is None:
             return
-        hyprctl(["keyword", "decoration:screen_shader", self.previous_shader])
-        self.enabled = False
+        self.lease.release()
+        self.lease = None
 
 
 # ── CSS ───────────────────────────────────────────────────────────────────────
