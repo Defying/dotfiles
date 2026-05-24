@@ -1,0 +1,20 @@
+background = #10131a
+foreground = #f4f7fb
+background-opacity = 0.05
+background-opacity-cells = true
+background-blur = false
+
+window-padding-x = 16
+window-padding-y = 16
+window-padding-balance = true
+window-decoration = false
+gtk-titlebar = false
+gtk-tabs-location = hidden
+
+cursor-style = block
+cursor-style-blink = true
+shell-integration-features = no-cursor
+command = /usr/bin/zsh
+
+keybind = super+c=copy_to_clipboard:mixed
+keybind = super+v=paste_from_clipboard

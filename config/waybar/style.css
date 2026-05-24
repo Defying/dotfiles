@@ -13,12 +13,35 @@ window#waybar {
 
 .modules-left,
 .modules-center,
-.modules-right {
-  background: rgba(10, 14, 18, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+#custom-weather,
+#status {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.07)),
+    rgba(20, 23, 30, 0.46);
+  border: 1px solid rgba(255, 255, 255, 0.26);
   border-radius: 16px;
-  padding: 4px 14px;
-  margin: 6px 12px;
+  padding: 6px 14px;
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.26),
+    inset 0 -1px rgba(0, 0, 0, 0.20),
+    0 8px 24px rgba(0, 0, 0, 0.18);
+}
+
+.modules-left,
+.modules-center {
+  margin: 14px 28px 6px 28px;
+}
+
+/* Right side: container is invisible; weather + status are individual bubbles. */
+.modules-right {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 14px 28px 6px 28px;
+}
+
+#custom-weather {
+  margin-right: 8px;
 }
 
 #custom-launcher,
@@ -33,37 +56,57 @@ window#waybar {
   margin: 0 1px;
 }
 
-#custom-launcher,
 #custom-power {
   font-size: 12px;
-  color: #7dd3fc;
-}
-
-#custom-power {
   font-weight: 900;
+  color: #f4f7fb;
 }
 
-#custom-weather {
-  padding: 0 8px;
-  color: rgba(244, 247, 251, 0.85);
+#custom-weather,
+#custom-clock {
+  color: rgba(255, 255, 255, 0.96);
+  text-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.55),
+    0 0 8px rgba(0, 0, 0, 0.28);
+}
+
+#network,
+#pulseaudio,
+#battery,
+#tray,
+#custom-power,
+#workspaces button {
+  text-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.50),
+    0 0 7px rgba(0, 0, 0, 0.24);
 }
 
 #workspaces button {
-  color: rgba(244, 247, 251, 0.58);
+  color: rgba(244, 247, 251, 0.38);
   background: transparent;
+  font-family: "Font Awesome 6 Free", monospace;
+  font-size: 8px;
+  padding: 0 6px;
+  margin: 0 1px;
+  border-radius: 8px;
+  transition: color 120ms ease;
+}
+
+#workspaces button:hover {
+  color: rgba(244, 247, 251, 0.70);
+  background: transparent;
+  box-shadow: none;
+  text-shadow: none;
 }
 
 #workspaces button.active {
   color: #ffffff;
-  background: rgba(125, 211, 252, 0.18);
+  background: transparent;
 }
 
 #workspaces button.urgent {
   color: #ff6b6b;
-}
-
-#battery.warning {
-  color: #fbbf24;
+  background: rgba(255, 107, 107, 0.15);
 }
 
 #battery.critical {
@@ -72,5 +115,5 @@ window#waybar {
 
 tooltip {
   background: rgba(10, 14, 18, 0.96);
-  border: 1px solid rgba(125, 211, 252, 0.35);
+  border: 1px solid rgba(192, 132, 245, 0.40);
 }
