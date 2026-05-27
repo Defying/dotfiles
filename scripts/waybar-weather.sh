@@ -35,13 +35,13 @@ if [[ -z "$temp" ]]; then
   exit 0
 fi
 
-SUN=$''
-CLOUD_SUN=$''
-CLOUD=$''
-RAIN=$''
-SNOW=$''
-BOLT=$''
-SMOG=$''
+SUN=$''
+CLOUD_SUN=$''
+CLOUD=$''
+RAIN=$''
+SNOW=$''
+BOLT=$''
+SMOG=$''
 
 case "$emoji" in
   *☀*)                  icon="$SUN" ;;
