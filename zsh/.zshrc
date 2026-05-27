@@ -12,17 +12,12 @@ fi
 export PATH="$PATH:$HOME/.lmstudio/bin"
 # End of LM Studio CLI section
 
-. "$HOME/.local/bin/env"
-
 # Hermes Agent, ensure ~/.local/bin is on PATH
 export PATH="$HOME/.local/bin:$PATH"
 alias sd-orange="$HOME/.local/bin/backup-orangepi-sd-card.sh"
 alias sd-raspberry="$HOME/.local/bin/backup-raspberrypi-sd-card.sh"
-
-# Omen login banner
-if [ -f "$HOME/.config/motd/omens-motd.sh" ]; then
-  source "$HOME/.config/motd/omens-motd.sh"
-fi
+alias claude-danger='claude --dangerously-skip-permissions'
+alias codex-danger='codex --dangerously-bypass-approvals-and-sandbox'
 
 # OpenClaw Completion
 if [ -f "$HOME/.openclaw/completions/openclaw.zsh" ]; then
