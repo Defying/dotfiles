@@ -214,7 +214,16 @@ void main(){{
         vec3 fr=mix(mix(b,vec3(lm),FROST),vec3(1),VEIL);
         vec3 gc=mix(fr,vec3(1),hl)*TINT;
         gc=mix(gc,vec3(0.75,0.52,0.95),0.03);
-        col.rgb=mix(col.rgb,gc,mask);
+        /* Preserve bright, desaturated pixels — GTK-drawn text/icons sit
+           on top of the glass instead of being overpainted by it. */
+        float pixLum=dot(col.rgb,vec3(0.299,0.587,0.114));
+        float pixMax=max(max(col.r,col.g),col.b);
+        float pixMin=min(min(col.r,col.g),col.b);
+        float pixSat=(pixMax-pixMin)/max(pixMax,0.001);
+        float textLum=smoothstep(0.55,0.85,pixLum);
+        float textDesat=1.0-smoothstep(0.30,0.60,pixSat);
+        float textiness=textLum*textDesat;
+        col.rgb=mix(col.rgb,gc,mask*(1.0-textiness));
     }}
     vec2 corner=min(pix,SCR-pix);
     if(corner.x<SCRNR&&corner.y<SCRNR){{
@@ -347,8 +356,8 @@ class WeatherWindow(Gtk.Window):
         cr.paint()
         cr.set_operator(cairo.OPERATOR_OVER)
 
-        # Subtle border — shader provides the glass fill
-        cr.set_source_rgba(1, 1, 1, 0.18)
+        # Subtle border — the screen shader provides the glass fill behind us.
+        cr.set_source_rgba(1, 1, 1, 0.22)
         cr.set_line_width(1.0)
         rrect(cr, 0.5, 0.5, w - 1, h - 1, POPUP_R)
         cr.stroke()
@@ -453,7 +462,7 @@ def main():
     signal.signal(signal.SIGINT,  _sig)
 
     try:
-        win = WeatherWindow(shader)
+        WeatherWindow(shader)
         Gtk.main()
     finally:
         shader.restore()
