@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="4in" height="6in" viewBox="0 0 288 432" font-family="'SF Mono','DejaVu Sans Mono',monospace">
+  <rect x="0" y="0" width="288" height="432" fill="white"/>
+
+  <!-- Header -->
+  <text x="14" y="26" font-size="18" font-weight="700" fill="black">TMUX</text>
+  <text x="60" y="26" font-size="9" fill="#555">cheatsheet · prefix = Ctrl-Space</text>
+  <line x1="14" y1="32" x2="274" y2="32" stroke="black" stroke-width="0.8"/>
+
+  <!-- Column layout -->
+  <g font-size="7.5" fill="black">
+
+    <!-- PANES -->
+    <text x="14" y="48" font-size="9" font-weight="700">PANES</text>
+    <text x="14" y="60"><tspan font-weight="700">|</tspan>   split vertical</text>
+    <text x="14" y="71"><tspan font-weight="700">-</tspan>   split horizontal</text>
+    <text x="14" y="82"><tspan font-weight="700">h j k l</tspan>  focus L/D/U/R</text>
+    <text x="14" y="93"><tspan font-weight="700">H J K L</tspan>  resize (hold)</text>
+    <text x="14" y="104"><tspan font-weight="700">z</tspan>   zoom toggle</text>
+    <text x="14" y="115"><tspan font-weight="700">x</tspan>   kill pane</text>
+    <text x="14" y="126"><tspan font-weight="700">!</tspan>   pane → window</text>
+    <text x="14" y="137"><tspan font-weight="700">{ }</tspan>  swap with prev/next</text>
+    <text x="14" y="148"><tspan font-weight="700">q</tspan>   show pane numbers</text>
+
+    <!-- WINDOWS -->
+    <text x="14" y="166" font-size="9" font-weight="700">WINDOWS</text>
+    <text x="14" y="178"><tspan font-weight="700">c</tspan>   new window</text>
+    <text x="14" y="189"><tspan font-weight="700">,</tspan>   rename</text>
+    <text x="14" y="200"><tspan font-weight="700">&amp;</tspan>   kill window</text>
+    <text x="14" y="211"><tspan font-weight="700">n p</tspan>  next / prev</text>
+    <text x="14" y="222"><tspan font-weight="700">w</tspan>   window picker</text>
+
+    <!-- WM-LIKE (no prefix) -->
+    <text x="14" y="240" font-size="9" font-weight="700">NO-PREFIX  (Alt-…)</text>
+    <text x="14" y="252"><tspan font-weight="700">M-1..5</tspan>  jump window 1-5</text>
+    <text x="14" y="263"><tspan font-weight="700">M-h M-l</tspan>  prev / next win</text>
+
+    <!-- SESSIONS -->
+    <text x="148" y="48" font-size="9" font-weight="700">SESSIONS</text>
+    <text x="148" y="60"><tspan font-weight="700">$</tspan>   rename session</text>
+    <text x="148" y="71"><tspan font-weight="700">s</tspan>   session picker</text>
+    <text x="148" y="82"><tspan font-weight="700">d</tspan>   detach</text>
+    <text x="148" y="93"><tspan font-weight="700">D</tspan>   pick to detach</text>
+    <text x="148" y="104"><tspan font-weight="700">(  )</tspan>  prev / next sess</text>
+
+    <text x="148" y="113" font-size="6.2" fill="#555">shell:</text>
+    <text x="148" y="123" font-size="6.5"><tspan font-family="'SF Mono',monospace">tmux a</tspan> attach last</text>
+    <text x="148" y="133" font-size="6.5"><tspan font-family="'SF Mono',monospace">tmux a -t N</tspan> attach N</text>
+    <text x="148" y="143" font-size="6.5"><tspan font-family="'SF Mono',monospace">tmux ls</tspan> list</text>
+    <text x="148" y="153" font-size="6.5"><tspan font-family="'SF Mono',monospace">tmux new -s N</tspan> new</text>
+
+    <!-- COPY -->
+    <text x="148" y="170" font-size="9" font-weight="700">COPY  (vi mode)</text>
+    <text x="148" y="182"><tspan font-weight="700">Enter</tspan>  copy mode</text>
+    <text x="148" y="193"><tspan font-weight="700">v</tspan>   begin selection</text>
+    <text x="148" y="204"><tspan font-weight="700">V</tspan>   select line</text>
+    <text x="148" y="215"><tspan font-weight="700">y</tspan>   yank → wl-copy</text>
+    <text x="148" y="226"><tspan font-weight="700">Esc</tspan>  cancel</text>
+    <text x="148" y="237"><tspan font-weight="700">]</tspan>   paste</text>
+    <text x="148" y="248"><tspan font-weight="700">/  ?</tspan>  search fwd / back</text>
+
+    <!-- MISC -->
+    <text x="148" y="266" font-size="9" font-weight="700">MISC</text>
+    <text x="148" y="278"><tspan font-weight="700">r</tspan>   reload config</text>
+    <text x="148" y="289"><tspan font-weight="700">:</tspan>   command prompt</text>
+    <text x="148" y="300"><tspan font-weight="700">?</tspan>   list keys</text>
+    <text x="148" y="311"><tspan font-weight="700">t</tspan>   show clock</text>
+  </g>
+
+  <!-- Footer band -->
+  <line x1="14" y1="380" x2="274" y2="380" stroke="black" stroke-width="0.4"/>
+  <text x="14" y="394" font-size="6.5" fill="#666">Splits / new-window keep current dir.  1-indexed.  Mouse on.</text>
+  <text x="14" y="406" font-size="6.5" fill="#666">Yank uses wl-copy (Wayland clipboard).</text>
+  <text x="14" y="418" font-size="6" fill="#999">~/.config/tmux/tmux.conf</text>
+</svg>
