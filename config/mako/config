@@ -2,10 +2,10 @@ anchor=top-right
 layer=overlay
 sort=-time
 font=SF Pro Text 13
-background-color=#00000000
+background-color=#14171e88
 text-color=#f8f4ffff
-border-color=#c084f5cc
-progress-color=over #c084f555
+border-color=#ffffff4d
+progress-color=over #c084f566
 border-size=1
 border-radius=18
 default-timeout=4500
@@ -24,12 +24,16 @@ group-by=app-name,summary,body
 
 [urgency=critical]
 default-timeout=0
-background-color=#00000000
-border-color=#ff6b6bee
+background-color=#2a0b128c
+border-color=#ff6b6bcc
 progress-color=over #ff6b6b66
 
 [mode=do-not-disturb]
 invisible=1
+
+[app-name="AI usage"]
+default-timeout=10000
+group-by=app-name,summary
 
 [app-name=volume-osd]
 anchor=top-center
