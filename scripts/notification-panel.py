@@ -223,9 +223,14 @@ CSS = b"""
 #notification-panel { background: transparent; }
 .panel {
   background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.30);
+  border: 1px solid rgba(255, 255, 255, 0.42);
   border-radius: 24px;
   padding: 16px;
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.50),
+    inset 0 -1px rgba(0, 0, 0, 0.22),
+    inset 1px 0 rgba(255, 255, 255, 0.16),
+    inset -1px 0 rgba(0, 0, 0, 0.16);
 }
 .title { color: #f4f7fb; font-weight: 800; font-size: 15px; text-shadow: 0 1px 1px rgba(0,0,0,0.55); }
 .section { color: rgba(244, 247, 251, 0.78); font-weight: 700; font-size: 11px; text-shadow: 0 1px 1px rgba(0,0,0,0.45); margin-top: 4px; }

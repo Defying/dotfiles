@@ -118,8 +118,8 @@
   "pulseaudio": {
     "format": "{icon}",
     "format-bluetooth": "󰋋",
-    "format-bluetooth-muted": "󰋋 muted",
-    "format-muted": " muted",
+    "format-bluetooth-muted": "󰋋",
+    "format-muted": "",
     "format-icons": ["", "", ""],
     "scroll-step": 5,
     "max-volume": 100,
