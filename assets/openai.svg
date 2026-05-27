@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="#def4ff" stroke="none">
+  <!-- OpenAI blossom: hexagonal knot approximated by 6 elongated rounded "petals"
+       rotated around center. Each petal is a vertical capsule centered above origin. -->
+  <g transform="translate(32 32)">
+    <g>
+      <rect x="-5" y="-26" width="10" height="22" rx="5" transform="rotate(0)"/>
+      <rect x="-5" y="-26" width="10" height="22" rx="5" transform="rotate(60)"/>
+      <rect x="-5" y="-26" width="10" height="22" rx="5" transform="rotate(120)"/>
+      <rect x="-5" y="-26" width="10" height="22" rx="5" transform="rotate(180)"/>
+      <rect x="-5" y="-26" width="10" height="22" rx="5" transform="rotate(240)"/>
+      <rect x="-5" y="-26" width="10" height="22" rx="5" transform="rotate(300)"/>
+    </g>
+  </g>
+</svg>

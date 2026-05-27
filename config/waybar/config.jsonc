@@ -2,15 +2,16 @@
   "reload_style_on_change": true,
   "layer": "top",
   "position": "top",
-  "height": 50,
+  "height": 56,
   "spacing": 0,
-  "modules-left": ["hyprland/workspaces"],
-  "modules-center": ["custom/clock"],
-  "modules-right": ["custom/weather", "group/status"],
+  "tooltip-delay": 100,
+  "modules-left": ["hyprland/workspaces", "custom/codex-tokens", "custom/claude-tokens"],
+  "modules-center": ["custom/date", "custom/clock-24"],
+  "modules-right": ["tray", "custom/weather", "group/status", "custom/notifications", "custom/quick-settings"],
 
   "group/status": {
     "orientation": "inherit",
-    "modules": ["tray", "network", "pulseaudio", "battery", "custom/power"]
+    "modules": ["network", "bluetooth", "pulseaudio", "battery"]
   },
 
   "custom/launcher": {
@@ -19,8 +20,43 @@
     "on-click": "fuzzel --show drun"
   },
 
+  "custom/quick-settings": {
+    "format": "",
+    "tooltip": "quick settings",
+    "on-click": "/home/ben/dotfiles/scripts/waybar-quick-settings.sh"
+  },
+
+  "custom/notifications": {
+    "exec": "/home/ben/dotfiles/scripts/waybar-notifications-count.sh",
+    "return-type": "json",
+    "interval": 5,
+    "signal": 10,
+    "format": "{}",
+    "tooltip": "notifications",
+    "on-click": "/home/ben/dotfiles/scripts/waybar-notifications.sh"
+  },
+
+  "custom/codex-tokens": {
+    "exec": "/home/ben/dotfiles/scripts/waybar-openai-tokens.py",
+    "return-type": "json",
+    "interval": 300,
+    "signal": 8,
+    "format": "{}",
+    "on-click": "/home/ben/dotfiles/scripts/waybar-ai-refresh.sh codex 8",
+    "on-click-right": "/home/ben/dotfiles/scripts/waybar-quick-settings.sh"
+  },
+
+  "custom/claude-tokens": {
+    "exec": "/home/ben/dotfiles/scripts/waybar-claude-usage.py",
+    "return-type": "json",
+    "interval": 300,
+    "signal": 9,
+    "format": "{}",
+    "on-click": "/home/ben/dotfiles/scripts/waybar-ai-refresh.sh claude 9",
+    "on-click-right": "/home/ben/dotfiles/scripts/waybar-quick-settings.sh"
+  },
+
   "hyprland/workspaces": {
-    "on-click": "activate",
     "format": "{}",
     "persistent-workspaces": {
       "1": [],
@@ -31,11 +67,28 @@
     }
   },
 
-  "custom/clock": {
-    "exec": "date '+%a %b %d  %-I:%M' | tr '[:upper:]' '[:lower:]'",
+  "custom/date": {
+    "exec": "/home/ben/dotfiles/scripts/waybar-date.sh",
+    "return-type": "json",
+    "interval": 300,
+    "format": "{}",
+    "on-click": "korganizer"
+  },
+
+  "custom/clock-24": {
+    "exec": "/home/ben/dotfiles/scripts/waybar-clock-24.sh",
+    "return-type": "json",
     "interval": 30,
     "format": "{}",
-    "tooltip": false
+    "on-click": "korganizer"
+  },
+
+  "custom/clock-12": {
+    "exec": "/home/ben/dotfiles/scripts/waybar-clock-12.sh",
+    "return-type": "json",
+    "interval": 30,
+    "format": "{}",
+    "on-click": "korganizer"
   },
 
   "network": {
@@ -50,8 +103,22 @@
     "interval": 3
   },
 
+  "bluetooth": {
+    "format-on": "",
+    "format-connected": "",
+    "format-off": "",
+    "format-disabled": "",
+    "tooltip-format": "{controller_alias}\n{status}",
+    "tooltip-format-connected": "{controller_alias}\n{num_connections} connected",
+    "tooltip-format-enumerate-connected": "{device_alias}",
+    "tooltip-format-enumerate-connected-battery": "{device_alias} · {device_battery_percentage}%",
+    "on-click": "/home/ben/dotfiles/scripts/audio-menu.sh"
+  },
+
   "pulseaudio": {
-    "format": "{icon} {volume}%",
+    "format": "{icon}",
+    "format-bluetooth": "󰋋",
+    "format-bluetooth-muted": "󰋋 muted",
     "format-muted": " muted",
     "format-icons": ["", "", ""],
     "scroll-step": 5,
@@ -77,12 +144,6 @@
   "tray": {
     "icon-size": 14,
     "spacing": 8
-  },
-
-  "custom/power": {
-    "format": "",
-    "tooltip": "power menu: cmd + escape",
-    "on-click": "hypr-power-menu"
   },
 
   "custom/weather": {

@@ -2,7 +2,7 @@
   border: none;
   border-radius: 0;
   min-height: 0;
-  font-family: "SF Mono", "Font Awesome 6 Free", "Font Awesome 6 Brands", monospace;
+  font-family: "SF Mono", "Symbols Nerd Font", "Font Awesome 6 Free", "Font Awesome 6 Brands", monospace;
   font-size: 13px;
 }
 
@@ -11,9 +11,15 @@ window#waybar {
   color: #f4f7fb;
 }
 
-.modules-left,
-.modules-center,
+#workspaces,
+#custom-date,
+#custom-clock-24,
+#custom-clock-12,
+#custom-codex-tokens,
+#custom-claude-tokens,
+#custom-quick-settings,
 #custom-weather,
+#tray,
 #status {
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.07)),
@@ -23,47 +29,139 @@ window#waybar {
   padding: 6px 14px;
   box-shadow:
     inset 0 1px rgba(255, 255, 255, 0.26),
-    inset 0 -1px rgba(0, 0, 0, 0.20),
-    0 8px 24px rgba(0, 0, 0, 0.18);
+    inset 0 -1px rgba(0, 0, 0, 0.20);
 }
 
 .modules-left,
 .modules-center {
-  margin: 14px 28px 6px 28px;
+  margin: 10px 28px 10px 28px;
 }
 
-/* Right side: container is invisible; weather + status are individual bubbles. */
+.modules-left {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.modules-center {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+#workspaces,
+#custom-date,
+#custom-clock-24,
+#custom-codex-tokens,
+#custom-claude-tokens {
+  margin-right: 12px;
+}
+
+/* Right side: weather, tray, status, and quick settings are separate bubbles. */
 .modules-right {
   background: transparent;
   border: none;
   padding: 0;
-  margin: 14px 28px 6px 28px;
+  margin: 10px 28px 10px 28px;
 }
 
 #custom-weather {
-  margin-right: 8px;
+  margin-right: 12px;
+  min-width: 54px;
+}
+
+#tray,
+#status {
+  margin-right: 12px;
+}
+
+#tray {
+  padding: 6px 14px;
 }
 
 #custom-launcher,
-#custom-power,
 #workspaces button,
-#custom-clock,
 #network,
+#bluetooth,
 #pulseaudio,
-#battery,
-#tray {
+#battery {
   padding: 0 8px;
   margin: 0 1px;
 }
 
-#custom-power {
+#custom-quick-settings {
   font-size: 12px;
   font-weight: 900;
   color: #f4f7fb;
 }
 
+#custom-codex-tokens {
+  color: rgba(222, 244, 255, 0.96);
+  font-size: 12px;
+  font-weight: 800;
+  background-image: url("/home/ben/dotfiles/assets/openai.png");
+  background-repeat: no-repeat;
+  background-position: 8px center;
+  padding-left: 26px;
+}
+
+#custom-claude-tokens {
+  color: rgba(255, 226, 210, 0.96);
+  font-size: 12px;
+  font-weight: 800;
+  background-image: url("/home/ben/dotfiles/assets/claude.png");
+  background-repeat: no-repeat;
+  background-position: 8px center;
+  padding-left: 26px;
+}
+
+#custom-codex-tokens.missing,
+#custom-codex-tokens.auth,
+#custom-codex-tokens.denied,
+#custom-codex-tokens.rate,
+#custom-codex-tokens.api,
+#custom-codex-tokens.warn,
+#custom-codex-tokens.error {
+  color: #ffe08a;
+  background:
+    url("/home/ben/dotfiles/assets/openai.png") no-repeat 8px center,
+    linear-gradient(135deg, rgba(255, 209, 102, 0.26), rgba(255, 255, 255, 0.08)),
+    rgba(36, 28, 12, 0.58);
+}
+
+#custom-claude-tokens.auth,
+#custom-claude-tokens.rate,
+#custom-claude-tokens.warn,
+#custom-claude-tokens.error {
+  color: #ffe08a;
+  background:
+    url("/home/ben/dotfiles/assets/claude.png") no-repeat 8px center,
+    linear-gradient(135deg, rgba(255, 209, 102, 0.26), rgba(255, 255, 255, 0.08)),
+    rgba(36, 28, 12, 0.58);
+}
+
+#custom-codex-tokens.danger {
+  color: #ffd6d6;
+  background:
+    url("/home/ben/dotfiles/assets/openai.png") no-repeat 8px center,
+    linear-gradient(135deg, rgba(255, 107, 107, 0.34), rgba(255, 255, 255, 0.08)),
+    rgba(46, 10, 14, 0.64);
+  border-color: rgba(255, 214, 214, 0.50);
+}
+
+#custom-claude-tokens.danger {
+  color: #ffd6d6;
+  background:
+    url("/home/ben/dotfiles/assets/claude.png") no-repeat 8px center,
+    linear-gradient(135deg, rgba(255, 107, 107, 0.34), rgba(255, 255, 255, 0.08)),
+    rgba(46, 10, 14, 0.64);
+  border-color: rgba(255, 214, 214, 0.50);
+}
+
 #custom-weather,
-#custom-clock {
+#custom-date,
+#custom-clock-24,
+#custom-clock-12 {
   color: rgba(255, 255, 255, 0.96);
   text-shadow:
     0 1px 1px rgba(0, 0, 0, 0.55),
@@ -71,49 +169,97 @@ window#waybar {
 }
 
 #network,
+#bluetooth,
 #pulseaudio,
 #battery,
 #tray,
-#custom-power,
+#custom-quick-settings,
+#custom-codex-tokens,
+#custom-claude-tokens,
 #workspaces button {
   text-shadow:
     0 1px 1px rgba(0, 0, 0, 0.50),
     0 0 7px rgba(0, 0, 0, 0.24);
 }
 
+#custom-notifications {
+  font-size: 12px;
+  font-weight: 800;
+  color: #f4f7fb;
+  padding: 0 10px;
+  margin-right: 8px;
+  border-radius: 16px;
+}
+
+#custom-notifications.active {
+  color: #ffd9a8;
+  background:
+    linear-gradient(145deg, rgba(255, 209, 102, 0.20), rgba(255, 255, 255, 0.06)),
+    rgba(255, 255, 255, 0.05);
+}
+
+#custom-notifications.dnd {
+  color: rgba(244, 247, 251, 0.55);
+}
+
 #workspaces button {
-  color: rgba(244, 247, 251, 0.38);
+  color: rgba(244, 247, 251, 0.78);
   background: transparent;
-  font-family: "Font Awesome 6 Free", monospace;
-  font-size: 8px;
-  padding: 0 6px;
-  margin: 0 1px;
-  border-radius: 8px;
-  transition: color 120ms ease;
+  font-family: "SF Mono", monospace;
+  font-size: 12px;
+  font-weight: 800;
+  min-width: 22px;
+  min-height: 22px;
+  padding: 0 7px;
+  margin: 0 2px;
+  border-radius: 11px;
+  transition: background 120ms ease, color 120ms ease;
 }
 
 #workspaces button:hover {
-  color: rgba(244, 247, 251, 0.70);
-  background: transparent;
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.12);
   box-shadow: none;
-  text-shadow: none;
 }
 
 #workspaces button.active {
   color: #ffffff;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.20);
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.22),
+    0 0 0 1px rgba(255, 255, 255, 0.12);
 }
 
 #workspaces button.urgent {
   color: #ff6b6b;
-  background: rgba(255, 107, 107, 0.15);
+  background: rgba(255, 107, 107, 0.20);
 }
 
 #battery.critical {
   color: #ff6b6b;
 }
 
+#battery.charging,
+#battery.plugged {
+  color: #7ee787;
+}
+
 tooltip {
-  background: rgba(10, 14, 18, 0.96);
-  border: 1px solid rgba(192, 132, 245, 0.40);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.20), rgba(255, 255, 255, 0.07)),
+    rgba(15, 18, 24, 0.58);
+  border: 1px solid rgba(255, 255, 255, 0.30);
+  border-radius: 14px;
+  padding: 8px 10px;
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.26),
+    inset 0 -1px rgba(0, 0, 0, 0.22),
+    0 10px 28px rgba(0, 0, 0, 0.30);
+}
+
+tooltip label {
+  color: #f4f7fb;
+  text-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.60),
+    0 0 7px rgba(0, 0, 0, 0.24);
 }
