@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="4in" height="6in" viewBox="0 0 288 432" font-family="'SF Mono','DejaVu Sans Mono',monospace">
+  <rect x="0" y="0" width="288" height="432" fill="white"/>
+
+  <!-- Header -->
+  <text x="14" y="26" font-size="16" font-weight="700" fill="black">HYPRLAND</text>
+  <text x="92" y="24" font-size="8" fill="#555">mod = ⌘ Super  ·  ⌥ Option  ·  ⌃ Ctrl  ·  ⇧ Shift</text>
+  <line x1="14" y1="32" x2="274" y2="32" stroke="black" stroke-width="0.8"/>
+
+  <g font-size="7.4" fill="black">
+
+    <!-- LEFT COLUMN -->
+    <!-- LAUNCH -->
+    <text x="14" y="46" font-size="9" font-weight="700">LAUNCH</text>
+    <text x="14" y="58"><tspan font-weight="700">⌘ Space</tspan>    launcher</text>
+    <text x="14" y="69"><tspan font-weight="700">⌘ Return</tspan>   terminal</text>
+    <text x="14" y="80"><tspan font-weight="700">⌥ Return</tspan>   terminal</text>
+    <text x="14" y="91"><tspan font-weight="700">⌘ E</tspan>        files</text>
+    <text x="14" y="102"><tspan font-weight="700">⌘ K</tspan>        keybinds</text>
+    <text x="14" y="113"><tspan font-weight="700">⌘ ⌥ Space</tspan>  hypr menu</text>
+
+    <!-- WINDOWS -->
+    <text x="14" y="131" font-size="9" font-weight="700">WINDOWS</text>
+    <text x="14" y="143"><tspan font-weight="700">⌘ W</tspan>        close</text>
+    <text x="14" y="154"><tspan font-weight="700">⌘ F</tspan>        fullscreen</text>
+    <text x="14" y="165"><tspan font-weight="700">⌘ ⌥ F</tspan>      maximize</text>
+    <text x="14" y="176"><tspan font-weight="700">⌘ T</tspan>        toggle float</text>
+    <text x="14" y="187"><tspan font-weight="700">⌘ J</tspan>        split dir</text>
+    <text x="14" y="198"><tspan font-weight="700">⌘ P</tspan>        pseudo tile</text>
+    <text x="14" y="209"><tspan font-weight="700">⌥ Tab</tspan>      cycle wins</text>
+    <text x="14" y="220"><tspan font-weight="700">⌘ S</tspan>        scratchpad</text>
+
+    <!-- FOCUS / MOVE -->
+    <text x="14" y="238" font-size="9" font-weight="700">FOCUS · MOVE</text>
+    <text x="14" y="250"><tspan font-weight="700">⌘ ←→↑↓</tspan>    focus</text>
+    <text x="14" y="261"><tspan font-weight="700">⌘⇧ ←→↑↓</tspan>  swap</text>
+    <text x="14" y="272"><tspan font-weight="700">⌘⌥ ←→↑↓</tspan>  resize (hold)</text>
+    <text x="14" y="283"><tspan font-weight="700">⌘ drag</tspan>    move</text>
+    <text x="14" y="294"><tspan font-weight="700">⌘ rt-drag</tspan> resize</text>
+
+    <!-- SCREENSHOT -->
+    <text x="14" y="312" font-size="9" font-weight="700">SCREENSHOT</text>
+    <text x="14" y="324"><tspan font-weight="700">⌘⇧ 3</tspan>       full</text>
+    <text x="14" y="335"><tspan font-weight="700">⌘⇧ 4</tspan>       region</text>
+    <text x="14" y="346"><tspan font-weight="700">⌘⇧ 5</tspan>       region + edit</text>
+
+    <!-- RIGHT COLUMN -->
+    <!-- WORKSPACES -->
+    <text x="148" y="46" font-size="9" font-weight="700">WORKSPACES</text>
+    <text x="148" y="58"><tspan font-weight="700">⌘ 1..0</tspan>      go to N</text>
+    <text x="148" y="69"><tspan font-weight="700">⌘⌃ 1..0</tspan>    move → N</text>
+    <text x="148" y="80"><tspan font-weight="700">⌘⌃⌥ 1..0</tspan>   silent → N</text>
+    <text x="148" y="91"><tspan font-weight="700">⌘ Tab</tspan>       next</text>
+    <text x="148" y="102"><tspan font-weight="700">⌘⇧ Tab</tspan>     prev</text>
+    <text x="148" y="113"><tspan font-weight="700">⌘⌃ Tab</tspan>     last</text>
+
+    <!-- CLIPBOARD -->
+    <text x="148" y="131" font-size="9" font-weight="700">CLIPBOARD (mac)</text>
+    <text x="148" y="143"><tspan font-weight="700">⌘ C / V</tspan>     copy / paste</text>
+    <text x="148" y="154"><tspan font-weight="700">⌘ X</tspan>         cut</text>
+    <text x="148" y="165"><tspan font-weight="700">⌘ Z</tspan>         undo</text>
+    <text x="148" y="176"><tspan font-weight="700">⌘ A</tspan>         select all</text>
+    <text x="148" y="187"><tspan font-weight="700">⌘⇧ C / V</tspan>   term copy/paste</text>
+    <text x="148" y="198"><tspan font-weight="700">⌘⌃ V</tspan>        clip history</text>
+
+    <!-- SYSTEM -->
+    <text x="148" y="216" font-size="9" font-weight="700">SYSTEM</text>
+    <text x="148" y="228"><tspan font-weight="700">⌘ L</tspan>         lock</text>
+    <text x="148" y="239"><tspan font-weight="700">⌘ Esc</tspan>       power menu</text>
+    <text x="148" y="250"><tspan font-weight="700">⌘⇧ /</tspan>       hypr-doctor</text>
+    <text x="148" y="261"><tspan font-weight="700">⌘⇧ Q</tspan>       quit hyprland</text>
+    <text x="148" y="272"><tspan font-weight="700">⌘ ,</tspan>         dismiss notif</text>
+    <text x="148" y="283"><tspan font-weight="700">⌘⇧ ,</tspan>       clear all</text>
+
+    <!-- MEDIA -->
+    <text x="148" y="301" font-size="9" font-weight="700">MEDIA</text>
+    <text x="148" y="313">vol / brightness</text>
+    <text x="148" y="324">keys → on-screen OSD</text>
+    <text x="148" y="335">play / pause / next</text>
+    <text x="148" y="346">on media keys</text>
+  </g>
+
+  <!-- Footer band, full width -->
+  <line x1="14" y1="365" x2="274" y2="365" stroke="black" stroke-width="0.6"/>
+  <g font-size="7" fill="#444">
+    <text x="14" y="378">⌘ Cmd · ⌥ Option · ⌃ Ctrl · ⇧ Shift — macOS keycaps map directly.</text>
+    <text x="14" y="389">New windows / terminals inherit cwd. Floating: ⌘T.</text>
+    <text x="14" y="400">Status bar quick-settings: top-right cog. Mako: notifications.</text>
+  </g>
+
+  <text x="14" y="418" font-size="6" fill="#999">~/.config/hypr/hyprland.conf  ·  edit and live-reload</text>
+</svg>
