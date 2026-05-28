@@ -31,18 +31,9 @@ user's own "(urgent)" tags are preserved in each entry but did not solely drive 
 
 ---
 
-## Tier 0 — Trivial / verify (minutes each, do first)
+## Tier 0 — Trivial (minutes each, do first)
 
-### 0.1 Codex indicator "at 99% again" — **VERIFY ONLY** *(user: urgent)*
-- **Found:** `scripts/waybar-openai-tokens.py` already has the weekly-gate fix (commit b64edeb).
-  Live run right now returns `{"text": "0%", "class": "danger"}`; the tooltip shows `5h: 99%
-  remaining` and `weekly: 0% remaining (100% used)`. The **bar text is correct** — the "99%" the
-  user saw is the 5h figure inside the tooltip, not the bubble.
-- **Action:** No code change. Confirm visually after the weekly window resets (Sun 01:05) that it
-  flips back to showing the 5h remaining %. If it sticks at 0% post-reset, revisit `weekly_blocked`.
-- **Effort:** ~0.
-
-### 0.2 Network indicator: drop "bps", show `0.0kbps/mbps` *(user: urgent)*
+### 0.1 Network indicator: drop "bps", show `0.0kbps/mbps` *(user: urgent)*
 - **Found:** `scripts/waybar-sysmon.py` `fmt_rate()` emits `123bps`, `12Kbps`, `1.2Mbps`. User
   wants no raw bps and a consistent decimal like `0.0kbps`.
 - **Approach:** Rewrite `fmt_rate()` to always use one decimal and lowercase units, flooring at
@@ -52,13 +43,13 @@ user's own "(urgent)" tags are preserved in each entry but did not solely drive 
 - **Efficiency:** Zero — pure formatting.
 - **Effort:** ~5 min.
 
-### 0.3 Ghostty text a bit smaller *(user: urgent)*
+### 0.2 Ghostty text a bit smaller *(user: urgent)*
 - **Found:** `config/ghostty/config` sets no `font-size`, so it uses Ghostty's default (13).
 - **Approach:** Add `font-size = 11` (one line). Tune to 10–12 to taste.
 - **Efficiency:** Zero.
 - **Effort:** ~1 min.
 
-### 0.4 Re-add volume tick sound
+### 0.3 Re-add volume tick sound
 - **Found:** `scripts/volume-osd.sh` `play_tick()` is a deliberate no-op (the freedesktop
   `audio-volume-change` sample was called "rough"). `/usr/share/sounds/freedesktop/stereo/
   audio-volume-change.oga` exists.
@@ -346,7 +337,7 @@ user's own "(urgent)" tags are preserved in each entry but did not solely drive 
 
 ## Suggested build order (dependency-aware)
 
-1. **Tier 0** (0.1–0.4) — quick wins, immediate feel improvement.
+1. **Tier 0** (0.1–0.3) — quick wins, immediate feel improvement.
 2. **1.1 hotkeys** → then **2.5 labels** depend on it (labels must show final keys).
 3. **1.2 focus/warp**, **1.3 AI reset notify**, **1.5 launcher icons** — independent, high impact.
 4. **1.4 helium scroll** — investigate early (blocks comfortable browser use).
@@ -368,37 +359,3 @@ user's own "(urgent)" tags are preserved in each entry but did not solely drive 
 
 Nothing here adds a persistent busy-loop except the explicitly-gated autohide poller. Net effect on
 idle battery should be ~neutral.
-
----
-
-## /goal prompt (paste this into `/goal`)
-
-```
-/goal Read /home/ben/dotfiles/docs/macos-parity-2026-05-28.md in full and implement the
-macOS-parity tasks it describes, in the "Suggested build order" given there. This is my
-Asahi-Fedora-44 + Hyprland laptop (M1, CPU-only client rendering due to the Aquamarine GPU bug),
-so honor the report's "Efficiency ground rules" on every task: no new busy-poll loops (event-driven
-via evdev / Hyprland socket2 / inotify, or piggyback existing waybar intervals), prefer dormant
-transient systemd timers for one-shot future events, bound any shell fade to ≤12 steps, and never
-add shader passes. The single allowed poll (waybar autohide in task 3.3) must be gated to only run
-while a window is fullscreen.
-
-Work tier by tier. For each task: make the change in the dotfiles repo (configs are symlinked from
-~/dotfiles into ~/.config), reload/restart only the affected component to verify (waybar, hypr
-reload, mako, etc.), and tell me concretely what changed vs. what was already there — do not
-overclaim. Use passwordless sudo directly for system files (e.g. the greetd greeter in
-/usr/local/bin and its installer) instead of asking me to run commands; test system-file changes
-on a recoverable path and keep the rollback sessions intact.
-
-Sequencing that matters: do task 1.1 (mac hotkeys) BEFORE task 2.5 (4x6 PDF labels) so the labels
-show final keys; build task 3.1 (AI bubble popup framework) BEFORE 3.2 (vnstat network menu) since
-3.2 reuses the popup scaffolding. Task 0.1 (codex indicator) is verify-only — the fix already
-landed and the bubble correctly shows 0%; just confirm behavior after the weekly reset rather than
-changing code. For task 1.4 (helium scroll), reproduce and diagnose live before changing anything.
-
-Commit dotfiles changes automatically as you complete each task or coherent group (don't ask), with
-clear messages; batch the pushes and push at the end (or when I ask), not after every commit. Pause
-and ask me only when a task needs a real decision the report leaves open (e.g. the exact key layout
-for the mac-hotkey remap, or printer selection for the labels). Keep system efficiency in
-consideration throughout, per the report's scorecard.
-```
