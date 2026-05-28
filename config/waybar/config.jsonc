@@ -6,8 +6,8 @@
   "spacing": 0,
   "tooltip-delay": 100,
   "modules-left": ["hyprland/workspaces", "custom/codex-tokens", "custom/claude-tokens"],
-  "modules-center": ["custom/date", "custom/clock-24"],
-  "modules-right": ["tray", "custom/weather", "custom/sysmon", "group/status", "custom/notifications", "custom/quick-settings"],
+  "modules-center": ["custom/date", "custom/clock-24", "custom/weather"],
+  "modules-right": ["tray", "custom/sysmon", "group/status", "custom/notifications", "custom/quick-settings"],
 
   "group/status": {
     "orientation": "inherit",
