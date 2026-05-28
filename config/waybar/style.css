@@ -75,13 +75,13 @@ window#waybar {
 }
 
 #custom-sysmon {
+  /* Match the date/time bubbles: inherit global SF Mono 13px / normal weight
+     and the same shadow + color, instead of a smaller bold style. */
   margin-right: 12px;
-  padding: 6px 16px;
-  color: rgba(244, 247, 251, 0.94);
-  font-family: "SF Mono", monospace;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.96);
+  text-shadow:
+    0 1px 1px rgba(0, 0, 0, 0.55),
+    0 0 8px rgba(0, 0, 0, 0.28);
 }
 #custom-sysmon.busy {
   color: #ffe08a;
