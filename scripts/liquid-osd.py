@@ -14,7 +14,6 @@ from pathlib import Path
 
 import cairo
 import gi
-import glass_shader
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("GtkLayerShell", "0.1")
@@ -264,9 +263,8 @@ class ShaderController:
     def enable(self):
         if not write_shader():
             return False
-        self.lease = glass_shader.acquire("liquid-osd", SHADER_FILE, 60)
-        debug(f"enable shader lease={SHADER_FILE}")
-        return True
+        debug("screen shader disabled; using layer blur and cairo glass backing")
+        return False
 
     def restore(self):
         if self.lease is None:
@@ -308,25 +306,52 @@ class OsdWindow(Gtk.Window):
         GtkLayerShell.set_exclusive_zone(self, 0)
 
         self.title = ""
-        self.value = 0
+        self.value = 0          # target — what the OSD says it's at
+        self.display_value = 0.0  # what the slider is currently rendered at
         self.icon_name = ""
         self.timeout_id = 0
+        self.anim_id = 0
 
         self.area = Gtk.DrawingArea()
         self.area.set_size_request(WIDTH, HEIGHT)
         self.area.connect("draw", self.draw)
         self.add(self.area)
 
-        self.apply_payload(payload)
+        self.apply_payload(payload, initial=True)
         self.show_all()
 
-    def apply_payload(self, payload):
+    def apply_payload(self, payload, initial=False):
         self.title = str(payload.get("title", ""))
         self.value = max(0, min(100, int(payload.get("value", 0))))
         self.icon_name = str(payload.get("icon", ""))
+        if initial:
+            # First payload on window creation: snap the bar to the value so
+            # the OSD doesn't visibly fly in from zero.
+            self.display_value = float(self.value)
+        else:
+            self._kick_anim()
         self.area.queue_draw()
         self.arm_timeout()
         return False
+
+    def _kick_anim(self):
+        if self.anim_id:
+            return
+        self.anim_id = GLib.timeout_add(16, self._tick_anim)
+
+    def _tick_anim(self):
+        # Exponential ease toward target — feels macOS-like. Each tick closes
+        # ~35%% of the remaining distance, so a full-range jump converges in
+        # ~10 frames (~160 ms) and small adjustments in 3–4.
+        delta = self.value - self.display_value
+        if abs(delta) < 0.4:
+            self.display_value = float(self.value)
+            self.anim_id = 0
+            self.area.queue_draw()
+            return False
+        self.display_value += delta * 0.35
+        self.area.queue_draw()
+        return True
 
     def arm_timeout(self):
         if self.timeout_id:
@@ -346,52 +371,69 @@ class OsdWindow(Gtk.Window):
         cr.paint()
         cr.set_operator(cairo.OPERATOR_OVER)
 
+        rounded_rectangle(cr, 1, 1, width - 2, height - 2, RADIUS)
+        glass = cairo.LinearGradient(0, 0, width, height)
+        glass.add_color_stop_rgba(0.0, 1.0, 1.0, 1.0, 0.20)
+        glass.add_color_stop_rgba(0.46, 0.08, 0.09, 0.13, 0.68)
+        glass.add_color_stop_rgba(1.0, 0.03, 0.04, 0.07, 0.78)
+        cr.set_source(glass)
+        cr.fill_preserve()
+        cr.set_line_width(1.0)
+        cr.set_source_rgba(1.0, 1.0, 1.0, 0.30)
+        cr.stroke()
+
+        rounded_rectangle(cr, 3, 3, width - 6, height - 6, RADIUS - 2)
+        cr.set_line_width(1.0)
+        cr.set_source_rgba(1.0, 1.0, 1.0, 0.10)
+        cr.stroke()
+
         cr.select_font_face("SF Pro Text", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
-        cr.set_font_size(13)
-        cr.set_source_rgba(0.0, 0.0, 0.0, 0.34)
-        cr.move_to(57, 29)
+        cr.set_font_size(15)
+        cr.set_source_rgba(0.0, 0.0, 0.0, 0.65)
+        cr.move_to(59, 30)
         cr.show_text(self.title)
-        cr.set_source_rgba(1.0, 1.0, 1.0, 0.93)
-        cr.move_to(56, 28)
+        cr.set_source_rgba(1.0, 1.0, 1.0, 0.98)
+        cr.move_to(58, 29)
         cr.show_text(self.title)
 
-        cr.select_font_face("SF Pro Text", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_NORMAL)
-        cr.set_font_size(13)
+        cr.select_font_face("SF Pro Text", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
+        cr.set_font_size(15)
         text = f"{self.value}%"
         ext = cr.text_extents(text)
-        cr.set_source_rgba(0.0, 0.0, 0.0, 0.32)
-        cr.move_to(width - 15 - ext.width, 29)
+        cr.set_source_rgba(0.0, 0.0, 0.0, 0.65)
+        cr.move_to(width - 17 - ext.width, 30)
         cr.show_text(text)
-        cr.set_source_rgba(1.0, 1.0, 1.0, 0.95)
-        cr.move_to(width - 16 - ext.width, 28)
+        cr.set_source_rgba(1.0, 1.0, 1.0, 0.98)
+        cr.move_to(width - 18 - ext.width, 29)
         cr.show_text(text)
 
-        cr.set_source_rgba(0.0, 0.0, 0.0, 0.20)
-        rounded_rectangle(cr, 56, 44, width - 78, 7, 3.5)
+        cr.set_source_rgba(0.0, 0.0, 0.0, 0.42)
+        rounded_rectangle(cr, 58, 45, width - 82, 10, 5)
         cr.fill()
-        cr.set_source_rgba(1.0, 1.0, 1.0, 0.24)
-        rounded_rectangle(cr, 56, 44, width - 78, 7, 3.5)
+        cr.set_source_rgba(1.0, 1.0, 1.0, 0.22)
+        rounded_rectangle(cr, 58, 45, width - 82, 10, 5)
         cr.fill()
-        cr.set_source_rgba(0.82, 0.62, 1.0, 0.92)
-        rounded_rectangle(cr, 56, 44, (width - 78) * self.value / 100.0, 7, 3.5)
+        cr.set_source_rgba(0.86, 0.68, 1.0, 1.0)
+        rounded_rectangle(cr, 58, 45, (width - 82) * self.display_value / 100.0, 10, 5)
         cr.fill()
 
-        cr.set_source_rgba(0.0, 0.0, 0.0, 0.28)
-        cr.set_line_width(2.5)
-        cr.arc(30, 36, 14, 0, math.tau)
+        cr.set_source_rgba(0.0, 0.0, 0.0, 0.34)
+        cr.arc(31, 36, 17, 0, math.tau)
+        cr.fill()
+        cr.set_source_rgba(1.0, 1.0, 1.0, 0.17)
+        cr.arc(30, 35, 17, 0, math.tau)
+        cr.fill_preserve()
+        cr.set_line_width(1.0)
+        cr.set_source_rgba(1.0, 1.0, 1.0, 0.32)
         cr.stroke()
-        cr.set_source_rgba(1.0, 1.0, 1.0, 0.88)
-        cr.set_line_width(1.5)
-        cr.arc(30, 36, 14, 0, math.tau)
-        cr.stroke()
-        cr.set_font_size(17)
+        cr.set_font_size(18)
         title_lower = self.title.lower()
         glyph = "B" if title_lower.startswith("bright") else ("M" if "mic" in title_lower else "V")
         ext = cr.text_extents(glyph)
-        cr.set_source_rgba(0.0, 0.0, 0.0, 0.34)
+        cr.set_source_rgba(0.0, 0.0, 0.0, 0.68)
         cr.move_to(31 - ext.width / 2 - ext.x_bearing, 37 - ext.height / 2 - ext.y_bearing)
         cr.show_text(glyph)
-        cr.set_source_rgba(1.0, 1.0, 1.0, 0.94)
+        cr.set_source_rgba(1.0, 1.0, 1.0, 0.98)
         cr.move_to(30 - ext.width / 2 - ext.x_bearing, 36 - ext.height / 2 - ext.y_bearing)
         cr.show_text(glyph)
 
@@ -502,12 +544,8 @@ def main():
         debug("another instance is starting; dropping stale update")
         return 0
 
-    shader = ShaderController()
     server = bind_socket()
     stop_event = threading.Event()
-
-    if not shader.enable():
-        print("liquid-osd: failed to enable Hyprland screen shader", file=sys.stderr)
 
     write_pid()
     window = OsdWindow(payload)
@@ -535,7 +573,6 @@ def main():
         except OSError:
             pass
         cleanup_socket()
-        shader.restore()
         lock.close()
 
     return 0
