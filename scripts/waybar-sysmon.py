@@ -156,8 +156,11 @@ def main() -> int:
 
     write_state(cur)
 
-    net_str = f"↓ {fmt_rate(down)} ↑ {fmt_rate(up)}"
-    text    = f"cpu {cpu}%  mem {mem}%  {net_str}"
+    # Fixed-width fields so the bubble never changes size as values change
+    # (variable width reflows the bar and jostles the centered group). SF Mono
+    # is monospace, so constant char counts == constant pixel width.
+    net_str = f"↓ {fmt_rate(down):>9} ↑ {fmt_rate(up):>9}"
+    text    = f"cpu {cpu:>3}%  mem {mem:>3}%  {net_str}"
     tooltip = (f"cpu {cpu}% · mem {mem}% ({mem_human})\n"
                f"net {iface or '—'}  ↓ {fmt_rate(down)}  ↑ {fmt_rate(up)}")
     print(json.dumps({"text": text, "tooltip": tooltip, "class": classify(cpu, mem)},
