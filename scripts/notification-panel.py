@@ -79,8 +79,8 @@ CSS = b"""
 #notification-panel { background: transparent; }
 .panel {
   background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.06) 50%, rgba(20, 23, 30, 0.18)),
-    rgba(12, 15, 22, 0.38);
+    linear-gradient(145deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.04) 50%, rgba(10, 12, 18, 0.22)),
+    rgba(8, 10, 16, 0.62);
   border: 1px solid rgba(255, 255, 255, 0.34);
   border-radius: 24px;
   padding: 16px;

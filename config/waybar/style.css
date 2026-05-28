@@ -25,9 +25,9 @@ window#waybar {
      waybar layer in hyprland.conf), giving a cheap frosted-glass look without
      a custom screen shader. */
   background:
-    linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06)),
-    rgba(20, 23, 30, 0.30);
-  border: 1px solid rgba(255, 255, 255, 0.28);
+    linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04)),
+    rgba(10, 12, 18, 0.56);
+  border: 1px solid rgba(255, 255, 255, 0.30);
   border-radius: 16px;
   padding: 6px 14px;
   box-shadow:

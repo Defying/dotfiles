@@ -205,7 +205,7 @@ class WeatherWindow(Gtk.Window):
         # Translucent rounded fill + top sheen — Hyprland's layerrule blur
         # behind the window provides the frosted-glass background.
         rrect(cr, 0, 0, w, h, POPUP_R)
-        cr.set_source_rgba(0.07, 0.09, 0.14, 0.42)
+        cr.set_source_rgba(0.04, 0.06, 0.10, 0.62)
         cr.fill_preserve()
         g = cairo.LinearGradient(0, 0, 0, h)
         g.add_color_stop_rgba(0.0, 1, 1, 1, 0.22)
