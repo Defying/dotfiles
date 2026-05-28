@@ -22,14 +22,15 @@ play_tick() {
   fi
 }
 
-# Smooth brightness fade: interpolate from current to target over a short
-# window so repeat-presses look like a glide instead of stair-steps.
+# Quick brightness step: compute the target up front, fire the small fade
+# in the background so the foreground script returns immediately, and echo
+# the target percent so the OSD can show the final value right away. Holding
+# the key repeats from the live brightness each time, so each press still
+# advances the total target even when the previous fade is mid-glide.
 fade_brightness() {
-  local delta_pct="$1"  # may be negative
-  local steps="${BRIGHT_FADE_STEPS:-6}"
-  local total_ms="${BRIGHT_FADE_MS:-110}"
-  local delay
-  delay=$(awk -v t="$total_ms" -v n="$steps" 'BEGIN { printf "%.4f", (t/1000) / n }')
+  local delta_pct="$1"
+  local steps="${BRIGHT_FADE_STEPS:-3}"
+  local total_ms="${BRIGHT_FADE_MS:-45}"
 
   local cur max target
   cur=$(brightnessctl get)
@@ -38,12 +39,19 @@ fade_brightness() {
   (( target < 1 ))   && target=1
   (( target > max )) && target=$max
 
-  local i value
-  for ((i = 1; i <= steps; i++)); do
-    value=$(( cur + (target - cur) * i / steps ))
-    brightnessctl -q set "$value" >/dev/null 2>&1 || return
-    sleep "$delay"
-  done
+  (
+    local delay
+    delay=$(awk -v t="$total_ms" -v n="$steps" 'BEGIN { printf "%.4f", (t/1000) / n }')
+    local i value
+    for ((i = 1; i <= steps; i++)); do
+      value=$(( cur + (target - cur) * i / steps ))
+      brightnessctl -q set "$value" >/dev/null 2>&1 || exit 0
+      sleep "$delay"
+    done
+  ) >/dev/null 2>&1 &
+  disown
+
+  awk -v v="$target" -v m="$max" 'BEGIN { printf "%d", v * 100 / m + 0.5 }'
 }
 
 read_pct() {
@@ -122,13 +130,10 @@ case "$action" in
       exit 1
     fi
     if [[ "$action" == "bright-up" ]]; then
-      fade_brightness "$step"
+      pct=$(fade_brightness "$step")
     else
-      fade_brightness "-$step"
+      pct=$(fade_brightness "-$step")
     fi
-    cur=$(brightnessctl get)
-    max=$(brightnessctl max)
-    pct=$(( cur * 100 / max ))
     notify "Brightness" "$pct" "display-brightness" "brightness-osd"
     ;;
   *)
