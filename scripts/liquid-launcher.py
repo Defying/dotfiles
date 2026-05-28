@@ -11,7 +11,6 @@ import sys
 from pathlib import Path
 
 import cairo
-import glass_shader
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -30,10 +29,6 @@ HEADER_H   = 64
 ROW_H      = 50
 HEIGHT     = HEADER_H + 1 + MAX_ROWS * ROW_H + 12   # sep + rows + bottom pad
 
-DOTFILES_DIR   = Path.home() / "dotfiles"
-ROUNDED_SHADER = DOTFILES_DIR / "config/hypr/shaders/rounded-corners.frag"
-RUNTIME_DIR    = Path(os.environ.get("XDG_RUNTIME_DIR", f"/tmp/llauncher-{os.getuid()}"))
-SHADER_FILE    = RUNTIME_DIR / "liquid-launcher.frag"
 
 
 # ── App loading ───────────────────────────────────────────────────────────────
@@ -132,132 +127,6 @@ def hyprctl(args, *, capture=False):
         return "" if capture else False
 
 
-def focused_monitor():
-    try:
-        monitors = json.loads(hyprctl(["monitors", "-j"], capture=True))
-        m = next((x for x in monitors if x.get("focused")), monitors[0])
-        reserved_top = int((m.get("reserved") or [0, 0])[1])
-        return int(m["width"]), int(m["height"]), float(m.get("scale", 2.0)), reserved_top
-    except Exception:
-        return 2560, 1600, 2.0, 0
-
-
-def current_screen_shader():
-    try:
-        opt = json.loads(hyprctl(["getoption", "decoration:screen_shader", "-j"], capture=True))
-        s = opt.get("str") if opt.get("set") else ""
-        if not s or s == str(SHADER_FILE):
-            return str(ROUNDED_SHADER)
-        return s
-    except Exception:
-        return str(ROUNDED_SHADER)
-
-
-# ── Shader ────────────────────────────────────────────────────────────────────
-
-def build_shader(sw, sh, scale, reserved_top):
-    lw = LAUNCHER_W * scale
-    lh = HEIGHT * scale
-    cx = sw * 0.5
-    cy = sh * 0.5
-    r  = LAUNCHER_R * scale
-    bl = max(1.4, 1.15 * scale)
-
-    return f"""#version 300 es
-precision highp float;
-in vec2 v_texcoord;
-out vec4 fragColor;
-uniform sampler2D tex;
-
-const vec2  SCR    = vec2({sw:.1f},{sh:.1f});
-const float SCRNR  = 28.0;
-const vec2  CEN    = vec2({cx:.1f},{cy:.1f});
-const vec2  SZ     = vec2({lw:.1f},{lh:.1f});
-const float RAD    = {r:.1f};
-const float BL     = {bl:.2f};
-const float DIST_D = 0.20;
-const float DIST_S = 0.13;
-const float CA     = 2.4;
-const float TINT   = 0.93;
-const float FROST  = 0.25;
-const float VEIL   = 0.13;
-const float EHL    = 0.22;
-
-float sdf(vec2 p,vec2 hs,float r){{
-    vec2 d=abs(p)-hs+vec2(r);
-    return min(max(d.x,d.y),0.0)+length(max(d,0.0))-r;
-}}
-vec3 smp(vec2 c){{return texture(tex,clamp(c/SCR,vec2(0),vec2(1))).rgb;}}
-
-void main(){{
-    vec2 pix=v_texcoord*SCR;
-    vec4 col=texture(tex,v_texcoord);
-    vec2 g=pix-CEN;
-    vec2 hs=SZ*0.5;
-    float inside=-sdf(g,hs,RAD)/max(min(SZ.x,SZ.y),1.0);
-    float mask=smoothstep(-0.005,0.008,inside);
-    if(mask>0.0){{
-        float cl=length(g);
-        vec2 n=cl>0.0001?g/cl:vec2(0);
-        float df=1.0-clamp(inside/DIST_D,0.0,1.0);
-        float dis=1.0-sqrt(max(1.0-df*df,0.0));
-        vec2 c=pix-dis*n*hs*DIST_S;
-        float rim=1.0-smoothstep(0.0,0.030,inside);
-        vec2 sh=n*rim*CA;
-        vec3 ref=vec3(smp(c-sh).r,smp(c).g,smp(c+sh).b);
-        vec3 b=ref*0.38
-            +smp(c+vec2(BL,0))*0.12+smp(c-vec2(BL,0))*0.12
-            +smp(c+vec2(0,BL))*0.12+smp(c-vec2(0,BL))*0.12
-            +smp(c+vec2(BL,BL))*0.07+smp(c-vec2(BL,BL))*0.07;
-        float tl=1.0-smoothstep(-hs.y,-hs.y*0.10,g.y);
-        float dia=1.0-smoothstep(-0.6,0.3,g.x/hs.x+g.y/hs.y);
-        float hl=clamp(rim*EHL+tl*dia*0.08,0.0,0.28);
-        float lm=dot(b,vec3(0.299,0.587,0.114));
-        vec3 fr=mix(mix(b,vec3(lm),FROST),vec3(1),VEIL);
-        vec3 gc=mix(fr,vec3(1),hl)*TINT;
-        gc=mix(gc,vec3(0.75,0.52,0.95),0.03);
-        col.rgb=mix(col.rgb,gc,mask);
-    }}
-    vec2 corner=min(pix,SCR-pix);
-    if(corner.x<SCRNR&&corner.y<SCRNR){{
-        vec2 d=vec2(SCRNR)-corner;
-        float aa=smoothstep(SCRNR-1.0,SCRNR+0.5,length(d));
-        col.rgb=mix(col.rgb,vec3(0),aa);
-        col.a=mix(col.a,1.0,aa);
-    }}
-    fragColor=col;
-}}
-"""
-
-
-def write_shader():
-    sw, sh, scale, rt = focused_monitor()
-    src = build_shader(sw, sh, scale, rt)
-    try:
-        RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
-        if SHADER_FILE.exists() and SHADER_FILE.read_text() == src:
-            return True
-        SHADER_FILE.write_text(src)
-        return True
-    except OSError:
-        return False
-
-
-class ShaderController:
-    def __init__(self):
-        self.lease = None
-
-    def enable(self):
-        if not write_shader():
-            return False
-        self.lease = glass_shader.acquire("liquid-launcher", SHADER_FILE, 80)
-        return True
-
-    def restore(self):
-        if self.lease is None:
-            return
-        self.lease.release()
-        self.lease = None
 
 
 # ── CSS ───────────────────────────────────────────────────────────────────────
@@ -316,10 +185,9 @@ def rrect(cr, x, y, w, h, r):
 # ── Window ────────────────────────────────────────────────────────────────────
 
 class LauncherWindow(Gtk.Window):
-    def __init__(self, apps, shader):
+    def __init__(self, apps):
         super().__init__(title="liquid-launcher")
         self.apps = apps
-        self.shader = shader
         self.results = apps[:MAX_ROWS]
         self._icon_theme = Gtk.IconTheme.get_default()
 
@@ -407,15 +275,29 @@ class LauncherWindow(Gtk.Window):
     # ── Drawing ───────────────────────────────────────────────────────────────
 
     def _draw_bg(self, widget, cr):
-        # The shader provides the entire glass background.
-        # We only clear to transparent here; the border is a secondary stroke.
         w = widget.get_allocated_width()
         h = widget.get_allocated_height()
         cr.set_operator(cairo.OPERATOR_CLEAR)
         cr.paint()
         cr.set_operator(cairo.OPERATOR_OVER)
-        # Subtle border stroke to supplement the shader rim highlight.
-        cr.set_source_rgba(1, 1, 1, 0.18)
+
+        # Dark glass card — Hyprland's blur shows through the partial alpha
+        rrect(cr, 0, 0, w, h, LAUNCHER_R)
+        cr.set_source_rgba(0.039, 0.055, 0.094, 0.72)
+        cr.fill_preserve()
+
+        # Top-left highlight gradient
+        pat = cairo.LinearGradient(0, 0, w, h)
+        pat.add_color_stop_rgba(0.00, 1.0, 1.0, 1.0, 0.18)
+        pat.add_color_stop_rgba(0.35, 1.0, 1.0, 1.0, 0.05)
+        pat.add_color_stop_rgba(0.65, 0.20, 0.80, 1.0, 0.07)
+        pat.add_color_stop_rgba(1.00, 0.75, 0.52, 0.96, 0.10)
+        rrect(cr, 0, 0, w, h, LAUNCHER_R)
+        cr.set_source(pat)
+        cr.fill()
+
+        # Border
+        cr.set_source_rgba(1, 1, 1, 0.30)
         cr.set_line_width(1.0)
         rrect(cr, 0.5, 0.5, w - 1, h - 1, LAUNCHER_R)
         cr.stroke()
@@ -520,37 +402,25 @@ class LauncherWindow(Gtk.Window):
         self._quit()
 
     def _quit(self):
-        self.shader.restore()
         Gtk.main_quit()
 
     def _on_destroy(self, _widget):
-        self.shader.restore()
+        pass
 
 
 # ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
     apps = load_apps()
-    shader = ShaderController()
-    if not shader.enable():
-        print("liquid-launcher: failed to enable Hyprland screen shader", file=sys.stderr)
 
     def _sig(*_):
-        def restore_and_quit():
-            shader.restore()
-            Gtk.main_quit()
-            return False
-
-        GLib.idle_add(restore_and_quit)
+        GLib.idle_add(Gtk.main_quit)
 
     signal.signal(signal.SIGTERM, _sig)
     signal.signal(signal.SIGINT, _sig)
 
-    try:
-        win = LauncherWindow(apps, shader)
-        Gtk.main()
-    finally:
-        shader.restore()
+    LauncherWindow(apps)
+    Gtk.main()
     return 0
 
 

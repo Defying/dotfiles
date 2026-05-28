@@ -419,25 +419,38 @@ class OsdWindow(Gtk.Window):
         rounded_rectangle(cr, 58, 45, (width - 82) * self.display_value / 100.0, 10, 5)
         cr.fill()
 
-        cr.set_source_rgba(0.0, 0.0, 0.0, 0.34)
-        cr.arc(31, 36, 17, 0, math.tau)
-        cr.fill()
-        cr.set_source_rgba(1.0, 1.0, 1.0, 0.17)
-        cr.arc(30, 35, 17, 0, math.tau)
-        cr.fill_preserve()
-        cr.set_line_width(1.0)
-        cr.set_source_rgba(1.0, 1.0, 1.0, 0.32)
-        cr.stroke()
-        cr.set_font_size(18)
-        title_lower = self.title.lower()
-        glyph = "B" if title_lower.startswith("bright") else ("M" if "mic" in title_lower else "V")
+        # Single Font Awesome glyph, no enclosing circle. Mapping is driven
+        # by the XDG icon name volume-osd.sh passes through, falling back to
+        # title keywords.
+        glyph = self._pick_glyph()
+        cr.select_font_face("Font Awesome 6 Free", cairo.FONT_SLANT_NORMAL,
+                            cairo.FONT_WEIGHT_BOLD)
+        cr.set_font_size(22)
         ext = cr.text_extents(glyph)
-        cr.set_source_rgba(0.0, 0.0, 0.0, 0.68)
-        cr.move_to(31 - ext.width / 2 - ext.x_bearing, 37 - ext.height / 2 - ext.y_bearing)
+        cx, cy = 30, 36
+        cr.set_source_rgba(0.0, 0.0, 0.0, 0.55)
+        cr.move_to(cx - ext.width / 2 - ext.x_bearing + 1,
+                   cy - ext.height / 2 - ext.y_bearing + 1)
         cr.show_text(glyph)
         cr.set_source_rgba(1.0, 1.0, 1.0, 0.98)
-        cr.move_to(30 - ext.width / 2 - ext.x_bearing, 36 - ext.height / 2 - ext.y_bearing)
+        cr.move_to(cx - ext.width / 2 - ext.x_bearing,
+                   cy - ext.height / 2 - ext.y_bearing)
         cr.show_text(glyph)
+
+    def _pick_glyph(self) -> str:
+        icon = (self.icon_name or "").lower()
+        title = (self.title or "").lower()
+        if "muted" in icon or title in ("muted", "mic muted"):
+            return "" if "mic" in icon or "mic" in title else ""
+        if "microphone" in icon or "mic" in title:
+            return ""
+        if "brightness" in icon or "bright" in title:
+            return ""
+        if "volume-low" in icon or self.value < 34:
+            return ""
+        if "volume-medium" in icon or self.value < 67:
+            return ""
+        return ""
 
 
 def payload_from_args(args):

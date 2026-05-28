@@ -157,7 +157,7 @@
   "custom/sysmon": {
     "exec": "/home/ben/dotfiles/scripts/waybar-sysmon.py",
     "return-type": "json",
-    "interval": 3,
+    "interval": 2,
     "format": "{}",
     "on-click": "ghostty -e btop"
   }

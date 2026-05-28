@@ -1,0 +1,7 @@
+[Unit]
+Description=Revert greetd trial to Plasma Login Manager if unconfirmed
+After=greetd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/hypr-login-manager-autorevert

@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+state_dir="/var/lib/hypr-login-manager"
+
+one_line() {
+  local output
+
+  output="$("$@" 2>/dev/null | head -n 1 || true)"
+  if [ -n "$output" ]; then
+    printf '%s' "$output"
+  else
+    printf unknown
+  fi
+}
+
+display_manager="$(readlink -f /etc/systemd/system/display-manager.service 2>/dev/null || printf unknown)"
+
+is_default() {
+  case "$display_manager" in
+    *"/$1.service")
+      printf yes
+      ;;
+    *)
+      printf no
+      ;;
+  esac
+}
+
+printf 'Login manager status\n'
+printf '  display-manager: %s\n' "$display_manager"
+printf '  plasmalogin:     default=%s active=%s\n' \
+  "$(is_default plasmalogin)" \
+  "$(one_line systemctl is-active plasmalogin.service)"
+printf '  greetd:          default=%s active=%s\n' \
+  "$(is_default greetd)" \
+  "$(one_line systemctl is-active greetd.service)"
+printf '  autorevert:      enabled=%s active=%s\n' \
+  "$(one_line systemctl is-enabled hypr-login-manager-autorevert.timer)" \
+  "$(one_line systemctl is-active hypr-login-manager-autorevert.timer)"
+
+if [ -f "$state_dir/greetd-pending" ]; then
+  printf '  pending:         %s\n' "$(cat "$state_dir/greetd-pending")"
+else
+  printf '  pending:         no\n'
+fi
+
+if [ -f "$state_dir/greetd-confirmed" ]; then
+  printf '  confirmed:       %s\n' "$(cat "$state_dir/greetd-confirmed")"
+else
+  printf '  confirmed:       no\n'
+fi
+
+printf '\nEscape paths\n'
+printf '  From a broken greeter: Ctrl+Alt+F3, log in, run sudo hypr-login-manager-rollback\n'
+printf '  From the greeter command selector: choose "Rollback to Plasma Login", log in\n'
+printf '  After a good greetd login: sudo hypr-login-manager-confirm\n'

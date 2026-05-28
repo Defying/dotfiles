@@ -161,13 +161,13 @@ class NotificationPanel(Gtk.Window):
 
         header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         root.pack_start(header, False, False, 0)
-        title = Gtk.Label(label="Notifications", xalign=0)
+        title = Gtk.Label(label="notifications", xalign=0)
         title.get_style_context().add_class("title")
         header.pack_start(title, True, True, 0)
 
         dnd_row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         header.pack_end(dnd_row, False, False, 0)
-        dnd_row.pack_start(Gtk.Label(label="DND"), False, False, 0)
+        dnd_row.pack_start(Gtk.Label(label="dnd"), False, False, 0)
         self.dnd_switch = Gtk.Switch()
         self.dnd_switch.set_active(dnd_active())
         self.dnd_switch.connect("notify::active", self.on_dnd_toggle)
@@ -184,13 +184,13 @@ class NotificationPanel(Gtk.Window):
 
         footer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         root.pack_start(footer, False, False, 0)
-        clear = Gtk.Button(label="Clear all")
+        clear = Gtk.Button(label="clear all")
         clear.connect("clicked", self.on_clear)
         footer.pack_start(clear, True, True, 0)
-        restore = Gtk.Button(label="Restore last")
+        restore = Gtk.Button(label="restore last")
         restore.connect("clicked", self.on_restore)
         footer.pack_start(restore, True, True, 0)
-        close = Gtk.Button(label="Close")
+        close = Gtk.Button(label="close")
         close.connect("clicked", lambda *_: Gtk.main_quit())
         footer.pack_start(close, True, True, 0)
 
@@ -217,21 +217,21 @@ class NotificationPanel(Gtk.Window):
                     flat_active.append(entry)
 
         if flat_active:
-            label = Gtk.Label(label=f"ACTIVE  ·  {len(flat_active)}", xalign=0)
+            label = Gtk.Label(label=f"active  ·  {len(flat_active)}", xalign=0)
             label.get_style_context().add_class("section")
             self.list_container.pack_start(label, False, False, 0)
             for notif in flat_active:
                 self.list_container.pack_start(self.make_row(notif, history_row=False), False, False, 0)
 
         if history:
-            label = Gtk.Label(label=f"HISTORY  ·  {len(history)}", xalign=0)
+            label = Gtk.Label(label=f"history  ·  {len(history)}", xalign=0)
             label.get_style_context().add_class("section")
             self.list_container.pack_start(label, False, False, 0)
             for notif in history[:25]:
                 self.list_container.pack_start(self.make_row(notif, history_row=True), False, False, 0)
 
         if not flat_active and not history:
-            empty = Gtk.Label(label="No notifications", xalign=0.5)
+            empty = Gtk.Label(label="no notifications", xalign=0.5)
             empty.get_style_context().add_class("empty")
             self.list_container.pack_start(empty, False, False, 0)
 
@@ -266,7 +266,7 @@ class NotificationPanel(Gtk.Window):
 
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
         row.pack_start(content, True, True, 0)
-        app_label = Gtk.Label(label=app.upper(), xalign=0)
+        app_label = Gtk.Label(label=app.lower(), xalign=0)
         app_label.get_style_context().add_class("app")
         content.pack_start(app_label, False, False, 0)
         if summary:

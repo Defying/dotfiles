@@ -1,0 +1,276 @@
+#!/usr/bin/env python3
+"""hypr-greeter-app — minimal greetd greeter for Hyprland. Username hardcoded to 'ben'."""
+
+import gi
+gi.require_version('Gtk', '3.0')
+gi.require_version('Gio', '2.0')
+from gi.repository import Gtk, Gdk, GLib, Gio
+
+import json, os, socket, struct, sys, threading
+
+GREETD_SOCK = os.environ.get('GREETD_SOCK', '/run/greetd.sock')
+USERNAME    = 'ben'
+START_CMD   = ['/usr/bin/start-hyprland']
+START_ENV   = [
+    'XDG_SESSION_TYPE=wayland',
+    'XDG_CURRENT_DESKTOP=Hyprland',
+    'XDG_SESSION_DESKTOP=Hyprland',
+    'DESKTOP_SESSION=hyprland',
+]
+
+CSS = b"""
+* {
+  font-family: "SF Pro Text", "Inter", "Noto Sans", sans-serif;
+  font-size: 17px;
+  color: rgba(248, 250, 252, 0.96);
+}
+window, .background {
+  background: transparent;
+}
+#card {
+  min-width: 500px;
+  padding: 42px 44px 38px;
+  border-radius: 30px;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  background-color: rgba(10, 14, 24, 0.24);
+  background-image: linear-gradient(145deg,
+    rgba(255,255,255,0.30),
+    rgba(255,255,255,0.09) 42%,
+    rgba(51,204,255,0.14) 68%,
+    rgba(192,132,245,0.18));
+  box-shadow:
+    0 30px 90px rgba(2, 6, 23, 0.48),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.18);
+}
+#username-label {
+  font-size: 26px;
+  font-weight: bold;
+  color: rgba(248, 250, 252, 0.96);
+  text-shadow: 0 1px 4px rgba(2, 6, 23, 0.60);
+  margin-bottom: 4px;
+}
+#hint-label {
+  font-size: 14px;
+  color: rgba(248, 250, 252, 0.50);
+  margin-bottom: 18px;
+}
+#error-label {
+  font-size: 14px;
+  color: rgba(255, 120, 120, 0.92);
+  margin-top: 6px;
+}
+entry {
+  min-height: 46px;
+  padding: 0 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  background-color: rgba(6, 10, 18, 0.34);
+  color: rgba(255, 255, 255, 0.96);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 10px 24px rgba(2, 6, 23, 0.22);
+}
+entry:focus {
+  border-color: rgba(51, 204, 255, 0.88);
+  background-color: rgba(9, 14, 25, 0.46);
+  box-shadow:
+    0 0 0 1px rgba(51, 204, 255, 0.22),
+    0 0 34px rgba(51, 204, 255, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.24);
+}
+button {
+  min-height: 46px;
+  padding: 0 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.32);
+  color: rgba(255, 255, 255, 0.98);
+  background-color: rgba(10, 14, 24, 0.34);
+  background-image: linear-gradient(135deg,
+    rgba(51, 204, 255, 0.38),
+    rgba(192, 132, 245, 0.34));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 10px 24px rgba(2, 6, 23, 0.22);
+  margin-top: 12px;
+}
+button:hover {
+  background-color: rgba(10, 14, 24, 0.42);
+  background-image: linear-gradient(135deg,
+    rgba(51, 204, 255, 0.48),
+    rgba(192, 132, 245, 0.44));
+}
+button:active {
+  background-color: rgba(10, 14, 24, 0.52);
+}
+"""
+
+
+class _GreetdSession:
+    def __init__(self):
+        self._s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self._s.connect(GREETD_SOCK)
+
+    def _send(self, msg):
+        data = json.dumps(msg).encode()
+        self._s.sendall(struct.pack('<I', len(data)) + data)
+
+    def _recv(self):
+        def recvn(n):
+            buf = b''
+            while len(buf) < n:
+                chunk = self._s.recv(n - len(buf))
+                if not chunk:
+                    raise EOFError('greetd socket closed')
+                buf += chunk
+            return buf
+        length = struct.unpack('<I', recvn(4))[0]
+        return json.loads(recvn(length))
+
+    def create_session(self, username):
+        self._send({'type': 'create_session', 'username': username})
+        return self._recv()
+
+    def post_response(self, response):
+        self._send({'type': 'post_auth_message_response', 'response': response})
+        return self._recv()
+
+    def start_session(self, cmd, env):
+        self._send({'type': 'start_session', 'cmd': cmd, 'env': env})
+        return self._recv()
+
+    def cancel(self):
+        try:
+            self._send({'type': 'cancel_session'})
+            self._recv()
+        except Exception:
+            pass
+
+    def close(self):
+        try:
+            self._s.close()
+        except Exception:
+            pass
+
+
+def do_auth(password):
+    """Returns (True, None) on success or (False, error_str) on failure."""
+    session = _GreetdSession()
+    try:
+        resp = session.create_session(USERNAME)
+
+        while resp['type'] == 'auth_message':
+            secret = resp.get('auth_message_type') == 'secret'
+            resp = session.post_response(password if secret else '')
+
+        if resp['type'] == 'error':
+            return False, resp.get('description', 'Authentication failed')
+
+        if resp['type'] == 'success':
+            resp = session.start_session(START_CMD, START_ENV)
+            if resp['type'] == 'success':
+                return True, None
+            return False, resp.get('description', 'Failed to start session')
+
+        return False, f"Unexpected response: {resp.get('type')}"
+    except Exception as exc:
+        session.cancel()
+        return False, str(exc)
+    finally:
+        session.close()
+
+
+class GreeterApp(Gtk.Application):
+    def __init__(self):
+        super().__init__(
+            application_id='hypr-greeter',
+            flags=Gio.ApplicationFlags.NON_UNIQUE,
+        )
+
+    def do_activate(self):
+        win = Gtk.ApplicationWindow(application=self)
+        win.set_title('Login')
+        win.set_decorated(False)
+
+        screen = win.get_screen()
+        visual = screen.get_rgba_visual()
+        if visual:
+            win.set_visual(visual)
+        win.set_app_paintable(True)
+
+        provider = Gtk.CssProvider()
+        provider.load_from_data(CSS)
+        Gtk.StyleContext.add_provider_for_screen(
+            screen, provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+
+        # Outer fill box so the card centers inside the Hyprland-sized window
+        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+        outer.set_vexpand(True)
+        outer.set_hexpand(True)
+
+        card = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        card.set_name('card')
+        card.set_valign(Gtk.Align.CENTER)
+        card.set_halign(Gtk.Align.CENTER)
+
+        username_lbl = Gtk.Label(label=USERNAME)
+        username_lbl.set_name('username-label')
+        username_lbl.set_halign(Gtk.Align.START)
+
+        hint_lbl = Gtk.Label(label='Enter your password to continue')
+        hint_lbl.set_name('hint-label')
+        hint_lbl.set_halign(Gtk.Align.START)
+
+        self._pw_entry = Gtk.Entry()
+        self._pw_entry.set_visibility(False)
+        self._pw_entry.set_placeholder_text('Password')
+        self._pw_entry.connect('activate', self._on_login)
+
+        self._error_lbl = Gtk.Label(label='')
+        self._error_lbl.set_name('error-label')
+        self._error_lbl.set_halign(Gtk.Align.START)
+        self._error_lbl.set_no_show_all(True)
+
+        self._login_btn = Gtk.Button(label='Log In')
+        self._login_btn.connect('clicked', self._on_login)
+
+        card.pack_start(username_lbl, False, False, 0)
+        card.pack_start(hint_lbl, False, False, 0)
+        card.pack_start(self._pw_entry, False, False, 16)
+        card.pack_start(self._error_lbl, False, False, 0)
+        card.pack_start(self._login_btn, False, False, 0)
+
+        outer.pack_start(card, True, True, 0)
+        win.add(outer)
+        win.show_all()
+        self._pw_entry.grab_focus()
+
+    def _on_login(self, *_):
+        password = self._pw_entry.get_text()
+        self._set_ui_sensitive(False)
+        self._error_lbl.hide()
+        threading.Thread(target=self._auth_thread, args=(password,), daemon=True).start()
+
+    def _auth_thread(self, password):
+        ok, err = do_auth(password)
+        if ok:
+            GLib.idle_add(self.quit)
+        else:
+            GLib.idle_add(self._on_auth_fail, err)
+
+    def _on_auth_fail(self, msg):
+        self._error_lbl.set_text(msg or 'Authentication failed')
+        self._error_lbl.show()
+        self._pw_entry.set_text('')
+        self._set_ui_sensitive(True)
+        self._pw_entry.grab_focus()
+
+    def _set_ui_sensitive(self, sensitive):
+        self._pw_entry.set_sensitive(sensitive)
+        self._login_btn.set_sensitive(sensitive)
+
+
+if __name__ == '__main__':
+    app = GreeterApp()
+    sys.exit(app.run(None))

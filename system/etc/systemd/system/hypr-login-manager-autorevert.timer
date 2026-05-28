@@ -1,0 +1,10 @@
+[Unit]
+Description=Safety timer for greetd login-manager trial
+
+[Timer]
+OnBootSec=7min
+AccuracySec=30s
+Unit=hypr-login-manager-autorevert.service
+
+[Install]
+WantedBy=timers.target

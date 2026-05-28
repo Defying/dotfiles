@@ -1,0 +1,6 @@
+[Desktop Entry]
+Name=Rollback to Plasma Login
+Comment=Restore Plasma Login Manager and leave the greetd trial
+Exec=/usr/local/bin/hypr-login-manager-rollback-session
+Type=Application
+Keywords=recovery;rollback;login;

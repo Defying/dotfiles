@@ -104,7 +104,7 @@ case "$action" in
     icon="audio-volume-high"
     (( v < 34 )) && icon="audio-volume-low"
     (( v >= 34 && v < 67 )) && icon="audio-volume-medium"
-    notify "Volume" "$v" "$icon" "volume-osd"
+    notify "volume" "$v" "$icon" "volume-osd"
     ;;
   down)
     wpctl set-volume "$sink" "${step}%-" >/dev/null 2>&1
@@ -114,23 +114,23 @@ case "$action" in
     (( v >= 34 && v < 67 )) && icon="audio-volume-medium"
     (( v >= 67 )) && icon="audio-volume-high"
     (( v == 0 )) && icon="audio-volume-muted"
-    notify "Volume" "$v" "$icon" "volume-osd"
+    notify "volume" "$v" "$icon" "volume-osd"
     ;;
   mute)
     wpctl set-mute "$sink" toggle >/dev/null 2>&1
     v=$(read_pct "$sink")
     if is_muted "$sink"; then
-      notify "Muted" 0 "audio-volume-muted" "volume-osd"
+      notify "muted" 0 "audio-volume-muted" "volume-osd"
     else
-      notify "Volume" "$v" "audio-volume-high" "volume-osd"
+      notify "volume" "$v" "audio-volume-high" "volume-osd"
     fi
     ;;
   micmute)
     wpctl set-mute "$src" toggle >/dev/null 2>&1
     if is_muted "$src"; then
-      notify "Mic muted" 0 "microphone-sensitivity-muted" "mic-osd"
+      notify "mic muted" 0 "microphone-sensitivity-muted" "mic-osd"
     else
-      notify "Mic on" 100 "microphone-sensitivity-high" "mic-osd"
+      notify "mic on" 100 "microphone-sensitivity-high" "mic-osd"
     fi
     ;;
   bright-up|bright-down)
@@ -143,7 +143,7 @@ case "$action" in
     else
       pct=$(fade_brightness "-$step")
     fi
-    notify "Brightness" "$pct" "display-brightness" "brightness-osd"
+    notify "brightness" "$pct" "display-brightness" "brightness-osd"
     ;;
   *)
     echo "usage: $0 up|down|mute|micmute|bright-up|bright-down [step]" >&2

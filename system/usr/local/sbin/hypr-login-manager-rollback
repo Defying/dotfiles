@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+mode="${1:---now}"
+state_dir="/var/lib/hypr-login-manager"
+
+if [ "$(id -u)" -ne 0 ]; then
+  exec sudo -n "$0" "$@"
+fi
+
+case "$mode" in
+  --now|--next-boot)
+    ;;
+  *)
+    printf 'usage: hypr-login-manager-rollback [--now|--next-boot]\n' >&2
+    exit 2
+    ;;
+esac
+
+install -d -m 755 "$state_dir"
+rm -f "$state_dir/greetd-pending" "$state_dir/greetd-confirmed"
+
+systemctl disable --now hypr-login-manager-autorevert.timer >/dev/null 2>&1 || true
+systemctl reset-failed hypr-login-manager-autorevert.service hypr-login-manager-autorevert.timer >/dev/null 2>&1 || true
+systemctl disable greetd.service >/dev/null 2>&1 || true
+systemctl enable --force plasmalogin.service >/dev/null
+systemctl daemon-reload
+
+if [ "$mode" = "--now" ]; then
+  systemctl stop greetd.service >/dev/null 2>&1 || true
+  systemctl start plasmalogin.service
+fi
+
+printf 'Plasma Login Manager is restored'
+if [ "$mode" = "--next-boot" ]; then
+  printf ' for next boot'
+fi
+printf '.\n'

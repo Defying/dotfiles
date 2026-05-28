@@ -10,6 +10,7 @@ window-padding-balance = true
 window-decoration = false
 gtk-titlebar = false
 gtk-tabs-location = hidden
+scrollbar = never
 
 cursor-style = block
 cursor-style-blink = true

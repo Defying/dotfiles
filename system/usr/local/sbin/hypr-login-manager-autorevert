@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+state_dir="/var/lib/hypr-login-manager"
+pending="$state_dir/greetd-pending"
+confirmed="$state_dir/greetd-confirmed"
+
+if [ ! -f "$pending" ]; then
+  printf 'no pending greetd trial; nothing to revert.\n'
+  exit 0
+fi
+
+if [ -f "$confirmed" ]; then
+  printf 'greetd trial confirmed; leaving greetd enabled.\n'
+  exit 0
+fi
+
+printf 'pending greetd trial was not confirmed; reverting to Plasma Login Manager.\n'
+exec /usr/local/sbin/hypr-login-manager-rollback --now

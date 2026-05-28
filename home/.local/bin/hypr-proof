@@ -88,11 +88,17 @@ else
   fail "Hyprland instance signature missing"
 fi
 
-if [ "${loginctl_service:-}" = "plasmalogin" ]; then
-  ok "session came from Plasma Login Manager"
-else
-  fail "session is not a Plasma Login Manager session"
-fi
+case "${loginctl_service:-}" in
+  plasmalogin)
+    ok "session came from Plasma Login Manager"
+    ;;
+  greetd)
+    ok "session came from greetd"
+    ;;
+  *)
+    fail "unexpected login manager: ${loginctl_service:-unknown}"
+    ;;
+esac
 
 printf '\n== Hyprland IPC ==\n'
 if command -v hyprctl >/dev/null 2>&1; then

@@ -5,18 +5,32 @@ repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 mode="${1:---install}"
 
 files=(
+  system/etc/greetd/config.toml
+  system/etc/greetd/hyprland-greeter.conf
+  system/etc/systemd/system/hypr-login-manager-autorevert.service
+  system/etc/systemd/system/hypr-login-manager-autorevert.timer
+  system/etc/gtkgreet/asahi-liquid.css
+  system/usr/local/bin/hypr-greeter
+  system/usr/local/bin/hypr-greeter-app
+  system/usr/local/bin/hypr-login-manager-confirm
+  system/usr/local/bin/hypr-login-manager-rollback-session
+  system/usr/local/bin/hypr-login-manager-status
   system/usr/local/bin/hypr-emergency
   system/usr/local/bin/asahi-hyprland-disable-config
   system/usr/local/bin/asahi-hyprland-logged
   system/usr/local/bin/asahi-hyprland-recovery
   system/usr/local/bin/asahi-hyprland-rollback-plasma
   system/usr/local/bin/asahi-hyprland-safe
+  system/usr/local/sbin/hypr-login-manager-autorevert
+  system/usr/local/sbin/hypr-login-manager-rollback
+  system/usr/local/sbin/hypr-login-manager-use-greetd
   system/usr/local/share/asahi-hyprland/RECOVERY.txt
   system/usr/local/share/asahi-hyprland/hyprland-recovery.conf
   system/usr/local/share/asahi-hyprland/hyprland-safe.conf
   system/usr/share/wayland-sessions/hyprland-logged.desktop
   system/usr/share/wayland-sessions/hyprland-recovery.desktop
   system/usr/share/wayland-sessions/hyprland-safe.desktop
+  system/usr/share/wayland-sessions/login-manager-rollback.desktop
   system/usr/share/wayland-sessions/plasma-rollback-hyprland.desktop
 )
 

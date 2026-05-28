@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ "$(id -u)" -ne 0 ]; then
+  exec sudo -n "$0" "$@"
+fi
+
+state_dir="/var/lib/hypr-login-manager"
+install -d -m 755 "$state_dir"
+date -Is > "$state_dir/greetd-confirmed"
+rm -f "$state_dir/greetd-pending"
+
+systemctl disable --now hypr-login-manager-autorevert.timer >/dev/null 2>&1 || true
+
+printf 'greetd confirmed. automatic rollback disabled.\n'
