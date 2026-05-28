@@ -169,8 +169,8 @@ def fmt_reset(value):
         return "unknown"
     now = dt.datetime.now().astimezone()
     if when.date() == now.date():
-        return when.strftime("%-I:%M %p").lower()
-    return when.strftime("%a %-I:%M %p").lower()
+        return when.strftime("%H:%M")
+    return when.strftime("%a %H:%M").lower()
 
 
 def window_line(label, window):

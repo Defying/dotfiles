@@ -142,8 +142,8 @@ def fmt_reset(epoch):
     when = dt.datetime.fromtimestamp(int(epoch))
     now = dt.datetime.now()
     if when.date() == now.date():
-        return when.strftime("%-I:%M %p").lower()
-    return when.strftime("%a %-I:%M %p").lower()
+        return when.strftime("%H:%M")
+    return when.strftime("%a %H:%M").lower()
 
 
 def window_line(name, window):
