@@ -88,7 +88,7 @@ def classify(cpu: int, mem: int) -> str:
 def main() -> int:
     cpu = cpu_percent()
     mem, mem_human = mem_percent_and_human()
-    text    = f"{cpu} · {mem}"
+    text    = f"cpu {cpu}%  mem {mem}%"
     tooltip = f"cpu {cpu}% · mem {mem}% ({mem_human})"
     print(json.dumps({"text": text, "tooltip": tooltip, "class": classify(cpu, mem)},
                      ensure_ascii=False))

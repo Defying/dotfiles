@@ -76,11 +76,12 @@ window#waybar {
 
 #custom-sysmon {
   margin-right: 12px;
-  min-width: 60px;
+  min-width: 138px;
   color: rgba(244, 247, 251, 0.92);
   font-family: "SF Mono", monospace;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
+  letter-spacing: 0.02em;
 }
 #custom-sysmon.busy {
   color: #ffe08a;
