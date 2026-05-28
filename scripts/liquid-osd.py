@@ -371,20 +371,13 @@ class OsdWindow(Gtk.Window):
         cr.paint()
         cr.set_operator(cairo.OPERATOR_OVER)
 
-        rounded_rectangle(cr, 1, 1, width - 2, height - 2, RADIUS)
-        glass = cairo.LinearGradient(0, 0, width, height)
-        glass.add_color_stop_rgba(0.0, 1.0, 1.0, 1.0, 0.20)
-        glass.add_color_stop_rgba(0.46, 0.08, 0.09, 0.13, 0.68)
-        glass.add_color_stop_rgba(1.0, 0.03, 0.04, 0.07, 0.78)
-        cr.set_source(glass)
+        # Flat translucent fill — Hyprland's layerrule blur (namespace
+        # ^liquid-osd$) is the background; no gradient or double border.
+        rounded_rectangle(cr, 0, 0, width, height, RADIUS)
+        cr.set_source_rgba(0.04, 0.06, 0.10, 0.55)
         cr.fill_preserve()
         cr.set_line_width(1.0)
-        cr.set_source_rgba(1.0, 1.0, 1.0, 0.30)
-        cr.stroke()
-
-        rounded_rectangle(cr, 3, 3, width - 6, height - 6, RADIUS - 2)
-        cr.set_line_width(1.0)
-        cr.set_source_rgba(1.0, 1.0, 1.0, 0.10)
+        cr.set_source_rgba(1.0, 1.0, 1.0, 0.22)
         cr.stroke()
 
         cr.select_font_face("SF Pro Text", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)
