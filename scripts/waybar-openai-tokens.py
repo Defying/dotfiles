@@ -162,18 +162,16 @@ def window_line(name, window):
     return f"{label}: {remaining}% remaining ({used}% used), resets {fmt_reset(window.get('resetsAt'))}"
 
 
-def css_class(primary_remaining, reached):
-    if reached:
+def css_class(remaining, reached):
+    if reached or remaining <= 10:
         return "danger"
-    if primary_remaining <= 10:
-        return "danger"
-    if primary_remaining <= 30:
+    if remaining <= 30:
         return "warn"
     return "subscription"
 
 
-def limit_level(primary_remaining, reached):
-    if reached or primary_remaining <= 10:
+def limit_level(remaining, reached):
+    if reached or remaining <= 10:
         return "critical"
     return ""
 
@@ -219,29 +217,34 @@ def main():
     primary_used = int(round(float(primary.get("usedPercent") or 0)))
     primary_remaining = max(0, 100 - primary_used)
     secondary_used = int(round(float(secondary.get("usedPercent") or 0))) if secondary else None
-    secondary_remaining = max(0, 100 - secondary_used) if secondary_used is not None else None
+    weekly_remaining = max(0, 100 - secondary_used) if secondary_used is not None else None
 
-    text = f"{primary_remaining}%"
-    if reached:
-        text = "0%"
-    level = limit_level(primary_remaining, reached)
+    # Show the 5h (primary) window's remaining % while the weekly window still
+    # has budget. Once weekly is exhausted (0% left) or a limit is hit, show 0%
+    # so a healthy-looking 5h figure can't mask a weekly block.
+    weekly_blocked = bool(reached) or (weekly_remaining is not None and weekly_remaining <= 0)
+    display = 0 if weekly_blocked else primary_remaining
+    text = f"{display}%"
+    level = limit_level(display, reached)
 
     credit_line = "credits: unlimited" if credits.get("unlimited") else f"credits: {credits.get('balance', '0')}"
-    reset_label = fmt_reset(primary.get("resetsAt"))
+    reset_label = fmt_reset((secondary if weekly_blocked else primary).get("resetsAt"))
     tooltip_lines = [
         f"Codex subscription usage ({limits.get('planType') or 'plan'})",
         window_line("primary", primary),
         window_line("secondary", secondary),
         credit_line,
     ]
-    if secondary_remaining is not None:
-        tooltip_lines.append(f"bar text shows remaining current window; weekly is {secondary_remaining}% remaining")
+    tooltip_lines.append(
+        "bar shows weekly window (exhausted)" if weekly_blocked
+        else "bar shows 5h window remaining %"
+    )
     if reached:
         tooltip_lines.append(f"limit state: {reached}")
     tooltip_lines.extend(["", CODEX_USAGE_URL])
 
-    maybe_notify("Codex", level, primary_remaining, reset_label, icon=ASSET_DIR / "openai.svg")
-    waybar(text, "\n".join(tooltip_lines), css_class(primary_remaining, reached))
+    maybe_notify("Codex", level, display, reset_label, icon=ASSET_DIR / "openai.svg")
+    waybar(text, "\n".join(tooltip_lines), css_class(display, reached))
     return 0
 
 
