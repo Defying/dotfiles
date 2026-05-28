@@ -337,19 +337,22 @@ class OsdWindow(Gtk.Window):
     def _kick_anim(self):
         if self.anim_id:
             return
-        self.anim_id = GLib.timeout_add(16, self._tick_anim)
+        # 30 fps is plenty for a slider tween and cuts the redraw cost in
+        # half — the OSD window is tiny but on CPU-rendered Wayland every
+        # cairo pass still shows up under heavy key-repeat.
+        self.anim_id = GLib.timeout_add(33, self._tick_anim)
 
     def _tick_anim(self):
-        # Exponential ease toward target — feels macOS-like. Each tick closes
-        # ~35%% of the remaining distance, so a full-range jump converges in
-        # ~10 frames (~160 ms) and small adjustments in 3–4.
+        # Aggressive exponential ease — closes 55%% per tick, so even a
+        # full-range jump converges in 4–5 frames (~130 ms). Small steps
+        # finish in 1–2 frames and the timer can stop, freeing the loop.
         delta = self.value - self.display_value
-        if abs(delta) < 0.4:
+        if abs(delta) < 0.6:
             self.display_value = float(self.value)
             self.anim_id = 0
             self.area.queue_draw()
             return False
-        self.display_value += delta * 0.35
+        self.display_value += delta * 0.55
         self.area.queue_draw()
         return True
 

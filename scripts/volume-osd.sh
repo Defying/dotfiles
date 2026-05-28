@@ -11,6 +11,7 @@ src="@DEFAULT_AUDIO_SOURCE@"
 
 osd_timeout_ms=1400
 liquid_osd="/home/ben/dotfiles/scripts/liquid-osd.py"
+liquid_osd_sock="${XDG_RUNTIME_DIR:-/tmp}/liquid-osd.sock"
 
 play_tick() {
   : # disabled — the canberra freedesktop "volume-change" sample is rough.
@@ -68,7 +69,19 @@ notify() {
   # $1 title, $2 value (0-100), $3 icon, $4 sync-key
   local title="$1" value="$2" icon="$3" sync="$4"
   if [[ -x "$liquid_osd" ]]; then
+    # Fast path: if the OSD daemon is already up, push the payload straight
+    # into its unix socket so we skip Python startup entirely. The protocol
+    # is a single JSON line — see liquid-osd.py:send_update.
+    if [[ -S "$liquid_osd_sock" ]]; then
+      local payload
+      printf -v payload '{"title":"%s","value":%d,"icon":"%s"}\n' "$title" "$value" "$icon"
+      if printf '%s' "$payload" | socat -t 0.1 - "UNIX-CONNECT:$liquid_osd_sock" >/dev/null 2>&1; then
+        return 0
+      fi
+    fi
+    # Cold start (no daemon yet, or socket got cleaned up).
     "$liquid_osd" --title "$title" --value "$value" --icon "$icon" >/dev/null 2>&1 &
+    disown
     return 0
   fi
 
