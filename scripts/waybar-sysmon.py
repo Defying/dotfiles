@@ -113,14 +113,15 @@ def net_bytes(iface: str) -> tuple[int, int]:
 
 
 def fmt_rate(bits_per_sec: float) -> str:
+    # Always one decimal, lowercase unit, floored at kbps (sub-kbps shows as
+    # "0.0kbps") — no raw "bps". Longest output is "999.9kbps"/"999.9mbps" = 9
+    # chars, which the :>9 fields below rely on to keep the bubble fixed-width.
     bps = max(0.0, bits_per_sec)
     if bps >= 1e9:
-        return f"{bps / 1e9:.1f}Gbps"
+        return f"{bps / 1e9:.1f}gbps"
     if bps >= 1e6:
-        return f"{bps / 1e6:.1f}Mbps"
-    if bps >= 1e3:
-        return f"{bps / 1e3:.0f}Kbps"
-    return f"{int(bps)}bps"
+        return f"{bps / 1e6:.1f}mbps"
+    return f"{bps / 1e3:.1f}kbps"
 
 
 def classify(cpu: int, mem: int) -> str:

@@ -13,10 +13,14 @@ osd_timeout_ms=1400
 liquid_osd="/home/ben/dotfiles/scripts/liquid-osd.py"
 liquid_osd_sock="${XDG_RUNTIME_DIR:-/tmp}/liquid-osd.sock"
 
+tick_sound="${VOLUME_TICK_SOUND:-/usr/share/sounds/freedesktop/stereo/audio-volume-change.oga}"
 play_tick() {
-  : # disabled — the canberra freedesktop "volume-change" sample is rough.
-    # To re-enable, point this at a quiet click sample, e.g.
-    #   paplay --volume=18000 /path/to/click.ogg & disown
+  # Quiet feedback click on volume steps. Fired detached so it never blocks
+  # the OSD. Only up/down call this (not mute/brightness). Override the sample
+  # with VOLUME_TICK_SOUND, or set it empty to silence.
+  [[ -n "$tick_sound" && -r "$tick_sound" ]] || return 0
+  paplay --volume=20000 "$tick_sound" >/dev/null 2>&1 &
+  disown
 }
 
 # Quick brightness step: compute the target up front, fire the small fade
