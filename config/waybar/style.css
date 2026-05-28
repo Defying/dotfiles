@@ -3,7 +3,7 @@
   border-radius: 0;
   min-height: 0;
   font-family: "SF Mono", "Symbols Nerd Font", "Font Awesome 6 Free", "Font Awesome 6 Brands", monospace;
-  font-size: 13px;
+  font-size: 11px;
 }
 
 window#waybar {
@@ -29,8 +29,8 @@ window#waybar {
     linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04)),
     rgba(10, 12, 18, 0.56);
   border: 1px solid rgba(255, 255, 255, 0.30);
-  border-radius: 16px;
-  padding: 6px 14px;
+  border-radius: 13px;
+  padding: 4px 11px;
   box-shadow:
     inset 0 1px rgba(255, 255, 255, 0.32),
     inset 0 -1px rgba(0, 0, 0, 0.18);
@@ -38,7 +38,7 @@ window#waybar {
 
 .modules-left,
 .modules-center {
-  margin: 10px 28px 10px 28px;
+  margin: 7px 22px 7px 22px;
 }
 
 .modules-left {
@@ -58,7 +58,7 @@ window#waybar {
 #custom-clock-24,
 #custom-codex-tokens,
 #custom-claude-tokens {
-  margin-right: 12px;
+  margin-right: 10px;
 }
 
 /* Right side: weather, tray, status, and quick settings are separate bubbles. */
@@ -66,18 +66,18 @@ window#waybar {
   background: transparent;
   border: none;
   padding: 0;
-  margin: 10px 28px 10px 28px;
+  margin: 7px 22px 7px 22px;
 }
 
 #custom-weather {
-  margin-right: 12px;
-  min-width: 54px;
+  margin-right: 10px;
+  min-width: 46px;
 }
 
 #custom-sysmon {
-  /* Match the date/time bubbles: inherit global SF Mono 13px / normal weight
-     and the same shadow + color, instead of a smaller bold style. */
-  margin-right: 12px;
+  /* Match the date/time bubbles: inherit global SF Mono / normal weight and
+     the same shadow + color, instead of a smaller bold style. */
+  margin-right: 10px;
   color: rgba(255, 255, 255, 0.96);
   text-shadow:
     0 1px 1px rgba(0, 0, 0, 0.55),
@@ -96,11 +96,11 @@ window#waybar {
 
 #tray,
 #status {
-  margin-right: 12px;
+  margin-right: 10px;
 }
 
 #tray {
-  padding: 6px 14px;
+  padding: 4px 11px;
 }
 
 #custom-launcher,
@@ -109,36 +109,36 @@ window#waybar {
 #bluetooth,
 #pulseaudio,
 #battery {
-  padding: 0 8px;
+  padding: 0 7px;
   margin: 0 1px;
 }
 
 #custom-quick-settings {
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 900;
   color: #f4f7fb;
 }
 
 #custom-codex-tokens {
   color: rgba(222, 244, 255, 0.96);
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 800;
   background-image: url("/home/ben/dotfiles/assets/openai.png");
   background-repeat: no-repeat;
-  background-size: 18px 18px;
-  background-position: 10px center;
-  padding: 6px 14px 6px 34px;
+  background-size: 15px 15px;
+  background-position: 8px center;
+  padding: 4px 11px 4px 29px;
 }
 
 #custom-claude-tokens {
   color: rgba(255, 226, 210, 0.96);
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 800;
   background-image: url("/home/ben/dotfiles/assets/claude.png");
   background-repeat: no-repeat;
-  background-size: 18px 18px;
-  background-position: 10px center;
-  padding: 6px 14px 6px 34px;
+  background-size: 15px 15px;
+  background-position: 8px center;
+  padding: 4px 11px 4px 29px;
 }
 
 #custom-codex-tokens.missing,
@@ -150,7 +150,7 @@ window#waybar {
 #custom-codex-tokens.error {
   color: #ffe08a;
   background:
-    url("/home/ben/dotfiles/assets/openai.png") no-repeat 10px center / 18px 18px,
+    url("/home/ben/dotfiles/assets/openai.png") no-repeat 8px center / 15px 15px,
     linear-gradient(135deg, rgba(255, 209, 102, 0.26), rgba(255, 255, 255, 0.08)),
     rgba(36, 28, 12, 0.58);
 }
@@ -161,7 +161,7 @@ window#waybar {
 #custom-claude-tokens.error {
   color: #ffe08a;
   background:
-    url("/home/ben/dotfiles/assets/claude.png") no-repeat 10px center / 18px 18px,
+    url("/home/ben/dotfiles/assets/claude.png") no-repeat 8px center / 15px 15px,
     linear-gradient(135deg, rgba(255, 209, 102, 0.26), rgba(255, 255, 255, 0.08)),
     rgba(36, 28, 12, 0.58);
 }
@@ -169,7 +169,7 @@ window#waybar {
 #custom-codex-tokens.danger {
   color: #ffd6d6;
   background:
-    url("/home/ben/dotfiles/assets/openai.png") no-repeat 10px center / 18px 18px,
+    url("/home/ben/dotfiles/assets/openai.png") no-repeat 8px center / 15px 15px,
     linear-gradient(135deg, rgba(255, 107, 107, 0.34), rgba(255, 255, 255, 0.08)),
     rgba(46, 10, 14, 0.64);
   border-color: rgba(255, 214, 214, 0.50);
@@ -178,7 +178,7 @@ window#waybar {
 #custom-claude-tokens.danger {
   color: #ffd6d6;
   background:
-    url("/home/ben/dotfiles/assets/claude.png") no-repeat 10px center / 18px 18px,
+    url("/home/ben/dotfiles/assets/claude.png") no-repeat 8px center / 15px 15px,
     linear-gradient(135deg, rgba(255, 107, 107, 0.34), rgba(255, 255, 255, 0.08)),
     rgba(46, 10, 14, 0.64);
   border-color: rgba(255, 214, 214, 0.50);
@@ -218,15 +218,15 @@ window#waybar {
   box-shadow:
     inset 0 1px rgba(255, 255, 255, 0.32),
     inset 0 -1px rgba(0, 0, 0, 0.18);
-  font-size: 12px;
+  font-size: 10px;
   font-weight: 800;
   color: #f4f7fb;
   text-shadow:
     0 1px 1px rgba(0, 0, 0, 0.50),
     0 0 7px rgba(0, 0, 0, 0.24);
-  padding: 6px 14px;
+  padding: 4px 11px;
   margin-right: 8px;
-  border-radius: 16px;
+  border-radius: 13px;
 }
 
 #custom-notifications.active {
@@ -244,13 +244,13 @@ window#waybar {
   color: rgba(244, 247, 251, 0.58);
   background: transparent;
   font-family: "SF Mono", monospace;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 800;
-  min-width: 18px;
-  min-height: 20px;
-  padding: 0 6px;
+  min-width: 16px;
+  min-height: 17px;
+  padding: 0 5px;
   margin: 0 2px;
-  border-radius: 10px;
+  border-radius: 9px;
   border: 1px solid transparent;
   transition: color 160ms ease, background 160ms ease, border-color 160ms ease;
 }
