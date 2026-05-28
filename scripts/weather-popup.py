@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""weather-popup: liquid glass weather card for Hyprland."""
+"""weather-popup: layer-shell weather card for Hyprland.
+
+Hyprland's `layerrule = blur, namespace ^weather-popup$` paints the blur
+behind us; we draw a translucent rounded fill + content on top via cairo.
+No screen-shader, no per-frame GLSL — cheap enough for CPU rendering.
+"""
 
 import json
 import math
@@ -13,7 +18,6 @@ from datetime import datetime
 from pathlib import Path
 
 import cairo
-import glass_shader
 import gi
 
 gi.require_version("Gtk", "3.0")
@@ -29,11 +33,6 @@ POPUP_H      = 292
 POPUP_R      = 22
 TOP_MARGIN   = 12   # logical px gap below waybar
 RIGHT_MARGIN = 28   # matches waybar right margin
-
-DOTFILES_DIR   = Path.home() / "dotfiles"
-ROUNDED_SHADER = DOTFILES_DIR / "config/hypr/shaders/rounded-corners.frag"
-RUNTIME_DIR    = Path(os.environ.get("XDG_RUNTIME_DIR", f"/tmp/wpopup-{os.getuid()}"))
-SHADER_FILE    = RUNTIME_DIR / "weather-popup.frag"
 
 WTTR_URL = "https://wttr.in/?format=j1"
 
@@ -114,157 +113,6 @@ def parse_weather(data):
         return None
 
 
-# ── Hyprland / shader ─────────────────────────────────────────────────────────
-
-def hyprctl(args, *, capture=False):
-    try:
-        if capture:
-            return subprocess.check_output(["hyprctl", *args], text=True,
-                                           stderr=subprocess.DEVNULL)
-        completed = subprocess.run(
-            ["hyprctl", *args],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            check=False,
-        )
-        return completed.returncode == 0
-    except Exception:
-        return "" if capture else False
-
-
-def focused_monitor():
-    try:
-        monitors = json.loads(hyprctl(["monitors", "-j"], capture=True))
-        m = next((x for x in monitors if x.get("focused")), monitors[0])
-        reserved_top = int((m.get("reserved") or [0, 0])[1])
-        return int(m["width"]), int(m["height"]), float(m.get("scale", 2.0)), reserved_top
-    except Exception:
-        return 2560, 1600, 2.0, 0
-
-
-def current_screen_shader():
-    try:
-        opt = json.loads(hyprctl(["getoption", "decoration:screen_shader", "-j"], capture=True))
-        s = opt.get("str") if opt.get("set") else ""
-        if not s or s == str(SHADER_FILE):
-            return str(ROUNDED_SHADER)
-        return s
-    except Exception:
-        return str(ROUNDED_SHADER)
-
-
-def build_shader(sw, sh, scale, reserved_top):
-    pw = POPUP_W * scale
-    ph = POPUP_H * scale
-    cx = sw - (RIGHT_MARGIN + POPUP_W / 2) * scale
-    cy = (reserved_top + TOP_MARGIN + POPUP_H / 2) * scale
-    r  = POPUP_R * scale
-    bl = max(1.4, 1.15 * scale)
-
-    return f"""#version 300 es
-precision highp float;
-in vec2 v_texcoord;
-out vec4 fragColor;
-uniform sampler2D tex;
-
-const vec2  SCR   = vec2({sw:.1f},{sh:.1f});
-const float SCRNR = 28.0;
-const vec2  CEN   = vec2({cx:.1f},{cy:.1f});
-const vec2  SZ    = vec2({pw:.1f},{ph:.1f});
-const float RAD   = {r:.1f};
-const float BL    = {bl:.2f};
-const float DIST_D = 0.20;
-const float DIST_S = 0.13;
-const float CA     = 2.4;
-const float TINT   = 0.93;
-const float FROST  = 0.25;
-const float VEIL   = 0.13;
-const float EHL    = 0.22;
-
-float sdf(vec2 p,vec2 hs,float r){{
-    vec2 d=abs(p)-hs+vec2(r);
-    return min(max(d.x,d.y),0.0)+length(max(d,0.0))-r;
-}}
-vec3 smp(vec2 c){{return texture(tex,clamp(c/SCR,vec2(0),vec2(1))).rgb;}}
-
-void main(){{
-    vec2 pix=v_texcoord*SCR;
-    vec4 col=texture(tex,v_texcoord);
-    vec2 g=pix-CEN;
-    vec2 hs=SZ*0.5;
-    float inside=-sdf(g,hs,RAD)/max(min(SZ.x,SZ.y),1.0);
-    float mask=smoothstep(-0.005,0.008,inside);
-    if(mask>0.0){{
-        float cl=length(g);
-        vec2 n=cl>0.0001?g/cl:vec2(0);
-        float df=1.0-clamp(inside/DIST_D,0.0,1.0);
-        float dis=1.0-sqrt(max(1.0-df*df,0.0));
-        vec2 c=pix-dis*n*hs*DIST_S;
-        float rim=1.0-smoothstep(0.0,0.030,inside);
-        vec2 sh=n*rim*CA;
-        vec3 ref=vec3(smp(c-sh).r,smp(c).g,smp(c+sh).b);
-        vec3 b=ref*0.38
-            +smp(c+vec2(BL,0))*0.12+smp(c-vec2(BL,0))*0.12
-            +smp(c+vec2(0,BL))*0.12+smp(c-vec2(0,BL))*0.12
-            +smp(c+vec2(BL,BL))*0.07+smp(c-vec2(BL,BL))*0.07;
-        float tl=1.0-smoothstep(-hs.y,-hs.y*0.10,g.y);
-        float dia=1.0-smoothstep(-0.6,0.3,g.x/hs.x+g.y/hs.y);
-        float hl=clamp(rim*EHL+tl*dia*0.08,0.0,0.28);
-        float lm=dot(b,vec3(0.299,0.587,0.114));
-        vec3 fr=mix(mix(b,vec3(lm),FROST),vec3(1),VEIL);
-        vec3 gc=mix(fr,vec3(1),hl)*TINT;
-        gc=mix(gc,vec3(0.75,0.52,0.95),0.03);
-        /* Preserve bright, desaturated pixels — GTK-drawn text/icons sit
-           on top of the glass instead of being overpainted by it. */
-        float pixLum=dot(col.rgb,vec3(0.299,0.587,0.114));
-        float pixMax=max(max(col.r,col.g),col.b);
-        float pixMin=min(min(col.r,col.g),col.b);
-        float pixSat=(pixMax-pixMin)/max(pixMax,0.001);
-        float textLum=smoothstep(0.55,0.85,pixLum);
-        float textDesat=1.0-smoothstep(0.30,0.60,pixSat);
-        float textiness=textLum*textDesat;
-        col.rgb=mix(col.rgb,gc,mask*(1.0-textiness));
-    }}
-    vec2 corner=min(pix,SCR-pix);
-    if(corner.x<SCRNR&&corner.y<SCRNR){{
-        vec2 d=vec2(SCRNR)-corner;
-        float aa=smoothstep(SCRNR-1.0,SCRNR+0.5,length(d));
-        col.rgb=mix(col.rgb,vec3(0),aa);
-        col.a=mix(col.a,1.0,aa);
-    }}
-    fragColor=col;
-}}
-"""
-
-
-def write_shader():
-    sw, sh, scale, rt = focused_monitor()
-    src = build_shader(sw, sh, scale, rt)
-    try:
-        RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
-        SHADER_FILE.write_text(src)
-        return True
-    except OSError:
-        return False
-
-
-class ShaderController:
-    def __init__(self):
-        self.lease = None
-
-    def enable(self):
-        if not write_shader():
-            return False
-        self.lease = glass_shader.acquire("weather-popup", SHADER_FILE, 70)
-        return True
-
-    def restore(self):
-        if self.lease is None:
-            return
-        self.lease.release()
-        self.lease = None
-
-
 # ── Cairo helpers ─────────────────────────────────────────────────────────────
 
 def rrect(cr, x, y, w, h, r):
@@ -301,15 +149,14 @@ def sep(cr, x, y, w):
 # ── Window ────────────────────────────────────────────────────────────────────
 
 WHITE     = (1, 1, 1, 0.96)
-WHITE_DIM = (1, 1, 1, 0.65)
-WHITE_SUB = (1, 1, 1, 0.42)
+WHITE_DIM = (1, 1, 1, 0.70)
+WHITE_SUB = (1, 1, 1, 0.46)
 PAD = 20
 
 
 class WeatherWindow(Gtk.Window):
-    def __init__(self, shader):
+    def __init__(self):
         super().__init__(title="weather-popup")
-        self.shader = shader
         self.weather = None
 
         self.set_app_paintable(True)
@@ -339,7 +186,6 @@ class WeatherWindow(Gtk.Window):
         self.add_events(Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.KEY_PRESS_MASK)
         self.connect("key-press-event",    self._on_key)
         self.connect("button-press-event", self._on_click)
-        self.connect("destroy",            self._on_destroy)
 
         threading.Thread(target=self._fetch, daemon=True).start()
         self.show_all()
@@ -356,44 +202,49 @@ class WeatherWindow(Gtk.Window):
         cr.paint()
         cr.set_operator(cairo.OPERATOR_OVER)
 
-        # Subtle border — the screen shader provides the glass fill behind us.
-        cr.set_source_rgba(1, 1, 1, 0.22)
+        # Translucent rounded fill + top sheen — Hyprland's layerrule blur
+        # behind the window provides the frosted-glass background.
+        rrect(cr, 0, 0, w, h, POPUP_R)
+        cr.set_source_rgba(0.07, 0.09, 0.14, 0.42)
+        cr.fill_preserve()
+        g = cairo.LinearGradient(0, 0, 0, h)
+        g.add_color_stop_rgba(0.0, 1, 1, 1, 0.22)
+        g.add_color_stop_rgba(0.5, 1, 1, 1, 0.04)
+        g.add_color_stop_rgba(1.0, 0, 0, 0, 0.12)
+        cr.set_source(g)
+        cr.fill()
+
+        cr.set_source_rgba(1, 1, 1, 0.28)
         cr.set_line_width(1.0)
         rrect(cr, 0.5, 0.5, w - 1, h - 1, POPUP_R)
         cr.stroke()
 
         y = PAD
-
         if self.weather is None:
             text(cr, "fetching weather…", "SF Pro Text 13", WHITE_SUB, PAD, y + 24)
             return
 
         wth = self.weather
 
-        # ── Location ──────────────────────────────────────────────────────────
         text(cr, wth["location"], "SF Pro Text 12", WHITE_SUB,
              PAD, y, max_w=w - PAD * 2 - 50)
         y += 20
 
-        # ── Current: big temp + icon ──────────────────────────────────────────
         _, th = text(cr, f"{wth['temp_c']}°", "SF Pro Display 44 Bold", WHITE, PAD, y)
         text(cr, weather_symbol(wth["code"]), "Noto Color Emoji 34",
              (1, 1, 1, 1), w - PAD - 46, y + 4)
         y += max(th, 42) + 2
 
-        # Condition + feels like on one line
         feels_str = f"Feels {wth['feels_c']}°"
         text(cr, wth["desc"], "SF Pro Text 13", WHITE_DIM, PAD, y)
-        tw, _ = text(cr, feels_str, "SF Pro Text 13", WHITE_SUB,
-                     w - PAD - 80, y, max_w=80)
+        text(cr, feels_str, "SF Pro Text 13", WHITE_SUB,
+             w - PAD - 80, y, max_w=80)
         y += 20
 
-        # ── Separator ─────────────────────────────────────────────────────────
         y += 14
         sep(cr, PAD, y, w - PAD * 2)
         y += 14
 
-        # ── Details: humidity / wind / UV / precip ────────────────────────────
         details = [
             ("Humidity",  f"{wth['humidity']}%"),
             ("Wind",      wth["wind"]),
@@ -404,15 +255,13 @@ class WeatherWindow(Gtk.Window):
         for i, (label, val) in enumerate(details):
             dx = PAD + i * col_w
             text(cr, label, "SF Pro Text 11", WHITE_SUB,   dx, y,      max_w=col_w)
-            text(cr, val,   "SF Pro Text 14", WHITE,        dx, y + 16, max_w=col_w)
+            text(cr, val,   "SF Pro Text 14", WHITE,       dx, y + 16, max_w=col_w)
         y += 42
 
-        # ── Separator ─────────────────────────────────────────────────────────
         y += 12
         sep(cr, PAD, y, w - PAD * 2)
         y += 14
 
-        # ── 3-day forecast ────────────────────────────────────────────────────
         forecast = wth.get("forecast", [])[:3]
         if forecast:
             day_w = (w - PAD * 2) / 3
@@ -425,47 +274,24 @@ class WeatherWindow(Gtk.Window):
                 text(cr, f"{day['max_c']}° / {day['min_c']}°", "SF Pro Text 12",
                      WHITE_SUB, dx, y + 42, max_w=day_w)
 
-    # ── Events ────────────────────────────────────────────────────────────────
-
     def _on_key(self, _w, event):
         if event.keyval == Gdk.KEY_Escape:
-            self._quit()
+            Gtk.main_quit()
         return False
 
     def _on_click(self, *_):
-        self._quit()
-
-    def _quit(self):
-        self.shader.restore()
         Gtk.main_quit()
 
-    def _on_destroy(self, _):
-        self.shader.restore()
-
-
-# ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
-    shader = ShaderController()
-    if not shader.enable():
-        print("weather-popup: failed to enable Hyprland screen shader", file=sys.stderr)
-
     def _sig(*_):
-        def restore_and_quit():
-            shader.restore()
-            Gtk.main_quit()
-            return False
-
-        GLib.idle_add(restore_and_quit)
+        GLib.idle_add(Gtk.main_quit)
 
     signal.signal(signal.SIGTERM, _sig)
     signal.signal(signal.SIGINT,  _sig)
 
-    try:
-        WeatherWindow(shader)
-        Gtk.main()
-    finally:
-        shader.restore()
+    WeatherWindow()
+    Gtk.main()
 
 
 if __name__ == "__main__":

@@ -16,9 +16,6 @@ gi.require_version("GtkLayerShell", "0.1")
 
 from gi.repository import Gdk, GLib, Gtk, GtkLayerShell
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
-import glass_shader  # noqa: E402
-
 PID_FILE = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "notification-panel.pid"
 ASSETS = Path.home() / "dotfiles" / "assets"
 ICON_MAP = {
@@ -26,12 +23,9 @@ ICON_MAP = {
 }
 
 POPUP_W      = 380
-POPUP_H      = 600
 POPUP_R      = 24
 TOP_MARGIN   = 62
 RIGHT_MARGIN = 28
-RUNTIME_DIR  = Path(os.environ.get("XDG_RUNTIME_DIR", f"/tmp/np-{os.getuid()}"))
-SHADER_FILE  = RUNTIME_DIR / "notification-panel.frag"
 
 
 def run(*args, capture=False, timeout=2.0):
@@ -81,156 +75,18 @@ def pick_icon(app_name, app_icon):
     return None
 
 
-# ── Glass shader: provides the popup background (per UI rule). ────────────────
-
-def hyprctl(args, *, capture=False):
-    cmd = ["hyprctl", *args]
-    try:
-        if capture:
-            return subprocess.check_output(cmd, text=True, stderr=subprocess.DEVNULL)
-        completed = subprocess.run(cmd, stdout=subprocess.DEVNULL,
-                                    stderr=subprocess.DEVNULL, check=False)
-        return completed.returncode == 0
-    except Exception:
-        return "" if capture else False
-
-
-def focused_monitor():
-    try:
-        monitors = json.loads(hyprctl(["monitors", "-j"], capture=True))
-        m = next((x for x in monitors if x.get("focused")), monitors[0])
-        reserved_top = int((m.get("reserved") or [0, 0])[1])
-        return int(m["width"]), int(m["height"]), float(m.get("scale", 2.0)), reserved_top
-    except Exception:
-        return 2560, 1600, 2.0, 0
-
-
-def build_shader(sw, sh, scale, reserved_top):
-    pw = POPUP_W * scale
-    ph = POPUP_H * scale
-    cx = sw - (RIGHT_MARGIN + POPUP_W / 2) * scale
-    cy = (reserved_top + TOP_MARGIN + POPUP_H / 2) * scale
-    r  = POPUP_R * scale
-    bl = max(1.4, 1.15 * scale)
-
-    return f"""#version 300 es
-precision highp float;
-in vec2 v_texcoord;
-out vec4 fragColor;
-uniform sampler2D tex;
-
-const vec2  SCR   = vec2({sw:.1f},{sh:.1f});
-const float SCRNR = 28.0;
-const vec2  CEN   = vec2({cx:.1f},{cy:.1f});
-const vec2  SZ    = vec2({pw:.1f},{ph:.1f});
-const float RAD   = {r:.1f};
-const float BL    = {bl:.2f};
-const float DIST_D = 0.18;
-const float DIST_S = 0.10;
-const float CA     = 2.0;
-const float TINT   = 0.93;
-const float FROST  = 0.28;
-const float VEIL   = 0.16;
-const float EHL    = 0.20;
-
-float sdf(vec2 p,vec2 hs,float r){{
-    vec2 d=abs(p)-hs+vec2(r);
-    return min(max(d.x,d.y),0.0)+length(max(d,0.0))-r;
-}}
-vec3 smp(vec2 c){{return texture(tex,clamp(c/SCR,vec2(0),vec2(1))).rgb;}}
-
-void main(){{
-    vec2 pix=v_texcoord*SCR;
-    vec4 col=texture(tex,v_texcoord);
-    vec2 g=pix-CEN;
-    vec2 hs=SZ*0.5;
-    float inside=-sdf(g,hs,RAD)/max(min(SZ.x,SZ.y),1.0);
-    float mask=smoothstep(-0.005,0.008,inside);
-    if(mask>0.0){{
-        float cl=length(g);
-        vec2 n=cl>0.0001?g/cl:vec2(0);
-        float df=1.0-clamp(inside/DIST_D,0.0,1.0);
-        float dis=1.0-sqrt(max(1.0-df*df,0.0));
-        vec2 c=pix-dis*n*hs*DIST_S;
-        float rim=1.0-smoothstep(0.0,0.030,inside);
-        vec2 sh=n*rim*CA;
-        vec3 ref=vec3(smp(c-sh).r,smp(c).g,smp(c+sh).b);
-        vec3 b=ref*0.38
-            +smp(c+vec2(BL,0))*0.12+smp(c-vec2(BL,0))*0.12
-            +smp(c+vec2(0,BL))*0.12+smp(c-vec2(0,BL))*0.12
-            +smp(c+vec2(BL,BL))*0.07+smp(c-vec2(BL,BL))*0.07;
-        float tl=1.0-smoothstep(-hs.y,-hs.y*0.10,g.y);
-        float dia=1.0-smoothstep(-0.6,0.3,g.x/hs.x+g.y/hs.y);
-        float hl=clamp(rim*EHL+tl*dia*0.08,0.0,0.24);
-        float lm=dot(b,vec3(0.299,0.587,0.114));
-        vec3 fr=mix(mix(b,vec3(lm),FROST),vec3(1),VEIL);
-        vec3 gc=mix(fr,vec3(1),hl)*TINT;
-        gc=mix(gc,vec3(0.55,0.62,0.95),0.04);
-        /* Preserve GTK-drawn text/icons so the panel content sits on top of
-           the glass instead of being painted over, and pull bright pixels
-           toward pure white so text stays crisp against the glass. */
-        float pixLum=dot(col.rgb,vec3(0.299,0.587,0.114));
-        float pixMax=max(max(col.r,col.g),col.b);
-        float pixMin=min(min(col.r,col.g),col.b);
-        float pixSat=(pixMax-pixMin)/max(pixMax,0.001);
-        float textLum=smoothstep(0.50,0.80,pixLum);
-        float textDesat=1.0-smoothstep(0.30,0.60,pixSat);
-        float textiness=textLum*textDesat;
-        vec3 glassed=mix(col.rgb,gc,mask);
-        vec3 brightened=mix(col.rgb,vec3(1.0),0.45);
-        col.rgb=mix(glassed,brightened,mask*textiness);
-    }}
-    vec2 corner=min(pix,SCR-pix);
-    if(corner.x<SCRNR&&corner.y<SCRNR){{
-        vec2 d=vec2(SCRNR)-corner;
-        float aa=smoothstep(SCRNR-1.0,SCRNR+0.5,length(d));
-        col.rgb=mix(col.rgb,vec3(0),aa);
-        col.a=mix(col.a,1.0,aa);
-    }}
-    fragColor=col;
-}}
-"""
-
-
-def write_shader():
-    sw, sh, scale, rt = focused_monitor()
-    try:
-        RUNTIME_DIR.mkdir(parents=True, exist_ok=True)
-        SHADER_FILE.write_text(build_shader(sw, sh, scale, rt))
-        return True
-    except OSError:
-        return False
-
-
-class ShaderController:
-    def __init__(self):
-        self.lease = None
-
-    def enable(self):
-        if not write_shader():
-            return False
-        self.lease = glass_shader.acquire("notification-panel", SHADER_FILE, 75)
-        return True
-
-    def restore(self):
-        if self.lease is None:
-            return
-        self.lease.release()
-        self.lease = None
-
-
 CSS = b"""
 #notification-panel { background: transparent; }
 .panel {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.42);
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.06) 50%, rgba(20, 23, 30, 0.18)),
+    rgba(12, 15, 22, 0.38);
+  border: 1px solid rgba(255, 255, 255, 0.34);
   border-radius: 24px;
   padding: 16px;
   box-shadow:
-    inset 0 1px rgba(255, 255, 255, 0.50),
-    inset 0 -1px rgba(0, 0, 0, 0.22),
-    inset 1px 0 rgba(255, 255, 255, 0.16),
-    inset -1px 0 rgba(0, 0, 0, 0.16);
+    inset 0 1px rgba(255, 255, 255, 0.42),
+    inset 0 -1px rgba(0, 0, 0, 0.22);
 }
 .title { color: #f4f7fb; font-weight: 800; font-size: 15px; text-shadow: 0 1px 1px rgba(0,0,0,0.55); }
 .section { color: rgba(244, 247, 251, 0.78); font-weight: 700; font-size: 11px; text-shadow: 0 1px 1px rgba(0,0,0,0.45); margin-top: 4px; }
@@ -276,7 +132,7 @@ class NotificationPanel(Gtk.Window):
         self.set_name("notification-panel")
         self.set_decorated(False)
         self.set_resizable(False)
-        self.set_size_request(POPUP_W, POPUP_H)
+        self.set_size_request(POPUP_W, -1)
         self.set_app_paintable(True)
         screen = self.get_screen()
         if (visual := screen.get_rgba_visual()):
@@ -476,16 +332,8 @@ def main():
     except Exception:
         pass
 
-    shader = ShaderController()
-    if not shader.enable():
-        print("notification-panel: failed to enable Hyprland screen shader", file=sys.stderr)
-
     def _sig(*_):
-        def restore_and_quit():
-            shader.restore()
-            Gtk.main_quit()
-            return False
-        GLib.idle_add(restore_and_quit)
+        GLib.idle_add(Gtk.main_quit)
 
     signal.signal(signal.SIGTERM, _sig)
     signal.signal(signal.SIGINT,  _sig)
@@ -496,7 +344,6 @@ def main():
     try:
         Gtk.main()
     finally:
-        shader.restore()
         try:
             PID_FILE.unlink()
         except FileNotFoundError:

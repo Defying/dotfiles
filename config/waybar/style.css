@@ -21,15 +21,17 @@ window#waybar {
 #custom-weather,
 #tray,
 #status {
-  /* Transparent — scripts/waybar-glass.py paints the bubble background with
-     the liquid glass shader using AT-SPI bounds. The border + inset highlights
-     below outline the shape on top of the shader output. */
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.34);
+  /* Translucent fill sits on top of Hyprland's namespace blur (set on the
+     waybar layer in hyprland.conf), giving a cheap frosted-glass look without
+     a custom screen shader. */
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06)),
+    rgba(20, 23, 30, 0.30);
+  border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 16px;
   padding: 6px 14px;
   box-shadow:
-    inset 0 1px rgba(255, 255, 255, 0.42),
+    inset 0 1px rgba(255, 255, 255, 0.32),
     inset 0 -1px rgba(0, 0, 0, 0.18);
 }
 
