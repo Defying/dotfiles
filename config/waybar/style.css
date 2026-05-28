@@ -19,6 +19,7 @@ window#waybar {
 #custom-claude-tokens,
 #custom-quick-settings,
 #custom-weather,
+#custom-sysmon,
 #tray,
 #status {
   /* Translucent fill sits on top of Hyprland's namespace blur (set on the
@@ -71,6 +72,25 @@ window#waybar {
 #custom-weather {
   margin-right: 12px;
   min-width: 54px;
+}
+
+#custom-sysmon {
+  margin-right: 12px;
+  min-width: 60px;
+  color: rgba(244, 247, 251, 0.92);
+  font-family: "SF Mono", monospace;
+  font-size: 12px;
+  font-weight: 800;
+}
+#custom-sysmon.busy {
+  color: #ffe08a;
+}
+#custom-sysmon.hot {
+  color: #ffd6d6;
+  background:
+    linear-gradient(135deg, rgba(255, 107, 107, 0.24), rgba(255, 255, 255, 0.06)),
+    rgba(46, 10, 14, 0.55);
+  border-color: rgba(255, 214, 214, 0.50);
 }
 
 #tray,
