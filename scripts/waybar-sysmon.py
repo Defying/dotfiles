@@ -1,15 +1,21 @@
 #!/usr/bin/env python3
-"""Waybar CPU + memory bubble.
+"""Waybar CPU + memory + network bubble.
 
-Reads /proc/stat and /proc/meminfo, prints a one-line JSON payload for
-waybar's custom module format. CPU% is the delta since the last invocation,
-persisted in a small state file under XDG_RUNTIME_DIR — no sleep inside,
-no blocking waybar's poll loop. Cost per tick is one fopen + a few lines
-of parsing.
+Reads /proc/stat, /proc/meminfo and the active interface's byte counters,
+prints a one-line JSON payload for waybar's custom module format. CPU% and
+network rates are deltas since the last invocation, persisted in a small
+state file under XDG_RUNTIME_DIR — no sleep inside, no blocking waybar's
+poll loop. Cost per tick is a few fopen + line parses.
+
+Network rates are reported in bits/sec with auto Kbps/Mbps/Gbps units
+(1000-based, the networking convention). GPU% is intentionally absent:
+the Asahi GPU driver exposes no utilisation counter (no devfreq, no
+drm-engine fdinfo, runtime_status is "unsupported"), so there is nothing
+to read without fabricating a number.
 
 Output JSON:
-    {"text": "12 · 34", "tooltip": "cpu 12%% · mem 34%% (5.4/16 GiB)",
-     "class": "ok|busy|hot"}
+    {"text": "cpu 12%  mem 34%  ↓ 1.2Mbps ↑ 0.3Mbps",
+     "tooltip": "...", "class": "ok|busy|hot"}
 """
 
 from __future__ import annotations
@@ -17,9 +23,24 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 STATE_FILE = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "waybar-sysmon.json"
+
+
+def read_state() -> dict:
+    try:
+        return json.loads(STATE_FILE.read_text())
+    except (FileNotFoundError, json.JSONDecodeError, ValueError, OSError):
+        return {}
+
+
+def write_state(state: dict) -> None:
+    try:
+        STATE_FILE.write_text(json.dumps(state))
+    except OSError:
+        pass
 
 
 def read_cpu_totals() -> tuple[int, int]:
@@ -36,19 +57,9 @@ def read_cpu_totals() -> tuple[int, int]:
     return idle, total
 
 
-def cpu_percent() -> int:
-    cur_idle, cur_total = read_cpu_totals()
-    prev_idle, prev_total = 0, 0
-    try:
-        prev = json.loads(STATE_FILE.read_text())
-        prev_idle  = int(prev.get("idle", 0))
-        prev_total = int(prev.get("total", 0))
-    except (FileNotFoundError, json.JSONDecodeError, ValueError, OSError):
-        pass
-    STATE_FILE.write_text(json.dumps({"idle": cur_idle, "total": cur_total}))
-
-    di = cur_idle  - prev_idle
-    dt = cur_total - prev_total
+def cpu_percent(prev: dict, cur_idle: int, cur_total: int) -> int:
+    di = cur_idle - int(prev.get("idle", 0))
+    dt = cur_total - int(prev.get("total", 0))
     if dt <= 0:
         return 0
     busy = dt - di
@@ -77,6 +88,41 @@ def mem_percent_and_human() -> tuple[int, str]:
     return pct, f"{used_gi:.1f}/{total_gi:.0f} GiB"
 
 
+def default_iface() -> str | None:
+    """The interface carrying the default route (e.g. wld0)."""
+    try:
+        with open("/proc/net/route") as f:
+            next(f)
+            for line in f:
+                p = line.split()
+                if len(p) > 3 and p[1] == "00000000" and (int(p[3], 16) & 2):
+                    return p[0]
+    except (OSError, ValueError, StopIteration):
+        pass
+    return None
+
+
+def net_bytes(iface: str) -> tuple[int, int]:
+    base = f"/sys/class/net/{iface}/statistics"
+    try:
+        rx = int(Path(f"{base}/rx_bytes").read_text())
+        tx = int(Path(f"{base}/tx_bytes").read_text())
+        return rx, tx
+    except (OSError, ValueError):
+        return 0, 0
+
+
+def fmt_rate(bits_per_sec: float) -> str:
+    bps = max(0.0, bits_per_sec)
+    if bps >= 1e9:
+        return f"{bps / 1e9:.1f}Gbps"
+    if bps >= 1e6:
+        return f"{bps / 1e6:.1f}Mbps"
+    if bps >= 1e3:
+        return f"{bps / 1e3:.0f}Kbps"
+    return f"{int(bps)}bps"
+
+
 def classify(cpu: int, mem: int) -> str:
     if cpu >= 90 or mem >= 90:
         return "hot"
@@ -86,10 +132,34 @@ def classify(cpu: int, mem: int) -> str:
 
 
 def main() -> int:
-    cpu = cpu_percent()
+    prev = read_state()
+    now = time.time()
+    cur: dict = {"t": now}
+
+    cur_idle, cur_total = read_cpu_totals()
+    cur["idle"], cur["total"] = cur_idle, cur_total
+    cpu = cpu_percent(prev, cur_idle, cur_total)
+
     mem, mem_human = mem_percent_and_human()
-    text    = f"cpu {cpu}%  mem {mem}%"
-    tooltip = f"cpu {cpu}% · mem {mem}% ({mem_human})"
+
+    iface = default_iface()
+    cur["iface"] = iface or ""
+    down = up = 0.0
+    if iface:
+        rx, tx = net_bytes(iface)
+        cur["rx"], cur["tx"] = rx, tx
+        dt = now - float(prev.get("t", 0) or 0)
+        # Only trust a delta if the same interface was sampled last tick.
+        if prev.get("iface") == iface and dt > 0 and "rx" in prev:
+            down = (rx - int(prev["rx"])) * 8 / dt
+            up   = (tx - int(prev["tx"])) * 8 / dt
+
+    write_state(cur)
+
+    net_str = f"↓ {fmt_rate(down)} ↑ {fmt_rate(up)}"
+    text    = f"cpu {cpu}%  mem {mem}%  {net_str}"
+    tooltip = (f"cpu {cpu}% · mem {mem}% ({mem_human})\n"
+               f"net {iface or '—'}  ↓ {fmt_rate(down)}  ↑ {fmt_rate(up)}")
     print(json.dumps({"text": text, "tooltip": tooltip, "class": classify(cpu, mem)},
                      ensure_ascii=False))
     return 0
