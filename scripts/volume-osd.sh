@@ -12,6 +12,40 @@ src="@DEFAULT_AUDIO_SOURCE@"
 osd_timeout_ms=1400
 liquid_osd="/home/ben/dotfiles/scripts/liquid-osd.py"
 
+# macOS-style volume tick. Uses the freedesktop standard
+# audio-volume-change.oga via canberra so it stays in sync with the system
+# theme and PipeWire routing. Backgrounded so it doesn't slow the OSD.
+play_tick() {
+  if command -v canberra-gtk-play >/dev/null 2>&1; then
+    canberra-gtk-play -i audio-volume-change -d "volume-osd" >/dev/null 2>&1 &
+    disown
+  fi
+}
+
+# Smooth brightness fade: interpolate from current to target over a short
+# window so repeat-presses look like a glide instead of stair-steps.
+fade_brightness() {
+  local delta_pct="$1"  # may be negative
+  local steps="${BRIGHT_FADE_STEPS:-6}"
+  local total_ms="${BRIGHT_FADE_MS:-110}"
+  local delay
+  delay=$(awk -v t="$total_ms" -v n="$steps" 'BEGIN { printf "%.4f", (t/1000) / n }')
+
+  local cur max target
+  cur=$(brightnessctl get)
+  max=$(brightnessctl max)
+  target=$(( cur + (max * delta_pct + 50) / 100 ))
+  (( target < 1 ))   && target=1
+  (( target > max )) && target=$max
+
+  local i value
+  for ((i = 1; i <= steps; i++)); do
+    value=$(( cur + (target - cur) * i / steps ))
+    brightnessctl -q set "$value" >/dev/null 2>&1 || return
+    sleep "$delay"
+  done
+}
+
 read_pct() {
   # Returns integer percent for given node id ("@DEFAULT_AUDIO_SINK@" etc).
   local out
@@ -48,6 +82,7 @@ case "$action" in
   up)
     wpctl set-volume -l 1.0 "$sink" "${step}%+" >/dev/null 2>&1
     wpctl set-mute "$sink" 0 >/dev/null 2>&1
+    play_tick
     v=$(read_pct "$sink")
     icon="audio-volume-high"
     (( v < 34 )) && icon="audio-volume-low"
@@ -56,6 +91,7 @@ case "$action" in
     ;;
   down)
     wpctl set-volume "$sink" "${step}%-" >/dev/null 2>&1
+    play_tick
     v=$(read_pct "$sink")
     icon="audio-volume-low"
     (( v >= 34 && v < 67 )) && icon="audio-volume-medium"
@@ -86,9 +122,9 @@ case "$action" in
       exit 1
     fi
     if [[ "$action" == "bright-up" ]]; then
-      brightnessctl set "${step}%+" >/dev/null
+      fade_brightness "$step"
     else
-      brightnessctl set "${step}%-" >/dev/null
+      fade_brightness "-$step"
     fi
     cur=$(brightnessctl get)
     max=$(brightnessctl max)
