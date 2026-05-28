@@ -45,10 +45,13 @@ NOTIF_TOGGLE  = "/home/ben/dotfiles/scripts/waybar-notifications.sh"
 @dataclass
 class Touch:
     tracking_id: int = -1
-    start_x: int = 0
-    start_y: int = 0
-    cur_x: int   = 0
-    cur_y: int   = 0
+    # start_x/start_y are None until the first ABS_MT_POSITION_* after the
+    # tracking id flips positive — this avoids confusing a fresh touch with
+    # a stale slot whose cur_x was inherited from the previous finger.
+    start_x: int | None = None
+    start_y: int | None = None
+    cur_x: int | None   = None
+    cur_y: int | None   = None
     started_at: float = 0.0
 
 
@@ -171,7 +174,12 @@ class TouchTracker:
         self.gesture_locked = False  # true after a gesture fires until reset
 
     def active(self) -> list[Touch]:
-        return [t for t in self.slots.values() if t.tracking_id >= 0]
+        # A touch only counts once its start position has been captured —
+        # before the first ABS_MT_POSITION_* event we have no edge to test.
+        return [
+            t for t in self.slots.values()
+            if t.tracking_id >= 0 and t.start_x is not None and t.cur_x is not None
+        ]
 
     def reset_locks(self) -> None:
         if self.gesture_locked and not self.active():
@@ -194,18 +202,20 @@ class TouchTracker:
         if code == ec.ABS_MT_TRACKING_ID:
             if event.value < 0:
                 slot.tracking_id = -1
-            elif slot.tracking_id != event.value:
+                slot.start_x = slot.start_y = None
+                slot.cur_x = slot.cur_y = None
+            else:
                 slot.tracking_id = event.value
-                slot.start_x = slot.cur_x
-                slot.start_y = slot.cur_y
+                slot.start_x = slot.start_y = None
+                slot.cur_x = slot.cur_y = None
                 slot.started_at = time.monotonic()
         elif code == ec.ABS_MT_POSITION_X:
             slot.cur_x = event.value
-            if slot.tracking_id >= 0 and slot.start_x == 0 and slot.start_y == 0:
+            if slot.tracking_id >= 0 and slot.start_x is None:
                 slot.start_x = event.value
         elif code == ec.ABS_MT_POSITION_Y:
             slot.cur_y = event.value
-            if slot.tracking_id >= 0 and slot.start_y == 0 and slot.start_x != 0 and slot.cur_x != 0:
+            if slot.tracking_id >= 0 and slot.start_y is None:
                 slot.start_y = event.value
 
     def frame(self) -> None:

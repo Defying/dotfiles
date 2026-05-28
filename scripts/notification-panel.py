@@ -311,7 +311,16 @@ class NotificationPanel(Gtk.Window):
         self.refresh()
 
     def on_clear(self, *_):
+        # Dismiss currently visible notifications, then drain mako's history
+        # (mako has no built-in "clear history" — restore + dismiss --no-history
+        # is the documented workaround). Hard cap on iterations to avoid spin.
         run("makoctl", "dismiss", "--all")
+        for _ in range(50):
+            history = makoctl_json("history")
+            if not history:
+                break
+            run("makoctl", "restore")
+            run("makoctl", "dismiss", "--no-history")
         self.refresh()
 
     def on_restore(self, *_):
