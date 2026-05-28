@@ -12,14 +12,10 @@ src="@DEFAULT_AUDIO_SOURCE@"
 osd_timeout_ms=1400
 liquid_osd="/home/ben/dotfiles/scripts/liquid-osd.py"
 
-# macOS-style volume tick. Uses the freedesktop standard
-# audio-volume-change.oga via canberra so it stays in sync with the system
-# theme and PipeWire routing. Backgrounded so it doesn't slow the OSD.
 play_tick() {
-  if command -v canberra-gtk-play >/dev/null 2>&1; then
-    canberra-gtk-play -i audio-volume-change -d "volume-osd" >/dev/null 2>&1 &
-    disown
-  fi
+  : # disabled — the canberra freedesktop "volume-change" sample is rough.
+    # To re-enable, point this at a quiet click sample, e.g.
+    #   paplay --volume=18000 /path/to/click.ogg & disown
 }
 
 # Quick brightness step: compute the target up front, fire the small fade

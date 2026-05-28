@@ -373,9 +373,15 @@ class OsdWindow(Gtk.Window):
 
         # Flat translucent fill — Hyprland's layerrule blur (namespace
         # ^liquid-osd$) is the background; no gradient or double border.
+        # Clip to the rounded path so the layer-blur edge antialiases against
+        # the surface alpha cleanly instead of cairo's stroke half-pixel
+        # straddling the outside of the surface.
         rounded_rectangle(cr, 0, 0, width, height, RADIUS)
+        cr.clip_preserve()
         cr.set_source_rgba(0.04, 0.06, 0.10, 0.55)
-        cr.fill_preserve()
+        cr.fill()
+        # Inset border by 0.5 px so the 1 px stroke stays fully inside.
+        rounded_rectangle(cr, 0.5, 0.5, width - 1, height - 1, RADIUS - 0.5)
         cr.set_line_width(1.0)
         cr.set_source_rgba(1.0, 1.0, 1.0, 0.22)
         cr.stroke()
