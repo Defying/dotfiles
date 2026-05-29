@@ -158,6 +158,21 @@ case "$action" in
       notify "mic on" 100 "microphone-sensitivity-high" "mic-osd"
     fi
     ;;
+  kbd-up|kbd-down)
+    dev=kbd_backlight
+    if ! command -v brightnessctl >/dev/null 2>&1; then
+      exit 1
+    fi
+    if [[ "$action" == "kbd-up" ]]; then
+      brightnessctl -q -d "$dev" set "${step}%+" >/dev/null 2>&1
+    else
+      brightnessctl -q -d "$dev" set "${step}%-" >/dev/null 2>&1
+    fi
+    cur=$(brightnessctl -d "$dev" get 2>/dev/null)
+    max=$(brightnessctl -d "$dev" max 2>/dev/null)
+    pct=$(awk -v c="${cur:-0}" -v m="${max:-1}" 'BEGIN { printf "%d", (m>0 ? c*100/m : 0) + 0.5 }')
+    notify "keyboard" "$pct" "keyboard-brightness" "kbd-osd"
+    ;;
   bright-up|bright-down)
     if ! command -v brightnessctl >/dev/null 2>&1; then
       notify-send -a "volume-osd" "Brightness" "install brightnessctl"
