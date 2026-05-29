@@ -163,6 +163,7 @@ class Panel(Gtk.Window):
           background: transparent;
         }
         .panel {
+          font-family: "SF Pro Text", "Symbols Nerd Font", "Font Awesome 6 Free", sans-serif;
           background:
             linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
             rgba(12, 16, 24, 0.88);
@@ -227,7 +228,31 @@ class Panel(Gtk.Window):
           border-radius: 12px;
         }
         button.menu {
-          min-width: 68px;
+          min-width: 38px;
+          font-size: 13px;
+        }
+        button.tile {
+          min-height: 66px;
+          padding: 8px 6px;
+          border-radius: 12px;
+          background: rgba(255, 255, 255, 0.075);
+        }
+        button.tile:checked {
+          color: #071018;
+          background: #7dd3fc;
+          border-color: rgba(255, 255, 255, 0.32);
+        }
+        .tile-icon {
+          font-size: 22px;
+          font-weight: 800;
+        }
+        .tile-label {
+          font-size: 11px;
+          font-weight: 700;
+        }
+        .slider-icon {
+          min-width: 22px;
+          font-size: 16px;
         }
         switch {
           margin: 1px 0;
@@ -286,12 +311,10 @@ class Panel(Gtk.Window):
         close.connect("clicked", lambda *_: Gtk.main_quit())
         header.pack_end(close, False, False, 0)
 
-        self.add_switch(root, "Wi-Fi", wifi_enabled, set_wifi)
-        self.add_switch(root, "Bluetooth", bluetooth_enabled, set_bluetooth)
-        self.add_switch(root, "Mute", muted, set_muted)
-        self.add_scale(root, "Display", brightness_pct(), set_brightness)
-        self.add_scale(root, "Keyboard", keyboard_brightness_pct(), set_keyboard_brightness)
-        self.add_scale(root, "Volume", volume_pct(), set_volume)
+        self.add_toggle_tiles(root)
+        self.add_scale(root, "󰃠", "Display", brightness_pct(), set_brightness)
+        self.add_scale(root, "", "Keyboard", keyboard_brightness_pct(), set_keyboard_brightness)
+        self.add_scale(root, "", "Volume", volume_pct(), set_volume)
 
         self.add_codex_usage(root)
         self.add_claude_usage(root)
@@ -336,18 +359,18 @@ class Panel(Gtk.Window):
         status.get_style_context().add_class("status")
         row.pack_start(status, True, True, 0)
 
-        self.add_menu_button(row, "More", actions)
+        self.add_menu_button(row, "⋯", actions)
         return status
 
     def add_action_menus(self, parent):
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         parent.pack_start(row, False, False, 0)
-        self.add_menu_button(row, "Devices", [
+        self.add_menu_button(row, "󰓃", [
             ("Audio devices", lambda: spawn("/home/ben/dotfiles/scripts/audio-menu.sh")),
             ("Network settings", lambda: spawn("nm-connection-editor")),
             ("Sound settings", lambda: spawn("pavucontrol")),
         ])
-        self.add_menu_button(row, "System", [
+        self.add_menu_button(row, "", [
             ("Reload Waybar", self.reload_waybar),
             ("Reload Hyprland", self.reload_hyprland),
             ("Lock", lambda: run("loginctl", "lock-session")),
@@ -376,22 +399,40 @@ class Panel(Gtk.Window):
         parent.pack_end(menu, False, False, 0)
         return menu
 
-    def add_switch(self, parent, label, getter, setter):
-        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
-        row.get_style_context().add_class("control")
-        parent.pack_start(row, False, False, 0)
-        row.pack_start(Gtk.Label(label=label, xalign=0), True, True, 0)
-        switch = Gtk.Switch()
-        switch.set_active(bool(getter()))
-        switch.connect("notify::active", lambda sw, _param: setter(sw.get_active()))
-        row.pack_end(switch, False, False, 0)
+    def add_toggle_tiles(self, parent):
+        grid = Gtk.Grid(column_spacing=7, row_spacing=7, column_homogeneous=True)
+        parent.pack_start(grid, False, False, 0)
+        tiles = [
+            ("", "Wi-Fi", wifi_enabled, set_wifi),
+            ("", "Bluetooth", bluetooth_enabled, set_bluetooth),
+            ("󰝟", "Mute", muted, set_muted),
+        ]
+        for index, (icon, label, getter, setter) in enumerate(tiles):
+            button = Gtk.ToggleButton()
+            button.get_style_context().add_class("tile")
+            content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+            content.set_halign(Gtk.Align.CENTER)
+            content.set_valign(Gtk.Align.CENTER)
+            icon_label = Gtk.Label(label=icon)
+            icon_label.get_style_context().add_class("tile-icon")
+            text_label = Gtk.Label(label=label)
+            text_label.get_style_context().add_class("tile-label")
+            content.pack_start(icon_label, False, False, 0)
+            content.pack_start(text_label, False, False, 0)
+            button.add(content)
+            button.set_active(bool(getter()))
+            button.connect("toggled", lambda b, cb=setter: cb(b.get_active()))
+            grid.attach(button, index, 0, 1, 1)
 
-    def add_scale(self, parent, label, value, setter):
+    def add_scale(self, parent, icon, label, value, setter):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         box.get_style_context().add_class("control")
         parent.pack_start(box, False, False, 0)
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         box.pack_start(row, False, False, 0)
+        icon_label = Gtk.Label(label=icon)
+        icon_label.get_style_context().add_class("slider-icon")
+        row.pack_start(icon_label, False, False, 0)
         row.pack_start(Gtk.Label(label=label, xalign=0), True, True, 0)
         value_label = Gtk.Label(label=f"{int(value)}%")
         value_label.get_style_context().add_class("muted")
