@@ -158,7 +158,7 @@
   },
 
   "custom/sysmon": {
-    "exec": "/home/ben/dotfiles/scripts/waybar-sysmon.py",
+    "exec": "/home/ben/.local/bin/waybar-helper sysmon",
     "return-type": "json",
     "interval": 2,
     "format": "{}",

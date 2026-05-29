@@ -1,0 +1,18 @@
+[package]
+name = "waybar-helper"
+version = "0.1.0"
+edition = "2021"
+description = "Small fast helpers for waybar custom modules (replaces per-tick Python spawns)"
+
+[[bin]]
+name = "waybar-helper"
+path = "src/main.rs"
+
+# Tiny, fast-starting binary. No external crates — std only — so it builds
+# offline and there's nothing to audit/update.
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
+codegen-units = 1
+panic = "abort"
