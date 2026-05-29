@@ -17,7 +17,9 @@ import sys
 import threading
 from pathlib import Path
 
-SOCK = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "liquid-launcher.sock")
+from runtime_dirs import private_runtime_dir
+
+SOCK = str(private_runtime_dir("liquid-launcher") / "liquid-launcher.sock")
 
 
 def log(*a):

@@ -11,8 +11,22 @@ src="@DEFAULT_AUDIO_SOURCE@"
 
 osd_timeout_ms=1400
 liquid_osd="/home/ben/dotfiles/scripts/liquid-osd.py"
-liquid_osd_sock="${XDG_RUNTIME_DIR:-/tmp}/liquid-osd.sock"
-bright_fade_pidfile="${XDG_RUNTIME_DIR:-/tmp}/brightness-fade.pid"
+
+private_runtime_dir() {
+  if [[ -n "${XDG_RUNTIME_DIR:-}" ]]; then
+    printf '%s\n' "$XDG_RUNTIME_DIR"
+    return 0
+  fi
+  local name="${1:-hypr-runtime}"
+  local dir="${TMPDIR:-/tmp}/${name}-$(id -u)"
+  install -d -m 700 "$dir" 2>/dev/null || return 1
+  printf '%s\n' "$dir"
+}
+
+liquid_runtime_dir="$(private_runtime_dir liquid-osd || printf '%s\n' "${HOME}/.cache/liquid-osd")"
+hypr_runtime_dir="$(private_runtime_dir hypr-runtime || printf '%s\n' "${HOME}/.cache/hypr-runtime")"
+liquid_osd_sock="$liquid_runtime_dir/liquid-osd.sock"
+bright_fade_pidfile="$hypr_runtime_dir/brightness-fade.pid"
 
 tick_sound="${VOLUME_TICK_SOUND:-/usr/share/sounds/freedesktop/stereo/audio-volume-change.oga}"
 play_tick() {

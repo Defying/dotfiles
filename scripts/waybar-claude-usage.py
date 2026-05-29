@@ -24,6 +24,7 @@ OAUTH_USAGE_ENDPOINT = "https://api.anthropic.com/api/oauth/usage"
 REQUEST_TIMEOUT = 10
 CACHE_TTL_SECONDS = 300
 NOTIFY_COOLDOWN_SECONDS = 45 * 60
+RESET_PAST_GRACE_SECONDS = 120
 CACHE_PATH = (
     pathlib.Path(
         os.environ.get("XDG_CACHE_HOME", pathlib.Path.home() / ".cache")
@@ -36,6 +37,15 @@ STATE_DIR = CACHE_PATH.parent
 
 def waybar(text, tooltip, css_class="subscription"):
     print(json.dumps({"text": text, "tooltip": tooltip, "class": css_class}))
+
+
+def signal_waybar(signal):
+    if signal:
+        subprocess.run(
+            ["pkill", f"-RTMIN+{signal}", "waybar"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
 
 
 ASSET_DIR = pathlib.Path.home() / "dotfiles" / "assets"
@@ -97,6 +107,20 @@ def write_cache(usage):
         )
     except OSError:
         pass
+
+
+def update_cache_retry(cached, exc):
+    retry_after = retry_after_seconds(exc)
+    retry_at = time.time() + retry_after
+    payload = dict(cached)
+    payload["retry_at"] = retry_at
+    payload["refresh_error_text"] = describe_refresh_error(exc)
+    try:
+        CACHE_PATH.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
+        CACHE_PATH.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+    except OSError:
+        pass
+    return retry_at
 
 
 def read_oauth():
@@ -163,6 +187,31 @@ def read_usage(oauth):
         raise
 
 
+def retry_after_seconds(exc):
+    if isinstance(exc, urllib.error.HTTPError) and exc.code == 429:
+        try:
+            seconds = int(exc.headers.get("Retry-After", "300"))
+        except (TypeError, ValueError):
+            seconds = 300
+        return min(max(seconds, 60), 3600)
+    return 60
+
+
+def describe_refresh_error(exc):
+    if isinstance(exc, urllib.error.HTTPError) and exc.code == 429:
+        return "Anthropic rate-limited the refresh"
+    return f"refresh failed: {exc}"
+
+
+def compact_duration(seconds):
+    seconds = max(0, int(seconds))
+    minutes = (seconds + 59) // 60
+    hours, mins = divmod(minutes, 60)
+    if hours:
+        return f"{hours}h {mins}m"
+    return f"{mins}m"
+
+
 def iso_to_epoch(value):
     if not value:
         return None
@@ -172,6 +221,22 @@ def iso_to_epoch(value):
         )
     except ValueError:
         return None
+
+
+def compact_countdown(epoch):
+    if not epoch:
+        return ""
+    seconds = max(0, int(epoch - time.time()))
+    if seconds <= 0:
+        return ""
+    minutes = (seconds + 59) // 60
+    days, rem_minutes = divmod(minutes, 1440)
+    hours, mins = divmod(rem_minutes, 60)
+    if days:
+        return f"{days}d {hours}h"
+    if hours:
+        return f"{hours}h {mins}m"
+    return f"{mins}m"
 
 
 def fmt_reset(value):
@@ -185,6 +250,12 @@ def fmt_reset(value):
     if when.date() == now.date():
         return when.strftime("%H:%M")
     return when.strftime("%a %H:%M").lower()
+
+
+def reset_has_passed(epoch):
+    if not epoch:
+        return False
+    return int(epoch) <= int(time.time()) - RESET_PAST_GRACE_SECONDS
 
 
 def window_line(label, window):
@@ -209,7 +280,7 @@ def limit_level(primary_remaining):
     return ""
 
 
-def main():
+def main(force_refresh=False):
     oauth = read_oauth()
     subscription = oauth.get("subscriptionType") or "plan"
     if not oauth.get("accessToken"):
@@ -225,35 +296,45 @@ def main():
         )
         return 0
 
-    cached = read_cache(CACHE_TTL_SECONDS)
+    cached = None if force_refresh else read_cache(CACHE_TTL_SECONDS)
+    refresh_error_text = None
+    retry_at = None
     stale = False
     if cached:
         usage = cached["usage"]
     else:
-        try:
-            usage = read_usage(oauth)
-            write_cache(usage)
-        except Exception as exc:
-            cached = read_cache()
-            if cached:
-                usage = cached["usage"]
-                stale = True
-            else:
-                css = "rate" if isinstance(exc, urllib.error.HTTPError) and exc.code == 429 else "error"
-                text = "rate" if css == "rate" else "error"
-                waybar(
-                    text,
-                    "\n".join(
-                        [
-                            f"Could not read Claude subscription usage: {exc}",
-                            "No cached usage is available yet.",
-                            "",
-                            CLAUDE_USAGE_URL,
-                        ]
-                    ),
-                    css,
-                )
-                return 0
+        cached = read_cache()
+        if not force_refresh and cached and float(cached.get("retry_at") or 0) > time.time():
+            usage = cached["usage"]
+            stale = True
+            refresh_error_text = cached.get("refresh_error_text") or "waiting before retry"
+            retry_at = float(cached.get("retry_at") or 0)
+        else:
+            try:
+                usage = read_usage(oauth)
+                write_cache(usage)
+            except Exception as exc:
+                if cached:
+                    retry_at = update_cache_retry(cached, exc)
+                    refresh_error_text = describe_refresh_error(exc)
+                    usage = cached["usage"]
+                    stale = True
+                else:
+                    css = "rate" if isinstance(exc, urllib.error.HTTPError) and exc.code == 429 else "error"
+                    text = "rate" if css == "rate" else "error"
+                    waybar(
+                        text,
+                        "\n".join(
+                            [
+                                f"Could not read Claude subscription usage: {exc}",
+                                "No cached usage is available yet.",
+                                "",
+                                CLAUDE_USAGE_URL,
+                            ]
+                        ),
+                        css,
+                    )
+                    return 0
 
     if stale:
         cache_age = int((time.time() - float(cached.get("updated_at", 0))) / 60)
@@ -277,6 +358,8 @@ def main():
         )
         return 0
 
+    five_hour_reset_epoch = iso_to_epoch(five_hour.get("resets_at"))
+    seven_day_reset_epoch = iso_to_epoch(seven_day.get("resets_at"))
     primary_used = int(round(float(five_hour.get("utilization") or 0)))
     primary_remaining = max(0, 100 - primary_used)
     weekly_used = int(round(float(seven_day.get("utilization") or 0))) if seven_day else None
@@ -289,33 +372,74 @@ def main():
         window_line("weekly", seven_day),
     ]
     if weekly_remaining is not None:
-        tooltip_lines.append(f"bar text shows remaining current window; weekly is {weekly_remaining}% remaining")
+        tooltip_lines.append(f"weekly window: {weekly_remaining}% remaining")
     if extra:
         enabled = "enabled" if extra.get("is_enabled") else "disabled"
         tooltip_lines.append(f"extra usage: {enabled}")
         if extra.get("utilization") is not None:
             tooltip_lines.append(f"extra usage utilization: {int(round(float(extra['utilization'])))}%")
     if stale:
-        tooltip_lines.append(f"showing cached usage from {cache_age}m ago; Anthropic rate-limited the refresh")
-    tooltip_lines.extend(["", CLAUDE_USAGE_URL])
+        reason = refresh_error_text or "refresh failed"
+        if retry_at and retry_at > time.time():
+            reason = f"{reason}; retry in {compact_duration(retry_at - time.time())}"
+        tooltip_lines.append(f"showing cached usage from {cache_age}m ago; {reason}")
 
-    level = limit_level(primary_remaining)
+    display_remaining = 0 if weekly_remaining == 0 else primary_remaining
+    level = limit_level(display_remaining)
     text = f"{primary_remaining}%"
+    text_window = "5h window remaining %"
+    stale_expired_reset = False
+    if weekly_remaining == 0:
+        countdown = compact_countdown(seven_day_reset_epoch)
+        if countdown:
+            text = countdown
+            text_window = "weekly reset countdown"
+        elif stale and reset_has_passed(seven_day_reset_epoch):
+            text = f"rate {compact_duration(retry_at - time.time())}" if retry_at and retry_at > time.time() else "stale"
+            text_window = "stale weekly reset time"
+            stale_expired_reset = True
+    elif primary_remaining == 0:
+        countdown = compact_countdown(five_hour_reset_epoch)
+        if countdown:
+            text = countdown
+            text_window = "5h reset countdown"
+        elif stale and reset_has_passed(five_hour_reset_epoch):
+            text = f"rate {compact_duration(retry_at - time.time())}" if retry_at and retry_at > time.time() else "stale"
+            text_window = "stale 5h reset time"
+            stale_expired_reset = True
+    tooltip_lines.append(f"bar text shows {text_window}")
+    if stale_expired_reset:
+        tooltip_lines.append("cached reset time has passed; waiting for a fresh Claude usage response")
+    tooltip_lines.extend(["", CLAUDE_USAGE_URL])
+    if stale_expired_reset:
+        level = ""
     if level:
-        maybe_notify("Claude", level, primary_remaining, fmt_reset(five_hour.get("resets_at")), icon=ASSET_DIR / "claude.svg")
+        reset_source = seven_day if weekly_remaining == 0 else five_hour
+        maybe_notify("Claude", level, display_remaining, fmt_reset(reset_source.get("resets_at")), icon=ASSET_DIR / "claude.svg")
 
     # At 0% (a window is exhausted), arm a dormant timer to ping when it resets;
     # prefer the weekly window when it's the one exhausted. Otherwise cancel.
-    if weekly_remaining == 0:
-        ai_reset.schedule("Claude", "weekly", iso_to_epoch(seven_day.get("resets_at")), icon=ASSET_DIR / "claude.png")
+    if stale_expired_reset:
+        ai_reset.cancel("Claude")
+    elif weekly_remaining == 0:
+        ai_reset.schedule("Claude", "weekly", seven_day_reset_epoch, icon=ASSET_DIR / "claude.png")
     elif primary_remaining == 0:
-        ai_reset.schedule("Claude", "5h", iso_to_epoch(five_hour.get("resets_at")), icon=ASSET_DIR / "claude.png")
+        ai_reset.schedule("Claude", "5h", five_hour_reset_epoch, icon=ASSET_DIR / "claude.png")
     else:
         ai_reset.cancel("Claude")
 
-    waybar(text, "\n".join(tooltip_lines), css_class(primary_remaining))
+    waybar(text, "\n".join(tooltip_lines), "warn" if stale_expired_reset else css_class(display_remaining))
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    argv = sys.argv[1:]
+    signal = None
+    if "--signal" in argv:
+        try:
+            signal = int(argv[argv.index("--signal") + 1])
+        except (ValueError, IndexError):
+            signal = None
+    rc = main(force_refresh="--refresh" in argv)
+    signal_waybar(signal)
+    sys.exit(rc)

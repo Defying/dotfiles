@@ -9,8 +9,19 @@ set -u
 
 verb="${1:-toggle}"
 panel="/home/ben/dotfiles/scripts/notification-panel.py"
-runtime_dir="${XDG_RUNTIME_DIR:-/tmp}"
+private_runtime_dir() {
+  if [[ -n "${XDG_RUNTIME_DIR:-}" ]]; then
+    printf '%s\n' "$XDG_RUNTIME_DIR"
+    return 0
+  fi
+  local dir="${TMPDIR:-/tmp}/waybar-notifications-$(id -u)"
+  install -d -m 700 "$dir" 2>/dev/null || return 1
+  printf '%s\n' "$dir"
+}
+
+runtime_dir="$(private_runtime_dir || printf '%s\n' "${HOME}/.cache")"
 pid_file="$runtime_dir/notification-panel.pid"
+log_file="$runtime_dir/notification-panel.log"
 
 panel_pid() {
   # Echo a live panel PID, or nothing.
@@ -35,7 +46,7 @@ do_close() {
 do_open() {
   [[ -n "$(panel_pid)" ]] && return 0   # already open
   if [[ -x "$panel" ]]; then
-    "$panel" >/tmp/notification-panel.log 2>&1 &
+    "$panel" >"$log_file" 2>&1 &
     local pid=$!
     sleep 0.15
     if kill -0 "$pid" >/dev/null 2>&1; then

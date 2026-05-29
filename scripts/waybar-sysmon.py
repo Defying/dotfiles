@@ -26,7 +26,9 @@ import sys
 import time
 from pathlib import Path
 
-STATE_FILE = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "waybar-sysmon.json"
+from runtime_dirs import private_runtime_dir
+
+STATE_FILE = private_runtime_dir("waybar-sysmon") / "waybar-sysmon.json"
 
 
 def read_state() -> dict:

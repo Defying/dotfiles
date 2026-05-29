@@ -39,6 +39,8 @@ gi.require_version("PangoCairo", "1.0")
 
 from gi.repository import Gdk, GLib, Gtk, GtkLayerShell, Pango, PangoCairo
 
+from runtime_dirs import private_runtime_dir
+
 POPUP_W   = 160
 POPUP_H   = 160
 POPUP_R   = 28
@@ -46,7 +48,7 @@ BOTTOM_MARGIN = 96
 FADE_MS   = 700
 PAD       = 18
 
-RUNTIME = Path(os.environ.get("XDG_RUNTIME_DIR", f"/tmp/wsosd-{os.getuid()}"))
+RUNTIME = Path(os.environ["XDG_RUNTIME_DIR"]) if os.environ.get("XDG_RUNTIME_DIR") else private_runtime_dir("hypr-runtime")
 INSTANCE = os.environ.get("HYPRLAND_INSTANCE_SIGNATURE", "")
 SOCK_PATH = RUNTIME / "hypr" / INSTANCE / ".socket2.sock" if INSTANCE else None
 

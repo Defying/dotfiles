@@ -1,5 +1,3 @@
-export PATH="/opt/homebrew/bin:/opt/homebrew/opt/node/bin:$PATH"
-
 # Added by Antigravity
 export PATH="$HOME/.antigravity/antigravity/bin:$PATH"
 
@@ -76,3 +74,10 @@ RPROMPT=''
 if [[ -o interactive && -z "${TMUX:-}" ]]; then
   "$HOME/dotfiles/scripts/zsh-motd.sh" 2>/dev/null
 fi
+
+# bun completions
+[ -s "/home/ben/.bun/_bun" ] && source "/home/ben/.bun/_bun"
+
+# bun
+export BUN_INSTALL="$HOME/.bun"
+export PATH="$BUN_INSTALL/bin:$PATH"

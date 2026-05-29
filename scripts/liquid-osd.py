@@ -19,6 +19,8 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("GtkLayerShell", "0.1")
 from gi.repository import GLib, Gtk, GtkLayerShell
 
+from runtime_dirs import private_runtime_dir
+
 
 WIDTH = 320
 HEIGHT = 72
@@ -31,26 +33,7 @@ DOTFILES_DIR = Path.home() / "dotfiles"
 ROUNDED_SHADER = DOTFILES_DIR / "config/hypr/shaders/rounded-corners.frag"
 
 
-def choose_runtime_dir():
-    candidates = []
-    if os.environ.get("XDG_RUNTIME_DIR"):
-        candidates.append(Path(os.environ["XDG_RUNTIME_DIR"]))
-    candidates.append(Path("/tmp") / f"liquid-osd-{os.getuid()}")
-
-    for path in candidates:
-        try:
-            path.mkdir(mode=0o700, parents=True, exist_ok=True)
-            probe = path / ".write-test"
-            probe.write_text("")
-            probe.unlink()
-            return path
-        except OSError:
-            continue
-
-    return Path("/tmp")
-
-
-RUNTIME_DIR = choose_runtime_dir()
+RUNTIME_DIR = private_runtime_dir("liquid-osd")
 SHADER_FILE = RUNTIME_DIR / "liquid-osd.frag"
 SOCKET_FILE = RUNTIME_DIR / "liquid-osd.sock"
 PID_FILE = RUNTIME_DIR / "liquid-osd.pid"

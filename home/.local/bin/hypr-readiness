@@ -8,6 +8,16 @@ pending=0
 state_file="/var/lib/plasmalogin/.local/state/plasma-login-greeterstaterc"
 proof_marker="$HOME/.local/state/hyprland/real-login-proof"
 
+private_runtime_dir() {
+  if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
+    printf '%s\n' "$XDG_RUNTIME_DIR"
+    return 0
+  fi
+  local dir="${TMPDIR:-/tmp}/hypr-readiness-$(id -u)"
+  install -d -m 700 "$dir" 2>/dev/null || return 1
+  printf '%s\n' "$dir"
+}
+
 section() {
   printf '\n== %s ==\n' "$1"
 }
@@ -196,10 +206,12 @@ else
 fi
 
 section "Configured Hyprland"
-if /home/ben/.local/bin/hypr-validate >/tmp/hypr-readiness-validate.log 2>&1; then
+runtime_dir="$(private_runtime_dir || printf '%s\n' "${HOME}/.cache/hypr-readiness")"
+validate_log="$runtime_dir/hypr-readiness-validate.log"
+if /home/ben/.local/bin/hypr-validate >"$validate_log" 2>&1; then
   ok "hypr-validate passes"
 else
-  fail "hypr-validate failed; see /tmp/hypr-readiness-validate.log"
+  fail "hypr-validate failed; see $validate_log"
 fi
 
 section "Nested Smoke Test"

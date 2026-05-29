@@ -6,7 +6,19 @@ set -euo pipefail
 cmd="${1:-}"
 target_pct="${2:-10}"
 duration="${3:-1.4}"
-state_dir="${XDG_RUNTIME_DIR:-/tmp}/hypr-brightness-fade"
+
+private_runtime_dir() {
+  if [[ -n "${XDG_RUNTIME_DIR:-}" ]]; then
+    printf '%s\n' "$XDG_RUNTIME_DIR"
+    return 0
+  fi
+  local dir="${TMPDIR:-/tmp}/hypr-runtime-$(id -u)"
+  install -d -m 700 "$dir" 2>/dev/null || return 1
+  printf '%s\n' "$dir"
+}
+
+runtime_dir="$(private_runtime_dir || printf '%s\n' "${HOME}/.cache/hypr-runtime")"
+state_dir="$runtime_dir/hypr-brightness-fade"
 state_file="$state_dir/saved-brightness"
 
 if ! command -v brightnessctl >/dev/null 2>&1; then

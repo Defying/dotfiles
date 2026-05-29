@@ -10,13 +10,38 @@ import json, os, socket, struct, sys, threading
 
 GREETD_SOCK = os.environ.get('GREETD_SOCK', '/run/greetd.sock')
 USERNAME    = 'ben'
-START_CMD   = ['/usr/bin/start-hyprland']
-START_ENV   = [
+
+_HYPR_ENV = [
     'XDG_SESSION_TYPE=wayland',
     'XDG_CURRENT_DESKTOP=Hyprland',
     'XDG_SESSION_DESKTOP=Hyprland',
     'DESKTOP_SESSION=hyprland',
 ]
+_PLASMA_ENV = [
+    'XDG_SESSION_TYPE=wayland',
+    'XDG_CURRENT_DESKTOP=KDE',
+    'XDG_SESSION_DESKTOP=KDE',
+    'DESKTOP_SESSION=plasma',
+]
+
+# Selectable sessions (label, cmd, env). Hyprland is first = default, so normal
+# login is unchanged; the rest are escape hatches if Hyprland breaks. Entries
+# whose command is missing are filtered out at startup.
+SESSIONS = [
+    ('Hyprland',            ['/usr/bin/start-hyprland'], _HYPR_ENV),
+    ('Plasma (Wayland)',    ['/usr/libexec/plasma-dbus-run-session-if-needed',
+                             '/usr/bin/startplasma-wayland'], _PLASMA_ENV),
+    ('Hyprland (safe)',     ['/usr/local/bin/asahi-hyprland-safe'], _HYPR_ENV),
+    ('Hyprland (recovery)', ['/usr/local/bin/asahi-hyprland-recovery'], _HYPR_ENV),
+]
+
+
+def available_sessions():
+    out = []
+    for label, cmd, env in SESSIONS:
+        if os.path.exists(cmd[0]):
+            out.append((label, cmd, env))
+    return out or [SESSIONS[0]]
 
 CSS = b"""
 * {
@@ -153,10 +178,11 @@ class _GreetdSession:
             pass
 
 
-def do_auth(password):
+def do_auth(password, start_cmd, start_env):
     """Returns (True, None) on success or (False, error_str) on failure."""
-    session = _GreetdSession()
+    session = None
     try:
+        session = _GreetdSession()
         resp = session.create_session(USERNAME)
 
         while resp['type'] == 'auth_message':
@@ -167,17 +193,19 @@ def do_auth(password):
             return False, resp.get('description', 'Authentication failed')
 
         if resp['type'] == 'success':
-            resp = session.start_session(START_CMD, START_ENV)
+            resp = session.start_session(start_cmd, start_env)
             if resp['type'] == 'success':
                 return True, None
             return False, resp.get('description', 'Failed to start session')
 
         return False, f"Unexpected response: {resp.get('type')}"
     except Exception as exc:
-        session.cancel()
+        if session is not None:
+            session.cancel()
         return False, str(exc)
     finally:
-        session.close()
+        if session is not None:
+            session.close()
 
 
 class GreeterApp(Gtk.Application):
@@ -222,10 +250,19 @@ class GreeterApp(Gtk.Application):
         hint_lbl.set_name('hint-label')
         hint_lbl.set_halign(Gtk.Align.START)
 
+        self._sessions = available_sessions()
+
         self._pw_entry = Gtk.Entry()
         self._pw_entry.set_visibility(False)
         self._pw_entry.set_placeholder_text('Password')
         self._pw_entry.connect('activate', self._on_login)
+
+        self._session_combo = Gtk.ComboBoxText()
+        for label, _cmd, _env in self._sessions:
+            self._session_combo.append_text(label)
+        self._session_combo.set_active(0)
+        if len(self._sessions) <= 1:
+            self._session_combo.set_no_show_all(True)
 
         self._error_lbl = Gtk.Label(label='')
         self._error_lbl.set_name('error-label')
@@ -238,6 +275,7 @@ class GreeterApp(Gtk.Application):
         card.pack_start(username_lbl, False, False, 0)
         card.pack_start(hint_lbl, False, False, 0)
         card.pack_start(self._pw_entry, False, False, 16)
+        card.pack_start(self._session_combo, False, False, 0)
         card.pack_start(self._error_lbl, False, False, 0)
         card.pack_start(self._login_btn, False, False, 0)
 
@@ -248,12 +286,17 @@ class GreeterApp(Gtk.Application):
 
     def _on_login(self, *_):
         password = self._pw_entry.get_text()
+        self._pw_entry.set_text('')
+        active = self._session_combo.get_active()
+        if active < 0 or active >= len(self._sessions):
+            active = 0
+        _label, start_cmd, start_env = self._sessions[active]
         self._set_ui_sensitive(False)
         self._error_lbl.hide()
-        threading.Thread(target=self._auth_thread, args=(password,), daemon=True).start()
+        threading.Thread(target=self._auth_thread, args=(password, start_cmd, start_env), daemon=True).start()
 
-    def _auth_thread(self, password):
-        ok, err = do_auth(password)
+    def _auth_thread(self, password, start_cmd, start_env):
+        ok, err = do_auth(password, start_cmd, start_env)
         if ok:
             GLib.idle_add(self.quit)
         else:
@@ -268,6 +311,7 @@ class GreeterApp(Gtk.Application):
 
     def _set_ui_sensitive(self, sensitive):
         self._pw_entry.set_sensitive(sensitive)
+        self._session_combo.set_sensitive(sensitive)
         self._login_btn.set_sensitive(sensitive)
 
 

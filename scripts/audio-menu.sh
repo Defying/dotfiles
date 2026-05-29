@@ -5,7 +5,18 @@
 
 set -u
 
-LOG=/tmp/audio-menu.log
+private_runtime_dir() {
+  if [[ -n "${XDG_RUNTIME_DIR:-}" ]]; then
+    printf '%s\n' "$XDG_RUNTIME_DIR"
+    return 0
+  fi
+  local dir="${TMPDIR:-/tmp}/waybar-audio-$(id -u)"
+  install -d -m 700 "$dir" 2>/dev/null || return 1
+  printf '%s\n' "$dir"
+}
+
+runtime_dir="$(private_runtime_dir || printf '%s\n' "${HOME}/.cache")"
+LOG="$runtime_dir/audio-menu.log"
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*" >>"$LOG"; }
 log "--- audio-menu invoked ---"
 

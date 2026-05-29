@@ -121,7 +121,6 @@ window#waybar {
 
 #custom-codex-tokens {
   color: rgba(222, 244, 255, 0.96);
-  font-size: 10px;
   font-weight: 800;
   background-image: url("/home/ben/dotfiles/assets/openai.png");
   background-repeat: no-repeat;
@@ -132,7 +131,6 @@ window#waybar {
 
 #custom-claude-tokens {
   color: rgba(255, 226, 210, 0.96);
-  font-size: 10px;
   font-weight: 800;
   background-image: url("/home/ben/dotfiles/assets/claude.png");
   background-repeat: no-repeat;
@@ -238,6 +236,17 @@ window#waybar {
 
 #custom-notifications.dnd {
   color: rgba(244, 247, 251, 0.55);
+}
+
+/* Single-glyph icon buttons (bell + gear): force a true centred circle.
+   They were the only modules with asymmetric 4px/11px padding, which left the
+   glyph sitting high/left. Equal min-width/height + symmetric padding centres
+   the glyph; waybar vertically centres the box in the bar. */
+#custom-notifications,
+#custom-quick-settings {
+  min-width: 22px;
+  min-height: 22px;
+  padding: 0 6px;
 }
 
 #workspaces button {

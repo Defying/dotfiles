@@ -29,11 +29,13 @@ import sys
 import time
 from pathlib import Path
 
+from runtime_dirs import private_runtime_dir
+
 ALS = Path("/sys/bus/iio/devices/iio:device0/in_illuminance_input")
 BL = Path("/sys/class/backlight/apple-panel-bl")
 BRIGHT = BL / "brightness"
 MAXF = BL / "max_brightness"
-RUNTIME = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp"))
+RUNTIME = private_runtime_dir("hypr-runtime")
 IDLE_STATE = RUNTIME / "hypr-brightness-fade" / "saved-brightness"
 TOGGLE_OFF = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "hypr" / "auto-brightness.off"
 

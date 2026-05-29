@@ -5,8 +5,18 @@ home_dir="${HOME:-/home/ben}"
 log_dir="$home_dir/hyprland-first-login"
 ts="$(date +%Y%m%d-%H%M%S)"
 
+private_runtime_dir() {
+  if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
+    printf '%s\n' "$XDG_RUNTIME_DIR"
+    return 0
+  fi
+  local dir="${TMPDIR:-/tmp}/asahi-hyprland-$(id -u)"
+  install -d -m 700 "$dir" 2>/dev/null || return 1
+  printf '%s\n' "$dir"
+}
+
 if ! mkdir -p "$log_dir" 2>/dev/null; then
-  log_dir="/tmp"
+  log_dir="$(private_runtime_dir || printf '%s\n' "${home_dir}/.cache/asahi-hyprland")"
 fi
 
 log_file="$log_dir/recovery-session-$ts.log"

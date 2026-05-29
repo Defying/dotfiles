@@ -3,7 +3,13 @@ set -euo pipefail
 
 REPO_DIR="${REPO_DIR:-/Volumes/Carve/Projects/dotfiles}"
 BRANCH="${BRANCH:-main}"
-LOCK_DIR="${TMPDIR:-/tmp}/dotfiles-auto-sync.lock"
+if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
+  LOCK_PARENT="$XDG_RUNTIME_DIR"
+else
+  LOCK_PARENT="${TMPDIR:-/tmp}/dotfiles-auto-sync-$(id -u)"
+  install -d -m 700 "$LOCK_PARENT"
+fi
+LOCK_DIR="$LOCK_PARENT/run.lock"
 
 cd "$REPO_DIR"
 

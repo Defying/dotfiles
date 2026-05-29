@@ -26,7 +26,9 @@ STATE_DIR = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "wa
 # set AI_RESET_MINI_HOST="" to disable. Requires a one-time TCC approval on the
 # Mac the first time (allow Terminal/ssh to control Reminders). Best-effort:
 # fired fully detached with a short connect timeout, so it never blocks the
-# waybar tick and silently does nothing when the Mac is unreachable.
+# waybar tick and silently does nothing when the Mac is unreachable. The local
+# state file also records the Apple Reminder request separately from the Linux
+# timer, so repairing a missing local timer cannot create duplicate reminders.
 MINI_HOST = os.environ.get("AI_RESET_MINI_HOST", "mini")
 
 
@@ -72,12 +74,33 @@ def _set_mac_reminder(service: str, window_label: str, reset_epoch: int) -> None
     if delay <= 0:
         return
     title = f"{service} {window_label} limit reset"
-    script = (
-        'tell application "Reminders" to make new reminder at list 1 '
-        f'with properties {{name:"{title}", body:"Usage back to 100%", '
-        f'due date:((current date) + {delay})}}'
-    )
-    remote = "osascript -e " + shlex.quote(script)
+    script = r'''
+on run argv
+  set reminderName to item 1 of argv
+  set delaySeconds to (item 2 of argv) as integer
+  set resetDate to (current date) + delaySeconds
+  tell application "Reminders"
+    set reminderList to list 1
+    set alreadyExists to false
+    repeat with existingReminder in reminders of reminderList
+      try
+        if (name of existingReminder as text) is reminderName and completed of existingReminder is false then
+          set existingDueDate to due date of existingReminder
+          if existingDueDate is not missing value then
+            set deltaSeconds to existingDueDate - resetDate
+            if deltaSeconds < 0 then set deltaSeconds to -deltaSeconds
+            if deltaSeconds < 120 then set alreadyExists to true
+          end if
+        end if
+      end try
+    end repeat
+    if alreadyExists is false then
+      make new reminder at reminderList with properties {name:reminderName, body:"Usage back to 100%", due date:resetDate}
+    end if
+  end tell
+end run
+'''
+    remote = "osascript -e " + shlex.quote(script) + " -- " + shlex.quote(title) + " " + shlex.quote(str(delay))
     cmd = [
         "ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=2",
         "-o", "StrictHostKeyChecking=accept-new", MINI_HOST, remote,
@@ -98,6 +121,19 @@ def _clear(service: str) -> None:
     _run(["systemctl", "--user", "reset-failed", f"{unit}.timer", f"{unit}.service"])
 
 
+def _same_reset(prev: dict, window_label: str, reset_epoch: int) -> bool:
+    return prev.get("reset_epoch") == reset_epoch and prev.get("window") == window_label
+
+
+def _mac_reminder_already_requested(prev: dict, window_label: str, reset_epoch: int) -> bool:
+    if prev.get("mac_reminder_epoch") == reset_epoch and prev.get("mac_reminder_window") == window_label:
+        return True
+    # Old state files were written only after the Mac reminder path had been
+    # reached. Treat an existing matching state file as already requested so
+    # upgrading this helper stops floods immediately.
+    return _same_reset(prev, window_label, reset_epoch) and "mac_reminder_epoch" not in prev
+
+
 def schedule(service: str, window_label: str, reset_epoch, icon=None) -> None:
     """(Re)arm a one-shot notification at ``reset_epoch`` for ``service``.
 
@@ -110,6 +146,7 @@ def schedule(service: str, window_label: str, reset_epoch, icon=None) -> None:
         return
     delay = reset_epoch - int(time.time())
     if delay <= 0:
+        cancel(service)
         return
 
     try:
@@ -119,7 +156,9 @@ def schedule(service: str, window_label: str, reset_epoch, icon=None) -> None:
             prev = json.loads(sf.read_text(encoding="utf-8"))
         except (FileNotFoundError, json.JSONDecodeError, OSError):
             prev = {}
-        if prev.get("reset_epoch") == reset_epoch and _timer_active(service):
+        same_reset = _same_reset(prev, window_label, reset_epoch)
+        mac_reminder_requested = _mac_reminder_already_requested(prev, window_label, reset_epoch)
+        if same_reset and _timer_active(service):
             return  # already armed for this exact reset
 
         _clear(service)
@@ -140,14 +179,25 @@ def schedule(service: str, window_label: str, reset_epoch, icon=None) -> None:
             f"{window_label} window reset — usage is back to 100%",
         ])
         if _run(args) is not None:
-            sf.write_text(
-                json.dumps({"reset_epoch": reset_epoch, "window": window_label}),
-                encoding="utf-8",
-            )
-            # Companion Apple Reminder on the Mac. Same arming path, so this
-            # fires once per new reset epoch (the early-return above dedupes
-            # repeat waybar ticks) — at most one detached ssh per reset window.
-            _set_mac_reminder(service, window_label, reset_epoch)
+            state = {"reset_epoch": reset_epoch, "window": window_label}
+            if mac_reminder_requested:
+                state.update({
+                    "mac_reminder_epoch": reset_epoch,
+                    "mac_reminder_window": window_label,
+                    "mac_reminder_host": MINI_HOST,
+                })
+            else:
+                # Companion Apple Reminder on the Mac. This is intentionally
+                # deduped separately from the Linux timer because the local
+                # transient systemd timer may need repair while the reset epoch
+                # is unchanged.
+                _set_mac_reminder(service, window_label, reset_epoch)
+                state.update({
+                    "mac_reminder_epoch": reset_epoch,
+                    "mac_reminder_window": window_label,
+                    "mac_reminder_host": MINI_HOST,
+                })
+            sf.write_text(json.dumps(state), encoding="utf-8")
     except Exception:
         pass
 

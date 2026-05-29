@@ -4,8 +4,19 @@
 set -u
 
 panel="/home/ben/dotfiles/scripts/quick-settings-panel.py"
-runtime_dir="${XDG_RUNTIME_DIR:-/tmp}"
+private_runtime_dir() {
+  if [[ -n "${XDG_RUNTIME_DIR:-}" ]]; then
+    printf '%s\n' "$XDG_RUNTIME_DIR"
+    return 0
+  fi
+  local dir="${TMPDIR:-/tmp}/waybar-quick-settings-$(id -u)"
+  install -d -m 700 "$dir" 2>/dev/null || return 1
+  printf '%s\n' "$dir"
+}
+
+runtime_dir="$(private_runtime_dir || printf '%s\n' "${HOME}/.cache")"
 pid_file="$runtime_dir/quick-settings-panel.pid"
+log_file="$runtime_dir/quick-settings-panel.log"
 
 if [[ -r "$pid_file" ]]; then
   panel_pid="$(sed -n '1p' "$pid_file")"
@@ -23,7 +34,7 @@ if [[ -n "$existing_pids" ]]; then
 fi
 
 if [[ -x "$panel" ]]; then
-  "$panel" >/tmp/quick-settings-panel.log 2>&1 &
+  "$panel" >"$log_file" 2>&1 &
   panel_pid=$!
   sleep 0.15
   if kill -0 "$panel_pid" >/dev/null 2>&1; then
@@ -52,6 +63,7 @@ choice=$(
     printf 'bluetooth: %s\n' "$bt_state"
     printf 'audio devices\n'
     printf 'codex usage\n'
+    printf 'codex account\n'
     printf 'codex login\n'
     printf 'codex web\n'
     printf 'claude usage\n'
@@ -92,18 +104,11 @@ case "$choice" in
   "codex usage")
     setsid -f xdg-open "https://chatgpt.com/codex/settings/usage" >/dev/null 2>&1
     ;;
+  "codex account")
+    setsid -f /home/ben/dotfiles/scripts/ai_accounts.py codex-menu >/dev/null 2>&1
+    ;;
   "codex login")
-    if command -v ghostty >/dev/null 2>&1; then
-      setsid -f ghostty -e codex login >/dev/null 2>&1
-    elif command -v foot >/dev/null 2>&1; then
-      setsid -f foot codex login >/dev/null 2>&1
-    elif command -v kitty >/dev/null 2>&1; then
-      setsid -f kitty codex login >/dev/null 2>&1
-    elif command -v alacritty >/dev/null 2>&1; then
-      setsid -f alacritty -e codex login >/dev/null 2>&1
-    else
-      setsid -f xdg-open "https://chatgpt.com/codex" >/dev/null 2>&1
-    fi
+    setsid -f /home/ben/dotfiles/scripts/ai_accounts.py codex-login-new >/dev/null 2>&1
     ;;
   "codex web")
     setsid -f xdg-open "https://chatgpt.com/codex" >/dev/null 2>&1
@@ -139,7 +144,7 @@ case "$choice" in
     ;;
   "reload waybar")
     pkill -x waybar
-    setsid -f waybar >/tmp/waybar.log 2>&1
+    setsid -f waybar >"$runtime_dir/waybar.log" 2>&1
     ;;
   "reload hyprland")
     hyprctl reload >/dev/null && notify "Hyprland reloaded"

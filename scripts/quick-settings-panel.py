@@ -17,8 +17,11 @@ gi.require_version("GtkLayerShell", "0.1")
 
 from gi.repository import Gdk, GLib, Gtk, GtkLayerShell
 
-PID_FILE = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "quick-settings-panel.pid"
+from runtime_dirs import private_runtime_dir
+
+PID_FILE = private_runtime_dir("quick-settings-panel") / "quick-settings-panel.pid"
 CODEX_INDICATOR = "/home/ben/dotfiles/scripts/waybar-openai-tokens.py"
+CODEX_ACCOUNT = "/home/ben/dotfiles/scripts/ai_accounts.py"
 CLAUDE_INDICATOR = "/home/ben/dotfiles/scripts/waybar-claude-usage.py"
 CODEX_URL = "https://chatgpt.com/codex"
 CODEX_USAGE_URL = "https://chatgpt.com/codex/settings/usage"
@@ -306,6 +309,7 @@ class Panel(Gtk.Window):
             ("Usage", lambda: self.open_url(CODEX_USAGE_URL, "Codex usage")),
             ("Codex", lambda: self.open_url(CODEX_URL, "Codex")),
             ("Pricing", lambda: self.open_url(CODEX_PRICING_URL, "Codex pricing")),
+            ("Account", self.open_codex_account),
             ("Login", self.open_codex_login),
             ("Status", self.update_codex_status),
         ]
@@ -409,19 +413,12 @@ class Panel(Gtk.Window):
         notify(name, url)
 
     def open_codex_login(self):
-        terminals = [
-            ("ghostty", "-e", "codex", "login"),
-            ("foot", "codex", "login"),
-            ("kitty", "codex", "login"),
-            ("alacritty", "-e", "codex", "login"),
-        ]
-        for command in terminals:
-            if shutil.which(command[0]):
-                spawn(*command)
-                notify("Codex login", "Browser login flow opened from Codex CLI.")
-                return
-        spawn("xdg-open", CODEX_URL)
-        notify("Codex login", "No terminal found; opened Codex web.")
+        spawn(CODEX_ACCOUNT, "codex-login-new")
+        notify("Codex login", "New logins are saved as switchable accounts.")
+
+    def open_codex_account(self):
+        spawn(CODEX_ACCOUNT, "codex-menu")
+        notify("Codex account", "Choose or save a Codex account.")
 
     def open_claude_login(self):
         terminals = [

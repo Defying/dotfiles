@@ -39,7 +39,7 @@
   "custom/codex-tokens": {
     "exec": "/home/ben/dotfiles/scripts/waybar-openai-tokens.py",
     "return-type": "json",
-    "interval": 300,
+    "interval": 30,
     "signal": 8,
     "format": "{}",
     "on-click": "/home/ben/dotfiles/scripts/ai-usage-popup.py codex",
@@ -50,7 +50,7 @@
   "custom/claude-tokens": {
     "exec": "/home/ben/dotfiles/scripts/waybar-claude-usage.py",
     "return-type": "json",
-    "interval": 300,
+    "interval": 60,
     "signal": 9,
     "format": "{}",
     "on-click": "/home/ben/dotfiles/scripts/ai-usage-popup.py claude",

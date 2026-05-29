@@ -8,7 +8,19 @@ fi
 
 state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/hyprland"
 proof_marker="$state_dir/real-login-proof"
-log_file="${XDG_RUNTIME_DIR:-/tmp}/hypr-first-login-terminal.log"
+
+private_runtime_dir() {
+  if [ -n "${XDG_RUNTIME_DIR:-}" ]; then
+    printf '%s\n' "$XDG_RUNTIME_DIR"
+    return 0
+  fi
+  local dir="${TMPDIR:-/tmp}/hypr-first-login-$(id -u)"
+  install -d -m 700 "$dir" 2>/dev/null || return 1
+  printf '%s\n' "$dir"
+}
+
+runtime_dir="$(private_runtime_dir || printf '%s\n' "${HOME}/.cache/hypr-first-login")"
+log_file="$runtime_dir/hypr-first-login-terminal.log"
 
 if [ "$force" -eq 0 ]; then
   case "${XDG_CURRENT_DESKTOP:-}:${XDG_SESSION_DESKTOP:-}" in

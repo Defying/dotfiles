@@ -24,7 +24,9 @@ gi.require_version("Gdk", "3.0")
 gi.require_version("GtkLayerShell", "0.1")
 from gi.repository import Gdk, GLib, Gtk, GtkLayerShell  # noqa: E402
 
-RUNTIME = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp"))
+from runtime_dirs import private_runtime_dir
+
+RUNTIME = private_runtime_dir("network-popup")
 PID_FILE = RUNTIME / "network-popup.pid"
 
 

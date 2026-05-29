@@ -20,16 +20,19 @@ import socket
 import subprocess
 import sys
 import threading
+from pathlib import Path
 
 import gi
 
 gi.require_version("Gtk", "3.0")
 from gi.repository import GLib, Gtk  # noqa: E402  (GLib main loop for the timer)
 
-RUNTIME = os.environ.get("XDG_RUNTIME_DIR", "/tmp")
+from runtime_dirs import private_runtime_dir
+
+RUNTIME = Path(os.environ["XDG_RUNTIME_DIR"]) if os.environ.get("XDG_RUNTIME_DIR") else private_runtime_dir("hypr-runtime")
 HIS = os.environ.get("HYPRLAND_INSTANCE_SIGNATURE", "")
-SOCK2 = f"{RUNTIME}/hypr/{HIS}/.socket2.sock"
-CMD_SOCK = f"{RUNTIME}/hypr/{HIS}/.socket.sock"
+SOCK2 = str(RUNTIME / "hypr" / HIS / ".socket2.sock")
+CMD_SOCK = str(RUNTIME / "hypr" / HIS / ".socket.sock")
 
 POLL_MS = 100      # 10 Hz, only while fullscreen
 REVEAL_PX = 6      # cursor at/above this Y reveals the bar

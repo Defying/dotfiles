@@ -16,7 +16,9 @@ gi.require_version("GtkLayerShell", "0.1")
 
 from gi.repository import Gdk, GLib, Gtk, GtkLayerShell
 
-PID_FILE = Path(os.environ.get("XDG_RUNTIME_DIR", "/tmp")) / "notification-panel.pid"
+from runtime_dirs import private_runtime_dir
+
+PID_FILE = private_runtime_dir("notification-panel") / "notification-panel.pid"
 ASSETS = Path.home() / "dotfiles" / "assets"
 ICON_MAP = {
     "ai usage": ASSETS / "openai.png",
