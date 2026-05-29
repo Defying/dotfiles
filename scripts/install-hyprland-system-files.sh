@@ -32,6 +32,7 @@ files=(
   system/usr/share/wayland-sessions/hyprland-safe.desktop
   system/usr/share/wayland-sessions/login-manager-rollback.desktop
   system/usr/share/wayland-sessions/plasma-rollback-hyprland.desktop
+  system/etc/udev/rules.d/90-backlight-perms.rules
 )
 
 usage() {

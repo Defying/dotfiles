@@ -1,0 +1,5 @@
+# Give the local user direct (group-writable) access to the display + keyboard
+# backlight brightness, so brightness daemons can write sysfs in-process without
+# a logind round-trip or process spawns. Group: video.
+ACTION=="add", SUBSYSTEM=="backlight", RUN+="/usr/bin/chgrp video /sys%p/brightness", RUN+="/usr/bin/chmod 0664 /sys%p/brightness"
+ACTION=="add", SUBSYSTEM=="leds", KERNEL=="kbd_backlight", RUN+="/usr/bin/chgrp video /sys%p/brightness", RUN+="/usr/bin/chmod 0664 /sys%p/brightness"
