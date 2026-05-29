@@ -1,17 +1,76 @@
 #!/usr/bin/env python3
-"""liquid-launcher: liquid glass app launcher for Hyprland."""
+"""liquid-launcher: liquid glass app launcher for Hyprland.
 
-import json
+Runs as a resident daemon so opening is instant: the window (rows + icons) is
+built once and kept hidden, then shown on demand. The Hyprland keybind invokes
+this same script with no args — that path is a ~14ms stdlib-only client that
+just sends "toggle" over a Unix socket and exits *before* the heavy GTK stack
+(~90ms) is ever imported. `--daemon` (exec-once) pre-warms the resident window.
+"""
+
 import math
 import os
 import re
 import signal
-import subprocess
+import socket
 import sys
+import threading
 from pathlib import Path
 
-import cairo
-import gi
+SOCK = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "liquid-launcher.sock")
+
+
+def log(*a):
+    """Stderr log — shows up in the journal when run as a user service."""
+    print("liquid-launcher:", *a, file=sys.stderr, flush=True)
+
+
+class DaemonExists(Exception):
+    """Raised when another live daemon already owns the socket."""
+
+
+def _connect():
+    """Connect to the daemon socket, or None if nothing is listening
+    (covers both 'no socket file' and 'stale socket from a crash')."""
+    try:
+        s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        s.settimeout(0.3)
+        s.connect(SOCK)
+        return s
+    except OSError:
+        return None
+
+
+def _send(cmd):
+    """Send one command to a running daemon. True if one answered."""
+    s = _connect()
+    if s is None:
+        return False
+    try:
+        s.sendall(cmd.encode() + b"\n")
+        return True
+    except OSError:
+        return False
+    finally:
+        s.close()
+
+
+def _daemon_alive():
+    s = _connect()
+    if s is not None:
+        s.close()
+        return True
+    return False
+
+
+# Fast path: if a daemon is already up and we weren't asked to *be* the daemon,
+# toggle it and exit now — before importing cairo/gi (the expensive part).
+if __name__ == "__main__" and "--daemon" not in sys.argv:
+    if _send("toggle"):
+        sys.exit(0)
+
+import cairo  # noqa: E402
+import gi  # noqa: E402
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
@@ -20,7 +79,13 @@ gi.require_version("GtkLayerShell", "0.1")
 gi.require_version("Pango", "1.0")
 gi.require_version("PangoCairo", "1.0")
 
-from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, GtkLayerShell  # noqa: E402
+from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, GtkLayerShell  # noqa: E402
+
+APP_DIRS = [
+    Path("/usr/share/applications"),
+    Path.home() / ".local/share/applications",
+    Path("/usr/local/share/applications"),
+]
 
 LAUNCHER_W = 580
 LAUNCHER_R = 24
@@ -35,13 +100,8 @@ HEIGHT     = HEADER_H + 1 + MAX_ROWS * ROW_H + 12   # sep + rows + bottom pad
 # ── App loading ───────────────────────────────────────────────────────────────
 
 def load_apps():
-    dirs = [
-        Path("/usr/share/applications"),
-        Path.home() / ".local/share/applications",
-        Path("/usr/local/share/applications"),
-    ]
     seen, apps = set(), []
-    for d in dirs:
+    for d in APP_DIRS:
         if not d.is_dir():
             continue
         for f in sorted(d.glob("*.desktop")):
@@ -108,26 +168,6 @@ def filter_apps(apps, query):
     scored = [(s, a) for s, a in scored if s > 0]
     scored.sort(key=lambda x: (-x[0], x[1]["name"].lower()))
     return [a for _, a in scored]
-
-
-# ── Hyprland ──────────────────────────────────────────────────────────────────
-
-def hyprctl(args, *, capture=False):
-    try:
-        if capture:
-            return subprocess.check_output(["hyprctl", *args], text=True,
-                                           stderr=subprocess.DEVNULL)
-        completed = subprocess.run(
-            ["hyprctl", *args],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            check=False,
-        )
-        return completed.returncode == 0
-    except Exception:
-        return "" if capture else False
-
-
 
 
 # ── CSS ───────────────────────────────────────────────────────────────────────
@@ -279,12 +319,16 @@ class LauncherWindow(Gtk.Window):
         self.add(overlay)
 
         self.connect("key-press-event", self._on_key)
-        self.connect("destroy", self._on_destroy)
 
         self._populate()
-        self.show_all()
-        self.entry.grab_focus()
+        GLib.idle_add(self._load_next_icons)   # decode icons off the open path
         self._select_first()
+
+        # Live freshness: rebuild when apps are installed/removed (debounced),
+        # event-driven via Gio.FileMonitor — no polling.
+        self._monitors = []
+        self._rebuild_pending = 0
+        self._watch_app_dirs()
 
     # ── Drawing ───────────────────────────────────────────────────────────────
 
@@ -320,8 +364,13 @@ class LauncherWindow(Gtk.Window):
 
     def _populate(self):
         # Built ONCE at startup for every app. Filtering/sorting afterwards is
-        # pure visibility + reorder via the listbox funcs — no rebuilds.
+        # pure visibility + reorder via the listbox funcs — no rebuilds. Icon
+        # pixbuf decode (~the whole startup cost) is deferred to idle time via
+        # _icon_queue so the window paints immediately on open.
+        for child in self.listbox.get_children():
+            self.listbox.remove(child)
         self._row_for = {}
+        self._icon_queue = []
         for app in self.apps:
             row = Gtk.ListBoxRow()
             row.app = app
@@ -332,53 +381,47 @@ class LauncherWindow(Gtk.Window):
             box.set_margin_start(16)
             box.set_margin_end(16)
 
-            # Icon
-            icon_w = self._load_icon(app.get("icon", ""))
-            box.pack_start(icon_w, False, False, 0)
+            # Icon slot — empty placeholder now, decoded lazily after show.
+            img = Gtk.Image()
+            img.set_size_request(ICON_PX, ICON_PX)
+            img.set_halign(Gtk.Align.CENTER)
+            img.set_valign(Gtk.Align.CENTER)
+            box.pack_start(img, False, False, 0)
+            icon_name = app.get("icon", "")
+            if icon_name:
+                self._icon_queue.append((img, icon_name))
 
-            # Labels
-            labels = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+            # Name only, vertically centered in the row.
             name_lbl = Gtk.Label(label=app["name"])
             name_lbl.set_halign(Gtk.Align.START)
+            name_lbl.set_valign(Gtk.Align.CENTER)
             name_lbl.get_style_context().add_class("app-name")
-            labels.pack_start(name_lbl, False, False, 0)
-            generic = app.get("generic", "")
-            if generic and generic != app["name"]:
-                sub = Gtk.Label(label=generic)
-                sub.set_halign(Gtk.Align.START)
-                sub.get_style_context().add_class("app-sub")
-                labels.pack_start(sub, False, False, 0)
-            box.pack_start(labels, True, True, 0)
+            box.pack_start(name_lbl, True, True, 0)
 
             row.add(box)
             self.listbox.add(row)
 
         self.listbox.show_all()
 
-    def _load_icon(self, icon_name):
-        img = None
-        if icon_name:
+    def _load_next_icons(self):
+        # Decode a small batch per idle tick so the main loop stays responsive.
+        for _ in range(8):
+            if not self._icon_queue:
+                return False
+            img, icon_name = self._icon_queue.pop(0)
             try:
                 if os.path.isabs(icon_name) and os.path.exists(icon_name):
-                    pb = GdkPixbuf.Pixbuf.new_from_file_at_size(icon_name, ICON_PX, ICON_PX)
-                    img = Gtk.Image.new_from_pixbuf(pb)
+                    pb = GdkPixbuf.Pixbuf.new_from_file_at_size(
+                        icon_name, ICON_PX, ICON_PX)
                 else:
                     # FORCE_SIZE guarantees the themed icon comes back at exactly
                     # ICON_PX (otherwise the theme may hand back 16/24/32px).
                     pb = self._icon_theme.load_icon(
                         icon_name, ICON_PX, Gtk.IconLookupFlags.FORCE_SIZE)
-                    img = Gtk.Image.new_from_pixbuf(pb)
+                img.set_from_pixbuf(pb)
             except Exception:
-                img = None
-        if img is None:
-            img = Gtk.Image()  # empty, but still reserves the icon slot below
-        # Pin every icon to an identical centered square so the label column
-        # starts at the same x on every row, regardless of the icon's real
-        # aspect ratio (file icons keep aspect) or whether it resolved at all.
-        img.set_size_request(ICON_PX, ICON_PX)
-        img.set_halign(Gtk.Align.CENTER)
-        img.set_valign(Gtk.Align.CENTER)
-        return img
+                pass
+        return bool(self._icon_queue)
 
     def _select_first(self):
         if self.results:
@@ -423,7 +466,7 @@ class LauncherWindow(Gtk.Window):
     def _on_key(self, _widget, event):
         k = event.keyval
         if k == Gdk.KEY_Escape:
-            self._quit()
+            self.hide_launcher()
             return True
         if k in (Gdk.KEY_Down, Gdk.KEY_Tab):
             self._move(1)
@@ -444,29 +487,157 @@ class LauncherWindow(Gtk.Window):
         try:
             GLib.spawn_command_line_async(cmd)
         except Exception as e:
-            print(f"liquid-launcher: launch failed: {e}", file=sys.stderr)
-        self._quit()
+            log(f"launch failed: {e}")
+        self.hide_launcher()
+
+    # ── Show / hide (the daemon keeps the process alive between opens) ──────────
+
+    def show_launcher(self):
+        self.entry.set_text("")
+        self._on_changed(self.entry)   # reset to full list even if text was ""
+        self.show_all()
+        self.present()
+        self.entry.grab_focus()
+
+    def hide_launcher(self):
+        self.hide()
+
+    def toggle(self):
+        if self.get_visible():
+            self.hide_launcher()
+        else:
+            self.show_launcher()
+
+    # ── Live app-list refresh (Gio.FileMonitor, debounced) ──────────────────────
+
+    def _watch_app_dirs(self):
+        for d in APP_DIRS:
+            try:
+                gf = Gio.File.new_for_path(str(d))
+                mon = gf.monitor_directory(Gio.FileMonitorFlags.NONE, None)
+                mon.connect("changed", self._on_appdir_changed)
+                self._monitors.append(mon)
+            except Exception as e:
+                log(f"monitor {d} failed: {e}")
+
+    def _on_appdir_changed(self, *_):
+        # Debounce bursts of .desktop writes into a single rebuild ~1s later.
+        if self._rebuild_pending:
+            GLib.source_remove(self._rebuild_pending)
+        self._rebuild_pending = GLib.timeout_add_seconds(1, self.rebuild_apps)
+
+    def rebuild_apps(self):
+        self._rebuild_pending = 0
+        try:
+            self.apps = load_apps()
+            self._populate()
+            self._on_changed(self.entry)        # re-apply current query
+            GLib.idle_add(self._load_next_icons)
+            log(f"rebuilt app list ({len(self.apps)} apps)")
+        except Exception as e:
+            log(f"rebuild failed: {e}")
+        return False   # one-shot
+
+
+# ── Daemon ──────────────────────────────────────────────────────────────────
+
+class Daemon:
+    """Resident launcher: builds the window once, serves toggle/show/hide/
+    reload/quit over a Unix socket. Adding a verb = one entry in _HANDLERS."""
+
+    def __init__(self, initial_show):
+        self._srv = self._bind()        # claim single-instance before building
+        self.win = LauncherWindow(load_apps())
+        self._HANDLERS = {
+            "toggle": self.win.toggle,
+            "show":   self.win.show_launcher,
+            "hide":   self.win.hide_launcher,
+            "reload": self.win.rebuild_apps,
+            "ping":   lambda: None,     # liveness probe, no-op
+            "quit":   self._quit,
+        }
+        threading.Thread(target=self._serve, daemon=True).start()
+        if initial_show:
+            self.win.show_launcher()
+
+    def _bind(self):
+        srv = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        try:
+            srv.bind(SOCK)
+        except OSError:
+            # Path is taken. If a daemon answers, we're redundant; otherwise
+            # it's a stale socket from a crash — remove it and claim the path.
+            if _daemon_alive():
+                srv.close()
+                raise DaemonExists()
+            try:
+                os.unlink(SOCK)
+            except FileNotFoundError:
+                pass
+            srv.bind(SOCK)
+        srv.listen(8)
+        return srv
+
+    def _serve(self):
+        while True:
+            try:
+                conn, _ = self._srv.accept()
+            except OSError:
+                return                      # socket closed on shutdown
+            try:
+                cmd = conn.recv(64).decode("utf-8", "replace").strip()
+            except OSError:
+                cmd = ""
+            finally:
+                conn.close()
+            if cmd:
+                GLib.idle_add(self._dispatch, cmd)
+
+    def _dispatch(self, cmd):
+        handler = self._HANDLERS.get(cmd)
+        if handler:
+            try:
+                handler()
+            except Exception as e:
+                log(f"command '{cmd}' failed: {e}")
+        else:
+            log(f"unknown command: {cmd!r}")
+        return False                        # one-shot idle callback
 
     def _quit(self):
         Gtk.main_quit()
 
-    def _on_destroy(self, _widget):
-        pass
+    def cleanup(self):
+        try:
+            self._srv.close()
+        except Exception:
+            pass
+        try:
+            os.unlink(SOCK)
+        except FileNotFoundError:
+            pass
 
-
-# ── Main ──────────────────────────────────────────────────────────────────────
 
 def main():
-    apps = load_apps()
+    initial_show = "--daemon" not in sys.argv   # exec-once prewarms hidden
+    try:
+        daemon = Daemon(initial_show)
+    except DaemonExists:
+        # Lost a startup race against another daemon. If we meant to open,
+        # poke the winner so the user still gets a launcher.
+        if initial_show:
+            _send("toggle")
+        return 0
 
     def _sig(*_):
         GLib.idle_add(Gtk.main_quit)
-
     signal.signal(signal.SIGTERM, _sig)
     signal.signal(signal.SIGINT, _sig)
 
-    LauncherWindow(apps)
-    Gtk.main()
+    try:
+        Gtk.main()
+    finally:
+        daemon.cleanup()
     return 0
 
 
