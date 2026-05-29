@@ -287,14 +287,9 @@ class Panel(Gtk.Window):
             0 18px 56px rgba(2, 6, 23, 0.42);
           padding: 12px;
         }
-        .title {
-          color: #f4f7fb;
-          font-weight: 800;
-          font-size: 14px;
-        }
         .section {
           color: rgba(244, 247, 251, 0.64);
-          font-weight: 800;
+          font-weight: normal;
           font-size: 11px;
           margin-top: 2px;
         }
@@ -309,7 +304,7 @@ class Panel(Gtk.Window):
         .ai-main {
           color: #f4f7fb;
           font-size: 13px;
-          font-weight: 800;
+          font-weight: normal;
         }
         .ai-sub {
           color: rgba(244, 247, 251, 0.58);
@@ -348,6 +343,8 @@ class Panel(Gtk.Window):
           min-height: 24px;
           padding: 0;
           border-radius: 12px;
+          font-family: "Font Awesome 6 Free", "Symbols Nerd Font", sans-serif;
+          font-size: 13px;
         }
         button.menu {
           min-width: 38px;
@@ -422,16 +419,6 @@ class Panel(Gtk.Window):
         root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7)
         root.get_style_context().add_class("panel")
         self.add(root)
-
-        header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        root.pack_start(header, False, False, 0)
-        title = Gtk.Label(label="Quick Settings", xalign=0)
-        title.get_style_context().add_class("title")
-        header.pack_start(title, True, True, 0)
-        close = Gtk.Button(label="x")
-        close.get_style_context().add_class("close")
-        close.connect("clicked", lambda *_: Gtk.main_quit())
-        header.pack_end(close, False, False, 0)
 
         self.add_toggle_tiles(root)
         self.add_scale(root, "󰃠", "Display", brightness_pct(), set_brightness)
@@ -555,6 +542,13 @@ class Panel(Gtk.Window):
             button.set_active(bool(getter()))
             button.connect("toggled", lambda b, cb=setter: cb(b.get_active()))
             row.pack_start(button, False, False, 0)
+        spacer = Gtk.Box()
+        row.pack_start(spacer, True, True, 0)
+        close = Gtk.Button(label="")
+        close.get_style_context().add_class("close")
+        close.set_tooltip_text("Close")
+        close.connect("clicked", lambda *_: Gtk.main_quit())
+        row.pack_end(close, False, False, 0)
 
     def add_scale(self, parent, icon, label, value, setter):
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=7)
