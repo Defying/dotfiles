@@ -145,7 +145,7 @@ class Panel(Gtk.Window):
         self.set_name("quick-settings-panel")
         self.set_decorated(False)
         self.set_resizable(False)
-        self.set_size_request(390, -1)
+        self.set_size_request(340, -1)
 
         GtkLayerShell.init_for_window(self)
         GtkLayerShell.set_namespace(self, "quick-settings")
@@ -205,7 +205,7 @@ class Panel(Gtk.Window):
           background: rgba(255, 255, 255, 0.045);
           border: 1px solid rgba(255, 255, 255, 0.08);
           border-radius: 9px;
-          padding: 6px 8px;
+          padding: 5px 7px;
         }
         .status-row {
           padding: 6px 8px;
@@ -232,9 +232,10 @@ class Panel(Gtk.Window):
           font-size: 13px;
         }
         button.tile {
-          min-height: 66px;
-          padding: 8px 6px;
-          border-radius: 12px;
+          min-width: 42px;
+          min-height: 40px;
+          padding: 0;
+          border-radius: 13px;
           background: rgba(255, 255, 255, 0.075);
         }
         button.tile:checked {
@@ -243,16 +244,12 @@ class Panel(Gtk.Window):
           border-color: rgba(255, 255, 255, 0.32);
         }
         .tile-icon {
-          font-size: 22px;
+          font-size: 18px;
           font-weight: 800;
         }
-        .tile-label {
-          font-size: 11px;
-          font-weight: 700;
-        }
         .slider-icon {
-          min-width: 22px;
-          font-size: 16px;
+          min-width: 20px;
+          font-size: 15px;
         }
         switch {
           margin: 1px 0;
@@ -400,49 +397,42 @@ class Panel(Gtk.Window):
         return menu
 
     def add_toggle_tiles(self, parent):
-        grid = Gtk.Grid(column_spacing=7, row_spacing=7, column_homogeneous=True)
-        parent.pack_start(grid, False, False, 0)
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        parent.pack_start(row, False, False, 0)
         tiles = [
             ("", "Wi-Fi", wifi_enabled, set_wifi),
             ("", "Bluetooth", bluetooth_enabled, set_bluetooth),
             ("󰝟", "Mute", muted, set_muted),
         ]
-        for index, (icon, label, getter, setter) in enumerate(tiles):
+        for icon, label, getter, setter in tiles:
             button = Gtk.ToggleButton()
             button.get_style_context().add_class("tile")
-            content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-            content.set_halign(Gtk.Align.CENTER)
-            content.set_valign(Gtk.Align.CENTER)
             icon_label = Gtk.Label(label=icon)
             icon_label.get_style_context().add_class("tile-icon")
-            text_label = Gtk.Label(label=label)
-            text_label.get_style_context().add_class("tile-label")
-            content.pack_start(icon_label, False, False, 0)
-            content.pack_start(text_label, False, False, 0)
-            button.add(content)
+            button.add(icon_label)
+            button.set_tooltip_text(label)
             button.set_active(bool(getter()))
             button.connect("toggled", lambda b, cb=setter: cb(b.get_active()))
-            grid.attach(button, index, 0, 1, 1)
+            row.pack_start(button, False, False, 0)
 
     def add_scale(self, parent, icon, label, value, setter):
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-        box.get_style_context().add_class("control")
-        parent.pack_start(box, False, False, 0)
-        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        box.pack_start(row, False, False, 0)
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=7)
+        row.get_style_context().add_class("control")
+        row.set_tooltip_text(label)
+        parent.pack_start(row, False, False, 0)
         icon_label = Gtk.Label(label=icon)
         icon_label.get_style_context().add_class("slider-icon")
         row.pack_start(icon_label, False, False, 0)
-        row.pack_start(Gtk.Label(label=label, xalign=0), True, True, 0)
-        value_label = Gtk.Label(label=f"{int(value)}%")
-        value_label.get_style_context().add_class("muted")
-        row.pack_end(value_label, False, False, 0)
         scale = Gtk.Scale.new_with_range(Gtk.Orientation.HORIZONTAL, 0, 100, 1)
         scale.set_draw_value(False)
         scale.set_value(value)
+        scale.set_tooltip_text(label)
+        row.pack_start(scale, True, True, 0)
+        value_label = Gtk.Label(label=f"{int(value)}%")
+        value_label.get_style_context().add_class("muted")
+        row.pack_end(value_label, False, False, 0)
         scale.connect("value-changed", lambda s: value_label.set_text(f"{int(s.get_value())}%"))
         scale.connect("button-release-event", lambda s, _event: (setter(s.get_value()), False)[1])
-        box.pack_start(scale, False, False, 0)
 
     def reload_waybar(self):
         run("pkill", "-x", "waybar")
