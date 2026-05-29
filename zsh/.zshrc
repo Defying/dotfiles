@@ -68,3 +68,11 @@ add-zsh-hook precmd _doves_prompt_precmd
 PROMPT='%F{183}╭─%f %B%F{225}%n%f%b %B%F{189}%~%f%b${DOVES_PROMPT_GIT}${DOVES_PROMPT_JOBS}
 %F{183}╰─%f${DOVES_PROMPT_STATUS:+ ${DOVES_PROMPT_STATUS}} ${DOVES_PROMPT_ARROW} '
 RPROMPT=''
+
+# Login banner — interactive shells outside tmux only, so it shows once per
+# terminal window instead of in every tmux pane. Reads cached state only
+# (sysfs, the waybar usage cache, one local git call); no network or heavy
+# spawns, so it stays near-instant.
+if [[ -o interactive && -z "${TMUX:-}" ]]; then
+  "$HOME/dotfiles/scripts/zsh-motd.sh" 2>/dev/null
+fi
