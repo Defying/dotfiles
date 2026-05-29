@@ -13,11 +13,21 @@ from __future__ import annotations
 
 import json
 import os
+import shlex
 import subprocess
 import time
 from pathlib import Path
 
 STATE_DIR = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "waybar"
+
+# Optional companion: also drop an Apple Reminder on a Mac (e.g. the mac mini)
+# via osascript over SSH, so the reset shows up in Reminders / on your phone,
+# not just the local mako toast. Host is an ssh alias (see ~/.ssh/config "mini");
+# set AI_RESET_MINI_HOST="" to disable. Requires a one-time TCC approval on the
+# Mac the first time (allow Terminal/ssh to control Reminders). Best-effort:
+# fired fully detached with a short connect timeout, so it never blocks the
+# waybar tick and silently does nothing when the Mac is unreachable.
+MINI_HOST = os.environ.get("AI_RESET_MINI_HOST", "mini")
 
 
 def _unit(service: str) -> str:
@@ -46,6 +56,40 @@ def _timer_active(service: str) -> bool:
         return out == "active"
     except Exception:
         return False
+
+
+def _set_mac_reminder(service: str, window_label: str, reset_epoch: int) -> None:
+    """Fire-and-forget: create an Apple Reminder on MINI_HOST at the reset time.
+
+    Detached (start_new_session) with a 2s connect timeout, so it returns
+    immediately and never blocks the caller; if the Mac is off/asleep the
+    background ssh just dies quietly. Uses the Mac's own clock as the base for
+    the relative offset, so it's correct regardless of timezone differences.
+    """
+    if not MINI_HOST:
+        return
+    delay = reset_epoch - int(time.time())
+    if delay <= 0:
+        return
+    title = f"{service} {window_label} limit reset"
+    script = (
+        'tell application "Reminders" to make new reminder at list 1 '
+        f'with properties {{name:"{title}", body:"Usage back to 100%", '
+        f'due date:((current date) + {delay})}}'
+    )
+    remote = "osascript -e " + shlex.quote(script)
+    cmd = [
+        "ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=2",
+        "-o", "StrictHostKeyChecking=accept-new", MINI_HOST, remote,
+    ]
+    try:
+        subprocess.Popen(
+            cmd, stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            start_new_session=True,
+        )
+    except Exception:
+        pass
 
 
 def _clear(service: str) -> None:
@@ -100,6 +144,10 @@ def schedule(service: str, window_label: str, reset_epoch, icon=None) -> None:
                 json.dumps({"reset_epoch": reset_epoch, "window": window_label}),
                 encoding="utf-8",
             )
+            # Companion Apple Reminder on the Mac. Same arming path, so this
+            # fires once per new reset epoch (the early-return above dedupes
+            # repeat waybar ticks) — at most one detached ssh per reset window.
+            _set_mac_reminder(service, window_label, reset_epoch)
     except Exception:
         pass
 
