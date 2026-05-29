@@ -175,8 +175,8 @@ Recent user-facing fixes:
   refreshes in the background. Waybar Codex interval is now 30 seconds.
 - `scripts/waybar-claude-usage.py` supports exhausted-window countdown labels,
   backs off on Anthropic HTTP 429 using `Retry-After`, and no longer shows
-  `now` when cached Claude reset data is already expired. It renders a
-  `rate Xm`/stale warning instead and cancels expired reset timers.
+  `now` when cached Claude reset data is already expired. It renders a stale
+  warning, keeps retry details in the tooltip, and cancels expired reset timers.
 - `scripts/waybar-ai-refresh.sh` now force-refreshes Claude in the background
   without deleting the last usable cache first.
 - `config/waybar/style.css` no longer gives the AI modules a smaller local font
@@ -195,8 +195,8 @@ python3 -m py_compile scripts/waybar-claude-usage.py scripts/ai_reset.py
 ```
 
 Live Claude usage endpoint was returning HTTP 429 with `Retry-After` during the
-fix, so the visible module state should be a yellow `rate Xm`/stale warning
-until Anthropic allows the next usage refresh.
+fix, so the visible module state should be a yellow `stale` warning until
+Anthropic allows the next usage refresh.
 
 ## Validation Already Run Earlier
 

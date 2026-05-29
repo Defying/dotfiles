@@ -207,6 +207,8 @@ def compact_duration(seconds):
     seconds = max(0, int(seconds))
     minutes = (seconds + 59) // 60
     hours, mins = divmod(minutes, 60)
+    if hours and mins == 0:
+        return f"{hours}h"
     if hours:
         return f"{hours}h {mins}m"
     return f"{mins}m"
@@ -280,7 +282,7 @@ def limit_level(primary_remaining):
     return ""
 
 
-def main(force_refresh=False):
+def main(force_refresh=False, force_network=False):
     oauth = read_oauth()
     subscription = oauth.get("subscriptionType") or "plan"
     if not oauth.get("accessToken"):
@@ -304,7 +306,7 @@ def main(force_refresh=False):
         usage = cached["usage"]
     else:
         cached = read_cache()
-        if not force_refresh and cached and float(cached.get("retry_at") or 0) > time.time():
+        if not force_network and cached and float(cached.get("retry_at") or 0) > time.time():
             usage = cached["usage"]
             stale = True
             refresh_error_text = cached.get("refresh_error_text") or "waiting before retry"
@@ -395,7 +397,7 @@ def main(force_refresh=False):
             text = countdown
             text_window = "weekly reset countdown"
         elif stale and reset_has_passed(seven_day_reset_epoch):
-            text = f"rate {compact_duration(retry_at - time.time())}" if retry_at and retry_at > time.time() else "stale"
+            text = "stale"
             text_window = "stale weekly reset time"
             stale_expired_reset = True
     elif primary_remaining == 0:
@@ -404,7 +406,7 @@ def main(force_refresh=False):
             text = countdown
             text_window = "5h reset countdown"
         elif stale and reset_has_passed(five_hour_reset_epoch):
-            text = f"rate {compact_duration(retry_at - time.time())}" if retry_at and retry_at > time.time() else "stale"
+            text = "stale"
             text_window = "stale 5h reset time"
             stale_expired_reset = True
     tooltip_lines.append(f"bar text shows {text_window}")
@@ -440,6 +442,6 @@ if __name__ == "__main__":
             signal = int(argv[argv.index("--signal") + 1])
         except (ValueError, IndexError):
             signal = None
-    rc = main(force_refresh="--refresh" in argv)
+    rc = main(force_refresh="--refresh" in argv, force_network="--force-network" in argv)
     signal_waybar(signal)
     sys.exit(rc)
