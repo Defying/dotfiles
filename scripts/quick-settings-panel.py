@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Layer-shell quick settings panel for Waybar."""
 
+import datetime as dt
 import json
 import os
 import shutil
 import subprocess
 import sys
-import threading
+import time
 from pathlib import Path
 
 import gi
@@ -15,19 +16,24 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GtkLayerShell", "0.1")
 
-from gi.repository import Gdk, GLib, Gtk, GtkLayerShell, Pango
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, GtkLayerShell, Pango
 
 from runtime_dirs import private_runtime_dir
 
 PID_FILE = private_runtime_dir("quick-settings-panel") / "quick-settings-panel.pid"
-CODEX_INDICATOR = "/home/ben/dotfiles/scripts/waybar-openai-tokens.py"
 CODEX_ACCOUNT = "/home/ben/dotfiles/scripts/ai_accounts.py"
-CLAUDE_INDICATOR = "/home/ben/dotfiles/scripts/waybar-claude-usage.py"
 CODEX_URL = "https://chatgpt.com/codex"
 CODEX_USAGE_URL = "https://chatgpt.com/codex/settings/usage"
 CODEX_PRICING_URL = "https://chatgpt.com/codex/pricing"
 CLAUDE_URL = "https://claude.ai"
 CLAUDE_USAGE_URL = "https://claude.ai/settings/usage"
+AI_REFRESH = "/home/ben/dotfiles/scripts/waybar-ai-refresh.sh"
+CACHE = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "waybar"
+CODEX_CACHE = CACHE / "codex-usage.json"
+CLAUDE_CACHE = CACHE / "claude-usage.json"
+ASSETS = Path.home() / "dotfiles" / "assets"
+CODEX_ICON = ASSETS / "openai.svg"
+CLAUDE_ICON = ASSETS / "claude.svg"
 
 
 def run(*args, check=False, capture=False, timeout=2.5):
@@ -114,22 +120,129 @@ def set_muted(enabled):
     run("wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "1" if enabled else "0")
 
 
-def codex_status():
-    out = run(CODEX_INDICATOR, capture=True)
+def read_json(path):
     try:
-        data = json.loads(out)
+        return json.loads(path.read_text(encoding="utf-8"))
     except Exception:
-        return "codex ?", "status unavailable"
-    return data.get("text", "codex ?"), data.get("tooltip", "")
+        return {}
+
+
+def remaining_percent(value):
+    try:
+        return max(0, 100 - int(round(float(value or 0))))
+    except Exception:
+        return 0
+
+
+def compact_duration(seconds):
+    seconds = max(0, int(seconds))
+    minutes = (seconds + 59) // 60
+    hours, mins = divmod(minutes, 60)
+    if hours and mins == 0:
+        return f"{hours}h"
+    if hours:
+        return f"{hours}h {mins}m"
+    return f"{mins}m"
+
+
+def cache_age_seconds(cached):
+    try:
+        return max(0, int(time.time() - float(cached.get("updated_at") or 0)))
+    except Exception:
+        return 0
+
+
+def logo_image(path, size=20):
+    pixbuf = None
+    for candidate in (path, path.with_suffix(".png")):
+        if not candidate.exists():
+            continue
+        try:
+            pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_size(str(candidate), size, size)
+            break
+        except Exception:
+            continue
+    if pixbuf is None:
+        return None
+    image = Gtk.Image.new_from_pixbuf(pixbuf)
+    image.set_size_request(size, size)
+    image.set_margin_top(1)
+    image.set_margin_bottom(1)
+    return image
+
+
+def codex_status():
+    cached = read_json(CODEX_CACHE)
+    limits = cached.get("limits") or {}
+    primary = limits.get("primary") or {}
+    secondary = limits.get("secondary") or {}
+    account = cached.get("account") or {}
+    account_label = account.get("email") or account.get("label") or "account"
+    if cached.get("error") == "auth" and not limits:
+        return "login required", cached.get("status") or account_label, "Codex login required"
+    if not limits:
+        return "codex unknown", cached.get("status") or "no cached usage", "No cached Codex usage"
+    session = remaining_percent(primary.get("usedPercent"))
+    weekly = remaining_percent(secondary.get("usedPercent")) if secondary else None
+    main = f"{session}% session"
+    if limits.get("rateLimitReachedType"):
+        main = "blocked"
+    parts = []
+    if weekly is not None:
+        parts.append(f"{weekly}% weekly")
+    if account_label:
+        parts.append(account_label)
+    if cached.get("refresh_error"):
+        parts.append("refresh failed")
+    tooltip = "\n".join([
+        f"Codex usage ({limits.get('planType') or account.get('plan') or 'plan'})",
+        f"session: {session}%",
+        f"weekly: {weekly}%" if weekly is not None else "weekly: unavailable",
+        f"account: {account_label}",
+        f"cached {cache_age_seconds(cached)}s ago",
+    ])
+    return main, " · ".join(parts) or "usage unavailable", tooltip
 
 
 def claude_status():
-    out = run(CLAUDE_INDICATOR, capture=True)
+    cached = read_json(CLAUDE_CACHE)
+    usage = cached.get("usage") or {}
+    five_hour = usage.get("five_hour") or {}
+    seven_day = usage.get("seven_day") or {}
+    if not usage:
+        return "claude unknown", "no cached usage", "No cached Claude usage"
+    session = remaining_percent(five_hour.get("utilization"))
+    weekly = remaining_percent(seven_day.get("utilization")) if seven_day else None
+    retry_at = float(cached.get("retry_at") or 0)
+    reset_passed = False
     try:
-        data = json.loads(out)
+        reset_text = str(five_hour.get("resets_at") or "")
+        if reset_text:
+            reset_at = dt.datetime.fromisoformat(reset_text.replace("Z", "+00:00")).timestamp()
+            reset_passed = reset_at < time.time() - 120
     except Exception:
-        return "claude ?", "status unavailable"
-    return data.get("text", "claude ?"), data.get("tooltip", "")
+        pass
+    if session == 0 and reset_passed and retry_at > time.time():
+        main = "session limited"
+    elif weekly == 0:
+        main = "weekly limited"
+    else:
+        main = f"{session}% session"
+    parts = []
+    if weekly is not None:
+        parts.append(f"{weekly}% weekly")
+    if retry_at > time.time():
+        parts.append(f"retry {compact_duration(retry_at - time.time())}")
+    elif cached.get("refresh_error_text"):
+        parts.append("refresh blocked")
+    tooltip = "\n".join([
+        "Claude usage",
+        f"session: {session}%",
+        f"weekly: {weekly}%" if weekly is not None else "weekly: unavailable",
+        f"cached {int(cache_age_seconds(cached) / 60)}m ago",
+        cached.get("refresh_error_text") or "",
+    ]).strip()
+    return main, " · ".join(parts) or "usage unavailable", tooltip
 
 
 def hypr_json(*args):
@@ -193,6 +306,15 @@ class Panel(Gtk.Window):
           border-radius: 8px;
           padding: 4px 7px;
         }
+        .ai-main {
+          color: #f4f7fb;
+          font-size: 13px;
+          font-weight: 800;
+        }
+        .ai-sub {
+          color: rgba(244, 247, 251, 0.58);
+          font-size: 11px;
+        }
         label {
           color: #f4f7fb;
           font-size: 12px;
@@ -205,7 +327,7 @@ class Panel(Gtk.Window):
           background: rgba(255, 255, 255, 0.045);
           border: 1px solid rgba(255, 255, 255, 0.08);
           border-radius: 9px;
-          padding: 5px 7px;
+          padding: 7px 8px;
         }
         .status-row {
           padding: 6px 8px;
@@ -248,8 +370,8 @@ class Panel(Gtk.Window):
           font-weight: 800;
         }
         .slider-icon {
-          min-width: 20px;
-          font-size: 15px;
+          min-width: 22px;
+          font-size: 16px;
         }
         switch {
           margin: 1px 0;
@@ -266,21 +388,24 @@ class Panel(Gtk.Window):
           background: rgba(72, 187, 120, 0.52);
         }
         scale trough {
-          min-height: 6px;
-          border-radius: 9px;
+          min-height: 12px;
+          border-radius: 12px;
           background: rgba(255, 255, 255, 0.11);
           border: 1px solid rgba(255, 255, 255, 0.08);
         }
         scale highlight {
-          border-radius: 9px;
+          min-height: 12px;
+          border-radius: 12px;
           background: #7dd3fc;
         }
         scale slider {
-          min-width: 14px;
-          min-height: 14px;
-          background: #f4f7fb;
+          min-width: 0;
+          min-height: 0;
+          background: transparent;
           border: 0;
-          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.24);
+          box-shadow: none;
+          margin: 0;
+          padding: 0;
         }
         separator {
           background: rgba(255, 255, 255, 0.12);
@@ -321,43 +446,59 @@ class Panel(Gtk.Window):
 
     def add_codex_usage(self, parent):
         parent.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 0)
-        self.codex_status_label = self.add_status_row(parent, "Codex", "codex ...", [
+        self.codex_status_label = self.add_status_row(parent, "Codex", CODEX_ICON, "codex ...", [
             ("Usage", lambda: self.open_url(CODEX_USAGE_URL, "Codex usage")),
             ("Codex", lambda: self.open_url(CODEX_URL, "Codex")),
             ("Pricing", lambda: self.open_url(CODEX_PRICING_URL, "Codex pricing")),
             ("Account", self.open_codex_account),
             ("Login", self.open_codex_login),
-            ("Refresh", self.update_codex_status),
+            ("Refresh", self.refresh_codex_status),
         ])
-        self.codex_status_label.set_tooltip_text("Loading Codex subscription usage.")
+        self.set_status_tooltip(self.codex_status_label, "Loading Codex subscription usage.")
 
     def add_claude_usage(self, parent):
-        self.claude_status_label = self.add_status_row(parent, "Claude", "claude ...", [
+        self.claude_status_label = self.add_status_row(parent, "Claude", CLAUDE_ICON, "claude ...", [
             ("Usage", lambda: self.open_url(CLAUDE_USAGE_URL, "Claude usage")),
             ("Claude", lambda: self.open_url(CLAUDE_URL, "Claude")),
             ("Login", self.open_claude_login),
-            ("Refresh", self.update_claude_status),
+            ("Refresh", self.refresh_claude_status),
         ])
-        self.claude_status_label.set_tooltip_text("Loading Claude subscription usage.")
+        self.set_status_tooltip(self.claude_status_label, "Loading Claude subscription usage.")
 
-    def add_status_row(self, parent, title, initial, actions):
+    def add_status_row(self, parent, title, icon_path, initial, actions):
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         row.get_style_context().add_class("control")
         row.get_style_context().add_class("status-row")
         parent.pack_start(row, False, False, 0)
 
+        icon = logo_image(icon_path)
+        if icon:
+            row.pack_start(icon, False, False, 0)
+
+        info = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        row.pack_start(info, True, True, 0)
+
+        top = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        info.pack_start(top, False, False, 0)
+
         name = Gtk.Label(label=title, xalign=0)
         name.get_style_context().add_class("section")
-        row.pack_start(name, False, False, 0)
+        top.pack_start(name, False, False, 0)
 
         status = Gtk.Label(label=initial, xalign=1)
         status.set_line_wrap(False)
         status.set_ellipsize(Pango.EllipsizeMode.END)
-        status.get_style_context().add_class("status")
-        row.pack_start(status, True, True, 0)
+        status.get_style_context().add_class("ai-main")
+        top.pack_start(status, True, True, 0)
+
+        detail = Gtk.Label(label="loading", xalign=0)
+        detail.set_line_wrap(False)
+        detail.set_ellipsize(Pango.EllipsizeMode.END)
+        detail.get_style_context().add_class("ai-sub")
+        info.pack_start(detail, False, False, 0)
 
         self.add_menu_button(row, "⋯", actions)
-        return status
+        return status, detail
 
     def add_action_menus(self, parent):
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
@@ -428,10 +569,6 @@ class Panel(Gtk.Window):
         scale.set_value(value)
         scale.set_tooltip_text(label)
         row.pack_start(scale, True, True, 0)
-        value_label = Gtk.Label(label=f"{int(value)}%")
-        value_label.get_style_context().add_class("muted")
-        row.pack_end(value_label, False, False, 0)
-        scale.connect("value-changed", lambda s: value_label.set_text(f"{int(s.get_value())}%"))
         scale.connect("button-release-event", lambda s, _event: (setter(s.get_value()), False)[1])
 
     def reload_waybar(self):
@@ -451,29 +588,40 @@ class Panel(Gtk.Window):
         run("pkill", "-x", "waybar")
         spawn("waybar")
 
-    def update_status_async(self, label, getter, title, silent=False):
-        label.set_text(f"{title.lower()} ...")
-        label.set_tooltip_text(f"Loading {title} usage.")
+    def set_status_tooltip(self, labels, tooltip):
+        main, detail = labels
+        main.set_tooltip_text(tooltip)
+        detail.set_tooltip_text(tooltip)
 
-        def worker():
-            status, tooltip = getter()
-
-            def apply():
-                label.set_text(status)
-                label.set_tooltip_text(tooltip)
-                if not silent:
-                    notify(f"{title} usage", status)
-                return False
-
-            GLib.idle_add(apply)
-
-        threading.Thread(target=worker, daemon=True).start()
+    def update_status(self, labels, getter, title, silent=False):
+        main_label, detail_label = labels
+        status, detail, tooltip = getter()
+        main_label.set_text(status)
+        detail_label.set_text(detail)
+        self.set_status_tooltip(labels, tooltip)
+        if not silent:
+            notify(f"{title} usage", status)
 
     def update_codex_status(self, silent=False):
-        self.update_status_async(self.codex_status_label, codex_status, "Codex", silent)
+        self.update_status(self.codex_status_label, codex_status, "Codex", silent)
 
     def update_claude_status(self, silent=False):
-        self.update_status_async(self.claude_status_label, claude_status, "Claude", silent)
+        self.update_status(self.claude_status_label, claude_status, "Claude", silent)
+
+    def refresh_ai_status(self, labels, service, title, update_callback):
+        main, detail = labels
+        main.set_text("refreshing")
+        detail.set_text("cache update requested")
+        self.set_status_tooltip(labels, f"{title} usage refresh started.")
+        spawn(AI_REFRESH, service)
+        GLib.timeout_add_seconds(2, lambda: (update_callback(silent=True), False)[1])
+        GLib.timeout_add_seconds(11, lambda: (update_callback(silent=True), False)[1])
+
+    def refresh_codex_status(self):
+        self.refresh_ai_status(self.codex_status_label, "codex", "Codex", self.update_codex_status)
+
+    def refresh_claude_status(self):
+        self.refresh_ai_status(self.claude_status_label, "claude", "Claude", self.update_claude_status)
 
     def open_url(self, url, name):
         spawn("xdg-open", url)
