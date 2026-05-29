@@ -398,7 +398,7 @@ def main(force_refresh=False, force_network=False):
             text = countdown
             text_window = "weekly reset countdown"
         elif stale and reset_has_passed(seven_day_reset_epoch):
-            text = "rate" if retry_limited else "stale"
+            text = "weekly" if retry_limited else "stale"
             text_window = "stale weekly reset time"
             stale_expired_reset = True
     elif primary_remaining == 0:
@@ -407,7 +407,7 @@ def main(force_refresh=False, force_network=False):
             text = countdown
             text_window = "5h reset countdown"
         elif stale and reset_has_passed(five_hour_reset_epoch):
-            text = "rate" if retry_limited else "stale"
+            text = "session" if retry_limited else "stale"
             text_window = "stale 5h reset time"
             stale_expired_reset = True
     tooltip_lines.append(f"bar text shows {text_window}")

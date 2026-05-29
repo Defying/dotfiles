@@ -82,6 +82,18 @@ def set_brightness(value):
     run("brightnessctl", "-q", "set", f"{int(value)}%")
 
 
+def keyboard_brightness_pct():
+    out = run("brightnessctl", "-m", "-d", "kbd_backlight", capture=True)
+    try:
+        return int(out.split(",")[3].replace("%", ""))
+    except Exception:
+        return 0
+
+
+def set_keyboard_brightness(value):
+    run("brightnessctl", "-q", "-d", "kbd_backlight", "set", f"{int(value)}%")
+
+
 def volume_pct():
     out = run("wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@", capture=True)
     try:
@@ -133,7 +145,7 @@ class Panel(Gtk.Window):
         self.set_name("quick-settings-panel")
         self.set_decorated(False)
         self.set_resizable(False)
-        self.set_size_request(360, -1)
+        self.set_size_request(390, -1)
 
         GtkLayerShell.init_for_window(self)
         GtkLayerShell.set_namespace(self, "quick-settings")
@@ -152,62 +164,64 @@ class Panel(Gtk.Window):
         }
         .panel {
           background:
-            linear-gradient(145deg,
-              rgba(255, 255, 255, 0.30),
-              rgba(255, 255, 255, 0.09) 42%,
-              rgba(51, 204, 255, 0.14) 68%,
-              rgba(192, 132, 245, 0.18)),
-            rgba(10, 14, 24, 0.34);
-          border: 1px solid rgba(255, 255, 255, 0.42);
-          border-radius: 24px;
+            linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03)),
+            rgba(12, 16, 24, 0.88);
+          border: 1px solid rgba(255, 255, 255, 0.18);
+          border-radius: 16px;
           box-shadow:
-            inset 0 1px 0 rgba(255, 255, 255, 0.55),
-            inset 0 -1px 0 rgba(255, 255, 255, 0.18),
-            0 30px 90px rgba(2, 6, 23, 0.48);
-          padding: 18px;
+            inset 0 1px 0 rgba(255, 255, 255, 0.16),
+            0 18px 56px rgba(2, 6, 23, 0.42);
+          padding: 14px;
         }
         .title {
           color: #f4f7fb;
           font-weight: 800;
-          font-size: 15px;
-          text-shadow: 0 1px 1px rgba(0, 0, 0, 0.55);
+          font-size: 14px;
         }
         .section {
-          color: rgba(244, 247, 251, 0.78);
+          color: rgba(244, 247, 251, 0.64);
           font-weight: 800;
-          font-size: 12px;
-          text-shadow: 0 1px 1px rgba(0, 0, 0, 0.45);
+          font-size: 11px;
+          margin-top: 2px;
         }
         .status {
-          color: #f8df9b;
+          color: rgba(244, 247, 251, 0.88);
           font-size: 12px;
-          background: rgba(255, 255, 255, 0.07);
-          border: 1px solid rgba(255, 255, 255, 0.12);
-          border-radius: 10px;
-          padding: 7px 9px;
+          background: rgba(255, 255, 255, 0.055);
+          border: 1px solid rgba(255, 255, 255, 0.10);
+          border-radius: 8px;
+          padding: 6px 8px;
         }
         label {
           color: #f4f7fb;
-          font-size: 13px;
-          text-shadow: 0 1px 1px rgba(0, 0, 0, 0.45);
+          font-size: 12px;
         }
         .muted {
-          color: rgba(244, 247, 251, 0.70);
+          color: rgba(244, 247, 251, 0.60);
+          font-size: 11px;
+        }
+        .control {
+          background: rgba(255, 255, 255, 0.045);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 9px;
+          padding: 7px 9px;
         }
         button {
           color: #f4f7fb;
-          background:
-            linear-gradient(145deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.06)),
-            rgba(255, 255, 255, 0.05);
-          border: 1px solid rgba(255, 255, 255, 0.18);
-          border-radius: 12px;
-          padding: 8px 10px;
-          box-shadow: inset 0 1px rgba(255, 255, 255, 0.16);
+          background: rgba(255, 255, 255, 0.07);
+          border: 1px solid rgba(255, 255, 255, 0.11);
+          border-radius: 8px;
+          padding: 6px 8px;
+          font-size: 12px;
         }
         button:hover {
-          background:
-            linear-gradient(145deg, rgba(255, 255, 255, 0.24), rgba(255, 255, 255, 0.10)),
-            rgba(255, 255, 255, 0.08);
+          background: rgba(255, 255, 255, 0.12);
+        }
+        button.close {
+          min-width: 24px;
+          min-height: 24px;
+          padding: 0;
+          border-radius: 12px;
         }
         switch {
           margin: 1px 0;
@@ -217,25 +231,25 @@ class Panel(Gtk.Window):
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.24);
         }
         switch trough {
-          background: rgba(255, 255, 255, 0.14);
-          border: 1px solid rgba(255, 255, 255, 0.16);
+          background: rgba(255, 255, 255, 0.10);
+          border: 1px solid rgba(255, 255, 255, 0.10);
         }
         switch:checked trough {
-          background: rgba(126, 231, 135, 0.42);
+          background: rgba(72, 187, 120, 0.52);
         }
         scale trough {
-          min-height: 8px;
+          min-height: 6px;
           border-radius: 9px;
-          background: rgba(255, 255, 255, 0.16);
+          background: rgba(255, 255, 255, 0.11);
           border: 1px solid rgba(255, 255, 255, 0.08);
         }
         scale highlight {
           border-radius: 9px;
-          background: #c084f5;
+          background: #7dd3fc;
         }
         scale slider {
-          min-width: 16px;
-          min-height: 16px;
+          min-width: 14px;
+          min-height: 14px;
           background: #f4f7fb;
           border: 0;
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.24);
@@ -252,7 +266,7 @@ class Panel(Gtk.Window):
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
         )
 
-        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=9)
         root.get_style_context().add_class("panel")
         self.add(root)
 
@@ -262,19 +276,21 @@ class Panel(Gtk.Window):
         title.get_style_context().add_class("title")
         header.pack_start(title, True, True, 0)
         close = Gtk.Button(label="x")
+        close.get_style_context().add_class("close")
         close.connect("clicked", lambda *_: Gtk.main_quit())
         header.pack_end(close, False, False, 0)
 
         self.add_switch(root, "Wi-Fi", wifi_enabled, set_wifi)
         self.add_switch(root, "Bluetooth", bluetooth_enabled, set_bluetooth)
         self.add_switch(root, "Mute", muted, set_muted)
-        self.add_scale(root, "Brightness", brightness_pct(), set_brightness)
+        self.add_scale(root, "Display", brightness_pct(), set_brightness)
+        self.add_scale(root, "Keyboard", keyboard_brightness_pct(), set_keyboard_brightness)
         self.add_scale(root, "Volume", volume_pct(), set_volume)
 
         self.add_codex_usage(root)
         self.add_claude_usage(root)
 
-        grid = Gtk.Grid(column_spacing=8, row_spacing=8)
+        grid = Gtk.Grid(column_spacing=7, row_spacing=7, column_homogeneous=True)
         root.pack_start(grid, False, False, 0)
         buttons = [
             ("Audio", lambda: spawn("/home/ben/dotfiles/scripts/audio-menu.sh")),
@@ -303,7 +319,7 @@ class Panel(Gtk.Window):
         self.codex_status_label.get_style_context().add_class("status")
         parent.pack_start(self.codex_status_label, False, False, 0)
 
-        grid = Gtk.Grid(column_spacing=8, row_spacing=8)
+        grid = Gtk.Grid(column_spacing=7, row_spacing=7, column_homogeneous=True)
         parent.pack_start(grid, False, False, 0)
         buttons = [
             ("Usage", lambda: self.open_url(CODEX_USAGE_URL, "Codex usage")),
@@ -329,7 +345,7 @@ class Panel(Gtk.Window):
         self.claude_status_label.get_style_context().add_class("status")
         parent.pack_start(self.claude_status_label, False, False, 0)
 
-        grid = Gtk.Grid(column_spacing=8, row_spacing=8)
+        grid = Gtk.Grid(column_spacing=7, row_spacing=7, column_homogeneous=True)
         parent.pack_start(grid, False, False, 0)
         buttons = [
             ("Usage", lambda: self.open_url(CLAUDE_USAGE_URL, "Claude usage")),
@@ -344,6 +360,7 @@ class Panel(Gtk.Window):
 
     def add_switch(self, parent, label, getter, setter):
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        row.get_style_context().add_class("control")
         parent.pack_start(row, False, False, 0)
         row.pack_start(Gtk.Label(label=label, xalign=0), True, True, 0)
         switch = Gtk.Switch()
@@ -353,6 +370,7 @@ class Panel(Gtk.Window):
 
     def add_scale(self, parent, label, value, setter):
         box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        box.get_style_context().add_class("control")
         parent.pack_start(box, False, False, 0)
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         box.pack_start(row, False, False, 0)

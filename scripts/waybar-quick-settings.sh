@@ -74,11 +74,14 @@ choice=$(
     printf 'brightness 25%%\n'
     printf 'brightness 50%%\n'
     printf 'brightness 100%%\n'
+    printf 'keyboard 0%%\n'
+    printf 'keyboard 50%%\n'
+    printf 'keyboard 100%%\n'
     printf 'reload waybar\n'
     printf 'reload hyprland\n'
     printf 'lock\n'
     printf 'power\n'
-  } | fuzzel --dmenu --prompt='settings  ' --lines=14 --width=34
+  } | fuzzel --dmenu --prompt='settings  ' --lines=17 --width=34
 )
 choice="${choice%$'\n'}"
 [[ -z "$choice" ]] && exit 0
@@ -141,6 +144,10 @@ case "$choice" in
   brightness*)
     pct="${choice#brightness }"
     brightnessctl -q set "$pct" && notify "Brightness" "$pct"
+    ;;
+  keyboard*)
+    pct="${choice#keyboard }"
+    brightnessctl -q -d kbd_backlight set "$pct" && notify "Keyboard" "$pct"
     ;;
   "reload waybar")
     pkill -x waybar

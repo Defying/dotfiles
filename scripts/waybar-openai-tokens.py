@@ -155,6 +155,14 @@ def write_usage_cache(payload):
         pass
 
 
+def write_cache_raw(payload):
+    try:
+        STATE_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
+        USAGE_CACHE.write_text(json.dumps(payload), encoding="utf-8")
+    except Exception:
+        pass
+
+
 def read_usage_cache():
     try:
         return json.loads(USAGE_CACHE.read_text(encoding="utf-8"))
@@ -280,7 +288,7 @@ def limit_level(remaining, reached):
     return ""
 
 
-def emit_usage(limits, account, *, stale_age=None, notify=False):
+def emit_usage(limits, account, *, stale_age=None, refresh_error=None, notify=False):
     account = account or {}
     account_label = ai_accounts.display_label(account) if account else "active account"
     limits = limits or {}
@@ -322,6 +330,8 @@ def emit_usage(limits, account, *, stale_age=None, notify=False):
     )
     if stale_age is not None:
         tooltip_lines.append(f"cached {stale_age}s ago; refreshing in background")
+    if refresh_error:
+        tooltip_lines.append(f"last refresh failed: {refresh_error}")
     if reached:
         tooltip_lines.append(f"limit state: {reached}")
     tooltip_lines.extend(["", CODEX_USAGE_URL])
@@ -371,9 +381,17 @@ def emit_cached_or_placeholder():
             "auth",
         )
         return 0
+    if error and cache.get("limits"):
+        emit_usage(
+            cache.get("limits") or {},
+            cache.get("account") or {},
+            stale_age=age,
+            refresh_error=error,
+        )
+        return 0
     if error:
         waybar(
-            "?",
+            "err",
             "\n".join([
                 cache.get("status") or "Codex status unavailable",
                 "",
@@ -385,7 +403,12 @@ def emit_cached_or_placeholder():
         )
         return 0
 
-    emit_usage(cache.get("limits") or {}, cache.get("account") or {}, stale_age=age if age >= CACHE_MAX_AGE_SECONDS else None)
+    emit_usage(
+        cache.get("limits") or {},
+        cache.get("account") or {},
+        stale_age=age if age >= CACHE_MAX_AGE_SECONDS else None,
+        refresh_error=cache.get("refresh_error"),
+    )
     return 0
 
 
@@ -416,8 +439,24 @@ def refresh_usage():
     try:
         data = read_rate_limits()
     except Exception as exc:
+        previous = read_usage_cache()
+        if previous.get("limits"):
+            previous.pop("error", None)
+            previous["refresh_error"] = str(exc)
+            previous["last_refresh_attempt_at"] = time.time()
+            previous["status"] = status
+            if account:
+                previous["account"] = account
+            write_cache_raw(previous)
+            emit_usage(
+                previous.get("limits") or {},
+                previous.get("account") or {},
+                stale_age=cache_age_seconds(previous),
+                refresh_error=str(exc),
+            )
+            return 0
         waybar(
-            "?",
+            "err",
             "\n".join(
                 [
                     status,
