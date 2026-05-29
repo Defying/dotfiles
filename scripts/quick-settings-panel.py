@@ -15,7 +15,7 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 gi.require_version("GtkLayerShell", "0.1")
 
-from gi.repository import Gdk, GLib, Gtk, GtkLayerShell
+from gi.repository import Gdk, GLib, Gtk, GtkLayerShell, Pango
 
 from runtime_dirs import private_runtime_dir
 
@@ -171,7 +171,7 @@ class Panel(Gtk.Window):
           box-shadow:
             inset 0 1px 0 rgba(255, 255, 255, 0.16),
             0 18px 56px rgba(2, 6, 23, 0.42);
-          padding: 14px;
+          padding: 12px;
         }
         .title {
           color: #f4f7fb;
@@ -190,7 +190,7 @@ class Panel(Gtk.Window):
           background: rgba(255, 255, 255, 0.055);
           border: 1px solid rgba(255, 255, 255, 0.10);
           border-radius: 8px;
-          padding: 6px 8px;
+          padding: 4px 7px;
         }
         label {
           color: #f4f7fb;
@@ -204,7 +204,10 @@ class Panel(Gtk.Window):
           background: rgba(255, 255, 255, 0.045);
           border: 1px solid rgba(255, 255, 255, 0.08);
           border-radius: 9px;
-          padding: 7px 9px;
+          padding: 6px 8px;
+        }
+        .status-row {
+          padding: 6px 8px;
         }
         button {
           color: #f4f7fb;
@@ -222,6 +225,9 @@ class Panel(Gtk.Window):
           min-height: 24px;
           padding: 0;
           border-radius: 12px;
+        }
+        button.menu {
+          min-width: 68px;
         }
         switch {
           margin: 1px 0;
@@ -266,7 +272,7 @@ class Panel(Gtk.Window):
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION,
         )
 
-        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=9)
+        root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=7)
         root.get_style_context().add_class("panel")
         self.add(root)
 
@@ -289,74 +295,86 @@ class Panel(Gtk.Window):
 
         self.add_codex_usage(root)
         self.add_claude_usage(root)
-
-        grid = Gtk.Grid(column_spacing=7, row_spacing=7, column_homogeneous=True)
-        root.pack_start(grid, False, False, 0)
-        buttons = [
-            ("Audio", lambda: spawn("/home/ben/dotfiles/scripts/audio-menu.sh")),
-            ("Network", lambda: spawn("nm-connection-editor")),
-            ("Sound", lambda: spawn("pavucontrol")),
-            ("Reload Bar", self.reload_waybar),
-            ("Reload Hypr", self.reload_hyprland),
-            ("Lock", lambda: run("loginctl", "lock-session")),
-            ("Power", self.open_power_menu),
-        ]
-        for index, (label, callback) in enumerate(buttons):
-            button = Gtk.Button(label=label)
-            button.connect("clicked", lambda _button, cb=callback: cb())
-            grid.attach(button, index % 2, index // 2, 1, 1)
+        self.add_action_menus(root)
         self.update_codex_status(silent=True)
         self.update_claude_status(silent=True)
 
     def add_codex_usage(self, parent):
         parent.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 0)
-        parent.pack_start(Gtk.Label(label="Codex Usage", xalign=0), False, False, 0)
-        parent.get_children()[-1].get_style_context().add_class("section")
-
-        self.codex_status_label = Gtk.Label(label="codex ...", xalign=0)
-        self.codex_status_label.set_line_wrap(True)
-        self.codex_status_label.set_tooltip_text("Loading Codex subscription usage.")
-        self.codex_status_label.get_style_context().add_class("status")
-        parent.pack_start(self.codex_status_label, False, False, 0)
-
-        grid = Gtk.Grid(column_spacing=7, row_spacing=7, column_homogeneous=True)
-        parent.pack_start(grid, False, False, 0)
-        buttons = [
+        self.codex_status_label = self.add_status_row(parent, "Codex", "codex ...", [
             ("Usage", lambda: self.open_url(CODEX_USAGE_URL, "Codex usage")),
             ("Codex", lambda: self.open_url(CODEX_URL, "Codex")),
             ("Pricing", lambda: self.open_url(CODEX_PRICING_URL, "Codex pricing")),
             ("Account", self.open_codex_account),
             ("Login", self.open_codex_login),
-            ("Status", self.update_codex_status),
-        ]
-        for index, (label, callback) in enumerate(buttons):
-            button = Gtk.Button(label=label)
-            button.connect("clicked", lambda _button, cb=callback: cb())
-            grid.attach(button, index % 2, index // 2, 1, 1)
+            ("Refresh", self.update_codex_status),
+        ])
+        self.codex_status_label.set_tooltip_text("Loading Codex subscription usage.")
 
     def add_claude_usage(self, parent):
-        parent.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 0)
-        parent.pack_start(Gtk.Label(label="Claude Usage", xalign=0), False, False, 0)
-        parent.get_children()[-1].get_style_context().add_class("section")
-
-        self.claude_status_label = Gtk.Label(label="claude ...", xalign=0)
-        self.claude_status_label.set_line_wrap(True)
-        self.claude_status_label.set_tooltip_text("Loading Claude subscription usage.")
-        self.claude_status_label.get_style_context().add_class("status")
-        parent.pack_start(self.claude_status_label, False, False, 0)
-
-        grid = Gtk.Grid(column_spacing=7, row_spacing=7, column_homogeneous=True)
-        parent.pack_start(grid, False, False, 0)
-        buttons = [
+        self.claude_status_label = self.add_status_row(parent, "Claude", "claude ...", [
             ("Usage", lambda: self.open_url(CLAUDE_USAGE_URL, "Claude usage")),
             ("Claude", lambda: self.open_url(CLAUDE_URL, "Claude")),
             ("Login", self.open_claude_login),
-            ("Status", self.update_claude_status),
-        ]
-        for index, (label, callback) in enumerate(buttons):
-            button = Gtk.Button(label=label)
-            button.connect("clicked", lambda _button, cb=callback: cb())
-            grid.attach(button, index % 2, index // 2, 1, 1)
+            ("Refresh", self.update_claude_status),
+        ])
+        self.claude_status_label.set_tooltip_text("Loading Claude subscription usage.")
+
+    def add_status_row(self, parent, title, initial, actions):
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        row.get_style_context().add_class("control")
+        row.get_style_context().add_class("status-row")
+        parent.pack_start(row, False, False, 0)
+
+        name = Gtk.Label(label=title, xalign=0)
+        name.get_style_context().add_class("section")
+        row.pack_start(name, False, False, 0)
+
+        status = Gtk.Label(label=initial, xalign=1)
+        status.set_line_wrap(False)
+        status.set_ellipsize(Pango.EllipsizeMode.END)
+        status.get_style_context().add_class("status")
+        row.pack_start(status, True, True, 0)
+
+        self.add_menu_button(row, "More", actions)
+        return status
+
+    def add_action_menus(self, parent):
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        parent.pack_start(row, False, False, 0)
+        self.add_menu_button(row, "Devices", [
+            ("Audio devices", lambda: spawn("/home/ben/dotfiles/scripts/audio-menu.sh")),
+            ("Network settings", lambda: spawn("nm-connection-editor")),
+            ("Sound settings", lambda: spawn("pavucontrol")),
+        ])
+        self.add_menu_button(row, "System", [
+            ("Reload Waybar", self.reload_waybar),
+            ("Reload Hyprland", self.reload_hyprland),
+            ("Lock", lambda: run("loginctl", "lock-session")),
+            ("Power", self.open_power_menu),
+        ])
+
+    def add_menu_button(self, parent, label, actions):
+        menu = Gtk.MenuButton(label=label)
+        menu.get_style_context().add_class("menu")
+        popover = Gtk.Popover(relative_to=menu)
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        box.set_margin_top(6)
+        box.set_margin_bottom(6)
+        box.set_margin_start(6)
+        box.set_margin_end(6)
+        for action_label, callback in actions:
+            button = Gtk.Button(label=action_label)
+            button.connect(
+                "clicked",
+                lambda _button, cb=callback, pop=popover: (cb(), pop.popdown()),
+            )
+            box.pack_start(button, False, False, 0)
+        popover.add(box)
+        box.show_all()
+        menu.set_popover(popover)
+        parent.pack_end(menu, False, False, 0)
+        return menu
 
     def add_switch(self, parent, label, getter, setter):
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
