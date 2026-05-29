@@ -27,6 +27,7 @@ LAUNCHER_R = 24
 MAX_ROWS   = 8
 HEADER_H   = 64
 ROW_H      = 50
+ICON_PX    = 28   # every row's icon occupies this fixed square so names align
 HEIGHT     = HEADER_H + 1 + MAX_ROWS * ROW_H + 12   # sep + rows + bottom pad
 
 
@@ -341,18 +342,29 @@ class LauncherWindow(Gtk.Window):
         self.listbox.show_all()
 
     def _load_icon(self, icon_name):
+        img = None
         if icon_name:
             try:
                 if os.path.isabs(icon_name) and os.path.exists(icon_name):
-                    pb = GdkPixbuf.Pixbuf.new_from_file_at_size(icon_name, 28, 28)
-                    return Gtk.Image.new_from_pixbuf(pb)
-                pb = self._icon_theme.load_icon(icon_name, 28, 0)
-                return Gtk.Image.new_from_pixbuf(pb)
+                    pb = GdkPixbuf.Pixbuf.new_from_file_at_size(icon_name, ICON_PX, ICON_PX)
+                    img = Gtk.Image.new_from_pixbuf(pb)
+                else:
+                    # FORCE_SIZE guarantees the themed icon comes back at exactly
+                    # ICON_PX (otherwise the theme may hand back 16/24/32px).
+                    pb = self._icon_theme.load_icon(
+                        icon_name, ICON_PX, Gtk.IconLookupFlags.FORCE_SIZE)
+                    img = Gtk.Image.new_from_pixbuf(pb)
             except Exception:
-                pass
-        fallback = Gtk.Label(label=" ")
-        fallback.set_size_request(28, 28)
-        return fallback
+                img = None
+        if img is None:
+            img = Gtk.Image()  # empty, but still reserves the icon slot below
+        # Pin every icon to an identical centered square so the label column
+        # starts at the same x on every row, regardless of the icon's real
+        # aspect ratio (file icons keep aspect) or whether it resolved at all.
+        img.set_size_request(ICON_PX, ICON_PX)
+        img.set_halign(Gtk.Align.CENTER)
+        img.set_valign(Gtk.Align.CENTER)
+        return img
 
     def _select_first(self):
         row = self.listbox.get_row_at_index(0)
