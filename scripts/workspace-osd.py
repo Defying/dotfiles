@@ -6,17 +6,24 @@ overlay showing the active workspace name (e.g. "1") whenever it changes.
 Re-uses the existing "liquid-osd" namespace blur, so the panel gets the
 frosted background for free.
 
-Single process. The window is created once, hidden by default, shown +
-restarted on each workspace event, and re-hidden after FADE_MS. No work
-between events.
+The same socket2 reader also does double duty: on `openwindow` it warps the
+pointer to the centre of the freshly-opened window (only if that window
+actually became focused), so a new terminal / any launcher-spawned window
+grabs the cursor — with follow_mouse=1, focus follows wherever the pointer
+lands. Piggybacking here avoids a second always-on daemon.
+
+Single process, event-driven: the reader blocks on the socket and does no
+work between events.
 """
 
 from __future__ import annotations
 
+import json
 import math
 import os
 import signal
 import socket
+import subprocess
 import sys
 import threading
 from pathlib import Path
@@ -147,6 +154,35 @@ def parse_label(payload: str) -> str | None:
     return name
 
 
+WARP_DELAY_MS = 55  # let Hyprland finish placing/animating the new window first
+
+
+def warp_cursor_to_window(addr: str) -> bool:
+    """Warp the pointer to the centre of the just-opened window, but only if
+    that window is the one Hyprland actually focused — so windows that open in
+    the background or on another workspace don't steal the cursor. One-shot
+    (returns False so GLib doesn't repeat it)."""
+    try:
+        proc = subprocess.run(
+            ["hyprctl", "activewindow", "-j"],
+            capture_output=True, text=True, timeout=1,
+        )
+        aw = json.loads(proc.stdout or "{}")
+        if aw.get("address", "")[2:] != addr:
+            return False
+        at, size = aw.get("at") or [0, 0], aw.get("size") or [0, 0]
+        if size[0] <= 0 or size[1] <= 0:
+            return False
+        cx, cy = at[0] + size[0] // 2, at[1] + size[1] // 2
+        subprocess.run(
+            ["hyprctl", "dispatch", "movecursor", str(cx), str(cy)],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=1,
+        )
+    except Exception:
+        pass
+    return False
+
+
 def reader_loop(window: WorkspaceOsd) -> None:
     if not SOCK_PATH or not SOCK_PATH.exists():
         print(f"workspace-osd: hyprland socket2 not found at {SOCK_PATH}",
@@ -168,12 +204,16 @@ def reader_loop(window: WorkspaceOsd) -> None:
                 event, _, payload = line.decode("utf-8", "replace").partition(">>")
             except Exception:
                 continue
-            if event != "workspacev2":
-                continue
-            label = parse_label(payload)
-            if label is None:
-                continue
-            GLib.idle_add(window.show_workspace, label)
+            if event == "workspacev2":
+                label = parse_label(payload)
+                if label is None:
+                    continue
+                GLib.idle_add(window.show_workspace, label)
+            elif event == "openwindow":
+                # openwindow>>ADDRESS,WORKSPACE,CLASS,TITLE  (address has no 0x)
+                addr = payload.split(",", 1)[0].strip()
+                if addr:
+                    GLib.timeout_add(WARP_DELAY_MS, warp_cursor_to_window, addr)
 
 
 def main() -> int:
