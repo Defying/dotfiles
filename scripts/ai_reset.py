@@ -30,6 +30,7 @@ STATE_DIR = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "wa
 # state file also records the Apple Reminder request separately from the Linux
 # timer, so repairing a missing local timer cannot create duplicate reminders.
 MINI_HOST = os.environ.get("AI_RESET_MINI_HOST", "mini")
+MAC_REMINDER_LIST = os.environ.get("AI_RESET_MAC_LIST", "AI Resets")
 
 
 def _unit(service: str) -> str:
@@ -78,9 +79,21 @@ def _set_mac_reminder(service: str, window_label: str, reset_epoch: int) -> None
 on run argv
   set reminderName to item 1 of argv
   set delaySeconds to (item 2 of argv) as integer
+  set reminderListName to item 3 of argv
   set resetDate to (current date) + delaySeconds
   tell application "Reminders"
-    set reminderList to list 1
+    set reminderList to missing value
+    repeat with candidateList in lists
+      try
+        if (name of candidateList as text) is reminderListName then
+          set reminderList to candidateList
+          exit repeat
+        end if
+      end try
+    end repeat
+    if reminderList is missing value then
+      set reminderList to make new list with properties {name:reminderListName}
+    end if
     set alreadyExists to false
     repeat with existingReminder in reminders of reminderList
       try
@@ -100,7 +113,12 @@ on run argv
   end tell
 end run
 '''
-    remote = "osascript -e " + shlex.quote(script) + " -- " + shlex.quote(title) + " " + shlex.quote(str(delay))
+    remote = (
+        "osascript -e " + shlex.quote(script)
+        + " -- " + shlex.quote(title)
+        + " " + shlex.quote(str(delay))
+        + " " + shlex.quote(MAC_REMINDER_LIST)
+    )
     cmd = [
         "ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=2",
         "-o", "StrictHostKeyChecking=accept-new", MINI_HOST, remote,
@@ -127,7 +145,10 @@ def _same_reset(prev: dict, window_label: str, reset_epoch: int) -> bool:
 
 def _mac_reminder_already_requested(prev: dict, window_label: str, reset_epoch: int) -> bool:
     if prev.get("mac_reminder_epoch") == reset_epoch and prev.get("mac_reminder_window") == window_label:
-        return True
+        return (
+            prev.get("mac_reminder_host") == MINI_HOST
+            and prev.get("mac_reminder_list") == MAC_REMINDER_LIST
+        )
     # Old state files were written only after the Mac reminder path had been
     # reached. Treat an existing matching state file as already requested so
     # upgrading this helper stops floods immediately.
@@ -185,6 +206,7 @@ def schedule(service: str, window_label: str, reset_epoch, icon=None) -> None:
                     "mac_reminder_epoch": reset_epoch,
                     "mac_reminder_window": window_label,
                     "mac_reminder_host": MINI_HOST,
+                    "mac_reminder_list": MAC_REMINDER_LIST,
                 })
             else:
                 # Companion Apple Reminder on the Mac. This is intentionally
@@ -196,6 +218,7 @@ def schedule(service: str, window_label: str, reset_epoch, icon=None) -> None:
                     "mac_reminder_epoch": reset_epoch,
                     "mac_reminder_window": window_label,
                     "mac_reminder_host": MINI_HOST,
+                    "mac_reminder_list": MAC_REMINDER_LIST,
                 })
             sf.write_text(json.dumps(state), encoding="utf-8")
     except Exception:
