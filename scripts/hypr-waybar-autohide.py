@@ -13,6 +13,7 @@ plain SIGUSR1 visibility toggle is enough to slide it over the video.
 
 from __future__ import annotations
 
+import json
 import os
 import signal
 import socket
@@ -57,17 +58,45 @@ class AutoHide:
             self._toggle_bar()
             self.bar_visible = False
 
-    # ── cursor Y via the Hyprland command socket (no hyprctl process spawn) ──
-    def cursor_y(self):
+    # ── Hyprland command socket helpers (no hyprctl process spawn) ───────────
+    def _query(self, cmd: bytes) -> str:
         try:
             s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
             s.settimeout(0.1)
             s.connect(CMD_SOCK)
-            s.sendall(b"cursorpos")
-            data = s.recv(64).decode("utf-8", "replace")
+            s.sendall(cmd)
+            data = b""
+            while True:
+                chunk = s.recv(4096)
+                if not chunk:
+                    break
+                data += chunk
             s.close()
-            return int(data.split(",")[1])
+            return data.decode("utf-8", "replace")
         except Exception:
+            return ""
+
+    def cursor_y(self):
+        out = self._query(b"cursorpos")
+        try:
+            return int(out.split(",")[1])
+        except (IndexError, ValueError):
+            return None
+
+    def workspace_has_fullscreen(self):
+        """Ground truth from Hyprland, not the (unreliable) event payload.
+
+        Returns True/False, or None if the query failed (then keep current
+        state). `fullscreen>>0` is NOT always emitted — e.g. closing the
+        fullscreen window or some workspace switches leave the bar stuck in
+        autohide. Reconciling against this on every relevant event fixes that.
+        """
+        out = self._query(b"j/activeworkspace")
+        if not out:
+            return None
+        try:
+            return bool(json.loads(out).get("hasfullscreen"))
+        except (json.JSONDecodeError, AttributeError):
             return None
 
     def _poll(self):
@@ -99,13 +128,26 @@ class AutoHide:
             self.poll_id = 0
         self.show_bar()   # always restore the bar when leaving fullscreen
 
+    def reconcile(self):
+        """Drive enter/exit from Hyprland's real fullscreen state."""
+        fs = self.workspace_has_fullscreen()
+        if fs is None:
+            return False          # query failed; leave state untouched
+        if fs:
+            self.enter_fullscreen()
+        else:
+            self.exit_fullscreen()
+        return False              # one-shot for GLib.idle_add
+
     def on_event(self, event, payload):
-        if event == "fullscreen":
-            # payload is "1" (a window entered fullscreen) or "0" (none left)
-            if payload.strip() == "1":
-                GLib.idle_add(self.enter_fullscreen)
-            else:
-                GLib.idle_add(self.exit_fullscreen)
+        # Don't trust the `fullscreen` payload alone — it isn't emitted on
+        # every transition (closing the fullscreen window, some workspace
+        # switches). Reconcile against the real state on anything that can
+        # change whether the focused workspace has a fullscreen window.
+        if event in ("fullscreen", "workspace", "workspacev2", "focusedmon",
+                     "closewindow", "openwindow", "movewindow", "movewindowv2",
+                     "activewindow", "activewindowv2"):
+            GLib.idle_add(self.reconcile)
 
 
 def reader_loop(ah: AutoHide):
@@ -134,6 +176,7 @@ def main():
 
     ah = AutoHide()
     threading.Thread(target=reader_loop, args=(ah,), daemon=True).start()
+    GLib.idle_add(ah.reconcile)   # sync to current state on launch
     Gtk.main()
     return 0
 
