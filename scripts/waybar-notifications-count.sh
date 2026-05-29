@@ -11,21 +11,14 @@ if makoctl mode 2>/dev/null | grep -qE '(^|[* ])do-not-disturb$'; then
   dnd_active=1
 fi
 
-# Count active mako notifications (sum across all notification groups).
+# Count active mako notifications (sum across all notification groups). jq
+# instead of python keeps this 5s-interval module off the ~29ms Python
+# interpreter spawn — makoctl and jq are both small C programs.
 count="$(makoctl list -j 2>/dev/null \
-  | python3 -c 'import json,sys
-try:
-    data=json.load(sys.stdin)
-except Exception:
-    print(0); raise SystemExit
-n=0
-if isinstance(data, list):
-    for e in data:
-        if isinstance(e, dict) and "notifications" in e:
-            n += len(e.get("notifications") or [])
-        else:
-            n += 1
-print(n)' 2>/dev/null)"
+  | jq -r 'if type=="array"
+           then ([.[] | if (type=="object" and has("notifications"))
+                        then (.notifications|length) else 1 end] | add) // 0
+           else 0 end' 2>/dev/null)"
 count="${count:-0}"
 
 if [[ "$dnd_active" -eq 1 ]]; then

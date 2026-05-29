@@ -9,17 +9,81 @@
 
 use std::env;
 use std::fs;
-use std::process::ExitCode;
+use std::process::{Command, ExitCode};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 fn main() -> ExitCode {
     match env::args().nth(1).as_deref() {
         Some("sysmon") => sysmon(),
+        Some("clock24") => clock24(),
+        Some("clock12") => clock12(),
+        Some("date") => date_module(),
         other => {
-            eprintln!("usage: waybar-helper <sysmon>; got {:?}", other);
+            eprintln!("usage: waybar-helper <sysmon|clock24|clock12|date>; got {:?}", other);
             ExitCode::from(2)
         }
     }
+}
+
+// ── shared helpers ────────────────────────────────────────────────────────────
+
+/// Run a command, return trimmed stdout (empty string on failure).
+fn cmd(prog: &str, args: &[&str]) -> String {
+    Command::new(prog)
+        .args(args)
+        .output()
+        .ok()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim_end().to_string())
+        .unwrap_or_default()
+}
+
+/// Minimal JSON string escaping for the values we emit (newlines in the date
+/// calendar tooltip, plus the usual quote/backslash/control chars).
+fn esc(s: &str) -> String {
+    let mut out = String::with_capacity(s.len() + 8);
+    for c in s.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            _ => out.push(c),
+        }
+    }
+    out
+}
+
+fn emit_text_tooltip(text: &str, tooltip: &str) -> ExitCode {
+    println!("{{\"text\": \"{}\", \"tooltip\": \"{}\"}}", esc(text), esc(tooltip));
+    ExitCode::SUCCESS
+}
+
+// ── clock / date (drop the per-tick Python spawn; just date(1)/cal(1)) ─────────
+
+fn clock24() -> ExitCode {
+    emit_text_tooltip(&cmd("date", &["+%H:%M"]), &cmd("date", &["+%H:%M:%S"]))
+}
+
+fn clock12() -> ExitCode {
+    let text = cmd("date", &["+%-I:%M %p"]).to_lowercase();
+    let tooltip = cmd("date", &["+%-I:%M:%S %p"]).to_lowercase();
+    emit_text_tooltip(&text, &tooltip)
+}
+
+fn date_module() -> ExitCode {
+    let text = cmd("date", &["+%a %b %d"]).to_lowercase();
+    let agenda = cmd("date", &["+%A, %B %-d, %Y"]);
+    let calendar = {
+        let c = cmd("cal", &["-3"]);
+        if c.is_empty() { cmd("cal", &[]) } else { c }
+    };
+    let tooltip = if calendar.is_empty() {
+        agenda.clone()
+    } else {
+        format!("{agenda}\n\n{calendar}")
+    };
+    emit_text_tooltip(&text, &tooltip)
 }
 
 // ── sysmon ──────────────────────────────────────────────────────────────────

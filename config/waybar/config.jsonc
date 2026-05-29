@@ -70,7 +70,7 @@
   },
 
   "custom/date": {
-    "exec": "/home/ben/dotfiles/scripts/waybar-date.sh",
+    "exec": "/home/ben/.local/bin/waybar-helper date",
     "return-type": "json",
     "interval": 300,
     "format": "{}",
@@ -78,7 +78,7 @@
   },
 
   "custom/clock-24": {
-    "exec": "/home/ben/dotfiles/scripts/waybar-clock-24.sh",
+    "exec": "/home/ben/.local/bin/waybar-helper clock24",
     "return-type": "json",
     "interval": 30,
     "format": "{}",

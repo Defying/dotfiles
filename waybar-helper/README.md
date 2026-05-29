@@ -17,6 +17,17 @@ core, continuous) and no 12 MB Python RSS per spawn.
 
 - `waybar-helper sysmon` — CPU + memory + network bubble. Drop-in for
   `waybar-sysmon.py`; emits the same JSON.
+- `waybar-helper clock24` — 24h clock (drop-in for `waybar-clock-24.sh`).
+- `waybar-helper clock12` — 12h clock (drop-in for `waybar-clock-12.sh`).
+- `waybar-helper date` — date + `cal -3` tooltip (drop-in for `waybar-date.sh`).
+
+The clock/date subcommands still shell out to `date(1)`/`cal(1)` (tiny C
+programs) for locale/timezone formatting, but drop the per-tick Python that
+the old `*.sh` wrappers spawned just to emit JSON.
+
+Not ported: `notifications-count` (now uses `jq` instead of Python — its cost
+is the `makoctl` calls, not the wrapper) and the `codex`/`claude` usage
+fetchers (network-bound, with retry/notify logic that changes often).
 
 ## Build & install
 
