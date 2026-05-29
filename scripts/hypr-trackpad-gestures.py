@@ -37,7 +37,7 @@ import evdev
 from evdev import ecodes as ec
 
 TOUCH_NAMES   = ("trackpad", "touchpad")
-NOTIF_TOGGLE  = "/home/ben/dotfiles/scripts/waybar-notifications.sh"
+NOTIF_PANEL   = "/home/ben/dotfiles/scripts/waybar-notifications.sh"
 
 
 # ── Touch state ────────────────────────────────────────────────────────────
@@ -97,7 +97,8 @@ class Detector:
 
 class RightEdgeSwipeLeft(Detector):
     """Two fingers, both starting in the rightmost EDGE_FRAC of the pad,
-    drifting LEFT at least TRIGGER_MM before lift."""
+    drifting LEFT at least TRIGGER_MM before lift → OPEN the tray (pull it out
+    from the right edge)."""
 
     name      = "right-edge-swipe-left"
     EDGE_FRAC = 0.18    # rightmost 18% of the pad counts as the edge
@@ -122,21 +123,59 @@ class RightEdgeSwipeLeft(Detector):
         return True
 
 
+class SwipeRightToEdge(Detector):
+    """Two fingers pushed RIGHT by at least TRIGGER_MM and ending in the
+    rightmost END_EDGE_FRAC of the pad → CLOSE the tray (push it back to the
+    edge). Mirrors the open gesture's direction. Closing when nothing is open
+    is a harmless no-op, so this stays lenient to avoid feeling sticky."""
+
+    name          = "swipe-right-to-edge"
+    END_EDGE_FRAC = 0.14   # must finish within the rightmost 14% of the pad
+    TRIGGER_MM    = 18.0   # ~18 mm of rightward travel commits the gesture
+    MAX_TIME_S    = 0.9
+
+    def __init__(self, action) -> None:
+        self.action = action
+
+    def evaluate(self, touches: list[Touch], pad: Pad) -> bool:
+        if len(touches) != 2:
+            return False
+        if (time.monotonic() - min(t.started_at for t in touches)) > self.MAX_TIME_S:
+            return False
+        edge_x = pad.edge_x(self.END_EDGE_FRAC)
+        if not all(t.cur_x >= edge_x for t in touches):
+            return False
+        dx_avg_units = sum(t.cur_x - t.start_x for t in touches) / 2
+        if pad.x_mm(dx_avg_units) < self.TRIGGER_MM:
+            return False
+        self.action()
+        return True
+
+
 # ── Action implementations ─────────────────────────────────────────────────
 
-def toggle_notifications() -> None:
-    if not os.path.isfile(NOTIF_TOGGLE):
+def _panel(verb: str) -> None:
+    if not os.path.isfile(NOTIF_PANEL):
         return
     subprocess.Popen(
-        ["bash", NOTIF_TOGGLE],
+        ["bash", NOTIF_PANEL, verb],
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL,
         start_new_session=True,
     )
 
 
+def open_notifications() -> None:
+    _panel("open")
+
+
+def close_notifications() -> None:
+    _panel("close")
+
+
 DETECTORS: list[Detector] = [
-    RightEdgeSwipeLeft(toggle_notifications),
+    RightEdgeSwipeLeft(open_notifications),
+    SwipeRightToEdge(close_notifications),
 ]
 
 
