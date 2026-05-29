@@ -61,8 +61,17 @@ case "$cmd" in
     [[ "$target" =~ ^[0-9]+$ ]] || exit 0
     fade_to_raw "$target" "$duration"
     ;;
+  fade)
+    # Fade to a percent WITHOUT touching the saved-brightness state. Used for
+    # the pre-dpms fade-to-black at deep idle: the earlier `dim` already saved
+    # the original level, so `restore` must still bring it back to that, not to
+    # this near-zero value.
+    max="$(max_raw)"
+    target=$(( max * target_pct / 100 ))
+    fade_to_raw "$target" "$duration"
+    ;;
   *)
-    echo "usage: $0 dim [percent] [seconds] | restore [seconds]" >&2
+    echo "usage: $0 dim [percent] [seconds] | restore [seconds] | fade [percent] [seconds]" >&2
     exit 2
     ;;
 esac
