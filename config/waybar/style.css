@@ -20,7 +20,6 @@ window#waybar {
 #custom-quick-settings,
 #custom-weather,
 #custom-sysmon,
-#tray,
 #status {
   /* Translucent fill sits on top of Hyprland's namespace blur (set on the
      waybar layer in hyprland.conf), giving a cheap frosted-glass look without
@@ -61,7 +60,9 @@ window#waybar {
   margin-right: 10px;
 }
 
-/* Right side: weather, tray, status, and quick settings are separate bubbles. */
+/* Right side: weather, status, notifications, and quick settings are separate
+   bubbles. The tray stays unframed so empty/broken status-notifier items don't
+   render as a random blank bubble. */
 .modules-right {
   background: transparent;
   border: none;
@@ -94,13 +95,8 @@ window#waybar {
   border-color: rgba(255, 214, 214, 0.50);
 }
 
-#tray,
 #status {
   margin-right: 10px;
-}
-
-#tray {
-  padding: 4px 11px;
 }
 
 #custom-launcher,
@@ -196,7 +192,6 @@ window#waybar {
 #bluetooth,
 #pulseaudio,
 #battery,
-#tray,
 #custom-quick-settings,
 #custom-codex-tokens,
 #custom-claude-tokens,
