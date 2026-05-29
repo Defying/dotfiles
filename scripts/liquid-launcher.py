@@ -24,7 +24,7 @@ from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, GtkLayerShell  # noqa: E402
 
 LAUNCHER_W = 580
 LAUNCHER_R = 24
-MAX_ROWS   = 8
+MAX_ROWS   = 8     # visible rows (window height); the full list scrolls beyond this
 HEADER_H   = 64
 ROW_H      = 50
 ICON_PX    = 28   # every row's icon occupies this fixed square so names align
@@ -103,11 +103,11 @@ def score_app(app, q):
 def filter_apps(apps, query):
     q = query.lower().strip()
     if not q:
-        return apps[:MAX_ROWS]
+        return apps
     scored = [(score_app(a, q), a) for a in apps]
     scored = [(s, a) for s, a in scored if s > 0]
     scored.sort(key=lambda x: (-x[0], x[1]["name"].lower()))
-    return [a for _, a in scored[:MAX_ROWS]]
+    return [a for _, a in scored]
 
 
 # ── Hyprland ──────────────────────────────────────────────────────────────────
@@ -189,7 +189,7 @@ class LauncherWindow(Gtk.Window):
     def __init__(self, apps):
         super().__init__(title="liquid-launcher")
         self.apps = apps
-        self.results = apps[:MAX_ROWS]
+        self.results = list(apps)
         self._icon_theme = Gtk.IconTheme.get_default()
 
         self.set_app_paintable(True)
@@ -249,11 +249,24 @@ class LauncherWindow(Gtk.Window):
         self.listbox.set_name("result-list")
         self.listbox.set_selection_mode(Gtk.SelectionMode.SINGLE)
         self.listbox.connect("row-activated", lambda _lb, row: self._launch(row.app))
+        # Display is driven by filter/sort funcs over rows built ONCE, so a
+        # keystroke never rebuilds widgets or reloads icons — it just toggles
+        # visibility and re-sorts. _match_ids / _order are recomputed per query.
+        self._match_ids = {id(a) for a in self.apps}
+        self._order = {id(a): i for i, a in enumerate(self.apps)}
+        self.listbox.set_filter_func(lambda row: id(row.app) in self._match_ids)
+        self.listbox.set_sort_func(
+            lambda r1, r2: self._order.get(id(r1.app), 1 << 30)
+                          - self._order.get(id(r2.app), 1 << 30))
 
         scroll = Gtk.ScrolledWindow()
-        scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.NEVER)
+        # Horizontal never; vertical scrolls (wheel + keyboard) past the 8
+        # visible rows. EXTERNAL keeps the macOS-style overlay look (no
+        # scrollbar chrome) while still allowing wheel/keyboard scrolling.
+        scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.EXTERNAL)
         scroll.set_size_request(-1, MAX_ROWS * ROW_H)
         scroll.add(self.listbox)
+        self.scroll = scroll
 
         content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         content.pack_start(search_row, False, False, 0)
@@ -306,12 +319,13 @@ class LauncherWindow(Gtk.Window):
     # ── Results ───────────────────────────────────────────────────────────────
 
     def _populate(self):
-        for child in self.listbox.get_children():
-            self.listbox.remove(child)
-
-        for app in self.results:
+        # Built ONCE at startup for every app. Filtering/sorting afterwards is
+        # pure visibility + reorder via the listbox funcs — no rebuilds.
+        self._row_for = {}
+        for app in self.apps:
             row = Gtk.ListBoxRow()
             row.app = app
+            self._row_for[id(app)] = row
 
             box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
             box.set_size_request(-1, ROW_H)
@@ -367,15 +381,38 @@ class LauncherWindow(Gtk.Window):
         return img
 
     def _select_first(self):
-        row = self.listbox.get_row_at_index(0)
-        if row:
-            self.listbox.select_row(row)
+        if self.results:
+            self.listbox.select_row(self._row_for[id(self.results[0])])
+        self.scroll.get_vadjustment().set_value(0)
+
+    def _scroll_to(self, row):
+        adj = self.scroll.get_vadjustment()
+        alloc = row.get_allocation()
+        top, bottom = alloc.y, alloc.y + alloc.height
+        page, val = adj.get_page_size(), adj.get_value()
+        if top < val:
+            adj.set_value(top)
+        elif bottom > val + page:
+            adj.set_value(bottom - page)
+
+    def _move(self, delta):
+        if not self.results:
+            return
+        cur = self.listbox.get_selected_row()
+        idx = self._order.get(id(cur.app), 0) if cur else 0
+        idx = max(0, min(len(self.results) - 1, idx + delta))
+        row = self._row_for[id(self.results[idx])]
+        self.listbox.select_row(row)
+        self._scroll_to(row)
 
     # ── Events ────────────────────────────────────────────────────────────────
 
     def _on_changed(self, entry):
         self.results = filter_apps(self.apps, entry.get_text())
-        self._populate()
+        self._match_ids = {id(a) for a in self.results}
+        self._order = {id(a): i for i, a in enumerate(self.results)}
+        self.listbox.invalidate_filter()
+        self.listbox.invalidate_sort()
         self._select_first()
 
     def _on_activate(self, _entry):
@@ -389,19 +426,16 @@ class LauncherWindow(Gtk.Window):
             self._quit()
             return True
         if k in (Gdk.KEY_Down, Gdk.KEY_Tab):
-            cur = self.listbox.get_selected_row()
-            nxt = self.listbox.get_row_at_index((cur.get_index() if cur else -1) + 1)
-            if nxt:
-                self.listbox.select_row(nxt)
-                nxt.grab_focus()
-                self.entry.grab_focus()
+            self._move(1)
             return True
         if k in (Gdk.KEY_Up, Gdk.KEY_ISO_Left_Tab):
-            cur = self.listbox.get_selected_row()
-            idx = cur.get_index() if cur else 1
-            prev = self.listbox.get_row_at_index(max(0, idx - 1))
-            if prev:
-                self.listbox.select_row(prev)
+            self._move(-1)
+            return True
+        if k == Gdk.KEY_Page_Down:
+            self._move(MAX_ROWS - 1)
+            return True
+        if k == Gdk.KEY_Page_Up:
+            self._move(-(MAX_ROWS - 1))
             return True
         return False
 
