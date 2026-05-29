@@ -101,7 +101,8 @@
     "tooltip-format-wifi": "{essid} ({signalStrength}%)",
     "tooltip-format-ethernet": "ethernet",
     "tooltip-format-disconnected": "disconnected",
-    "on-click": "nm-connection-editor",
+    "on-click": "/home/ben/dotfiles/scripts/network-popup.py",
+    "on-click-right": "nm-connection-editor",
     "interval": 3
   },
 
