@@ -14,6 +14,9 @@ import subprocess
 import sys
 import time
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import ai_reset  # noqa: E402
+
 CODEX_USAGE_URL = "https://chatgpt.com/codex/settings/usage"
 REQUEST_TIMEOUT = 10
 NOTIFY_COOLDOWN_SECONDS = 45 * 60
@@ -244,6 +247,20 @@ def main():
     tooltip_lines.extend(["", CODEX_USAGE_URL])
 
     maybe_notify("Codex", level, display, reset_label, icon=ASSET_DIR / "openai.svg")
+
+    # At 0% (a window is exhausted), arm a dormant timer that pings when that
+    # window resets; otherwise drop any pending timer.
+    if display == 0:
+        block_window = secondary if weekly_blocked else primary
+        ai_reset.schedule(
+            "Codex",
+            "weekly" if weekly_blocked else "5h",
+            block_window.get("resetsAt"),
+            icon=ASSET_DIR / "openai.png",
+        )
+    else:
+        ai_reset.cancel("Codex")
+
     waybar(text, "\n".join(tooltip_lines), css_class(display, reached))
     return 0
 

@@ -15,6 +15,9 @@ import time
 import urllib.error
 import urllib.request
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import ai_reset  # noqa: E402
+
 CREDS_PATH = pathlib.Path.home() / ".claude" / ".credentials.json"
 CLAUDE_USAGE_URL = "https://claude.ai/settings/usage"
 OAUTH_USAGE_ENDPOINT = "https://api.anthropic.com/api/oauth/usage"
@@ -160,6 +163,17 @@ def read_usage(oauth):
         raise
 
 
+def iso_to_epoch(value):
+    if not value:
+        return None
+    try:
+        return int(
+            dt.datetime.fromisoformat(str(value).replace("Z", "+00:00")).timestamp()
+        )
+    except ValueError:
+        return None
+
+
 def fmt_reset(value):
     if not value:
         return "unknown"
@@ -289,6 +303,16 @@ def main():
     text = f"{primary_remaining}%"
     if level:
         maybe_notify("Claude", level, primary_remaining, fmt_reset(five_hour.get("resets_at")), icon=ASSET_DIR / "claude.svg")
+
+    # At 0% (a window is exhausted), arm a dormant timer to ping when it resets;
+    # prefer the weekly window when it's the one exhausted. Otherwise cancel.
+    if weekly_remaining == 0:
+        ai_reset.schedule("Claude", "weekly", iso_to_epoch(seven_day.get("resets_at")), icon=ASSET_DIR / "claude.png")
+    elif primary_remaining == 0:
+        ai_reset.schedule("Claude", "5h", iso_to_epoch(five_hour.get("resets_at")), icon=ASSET_DIR / "claude.png")
+    else:
+        ai_reset.cancel("Claude")
+
     waybar(text, "\n".join(tooltip_lines), css_class(primary_remaining))
     return 0
 
