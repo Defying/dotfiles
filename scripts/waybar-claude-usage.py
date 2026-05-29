@@ -391,13 +391,14 @@ def main(force_refresh=False, force_network=False):
     text = f"{primary_remaining}%"
     text_window = "5h window remaining %"
     stale_expired_reset = False
+    retry_limited = bool(retry_at and retry_at > time.time())
     if weekly_remaining == 0:
         countdown = compact_countdown(seven_day_reset_epoch)
         if countdown:
             text = countdown
             text_window = "weekly reset countdown"
         elif stale and reset_has_passed(seven_day_reset_epoch):
-            text = "stale"
+            text = "rate" if retry_limited else "stale"
             text_window = "stale weekly reset time"
             stale_expired_reset = True
     elif primary_remaining == 0:
@@ -406,7 +407,7 @@ def main(force_refresh=False, force_network=False):
             text = countdown
             text_window = "5h reset countdown"
         elif stale and reset_has_passed(five_hour_reset_epoch):
-            text = "stale"
+            text = "rate" if retry_limited else "stale"
             text_window = "stale 5h reset time"
             stale_expired_reset = True
     tooltip_lines.append(f"bar text shows {text_window}")
@@ -430,7 +431,8 @@ def main(force_refresh=False, force_network=False):
     else:
         ai_reset.cancel("Claude")
 
-    waybar(text, "\n".join(tooltip_lines), "warn" if stale_expired_reset else css_class(display_remaining))
+    stale_class = "rate" if retry_limited else "warn"
+    waybar(text, "\n".join(tooltip_lines), stale_class if stale_expired_reset else css_class(display_remaining))
     return 0
 
 
