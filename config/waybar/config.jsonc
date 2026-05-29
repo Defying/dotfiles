@@ -42,7 +42,8 @@
     "interval": 300,
     "signal": 8,
     "format": "{}",
-    "on-click": "/home/ben/dotfiles/scripts/waybar-ai-refresh.sh codex 8",
+    "on-click": "/home/ben/dotfiles/scripts/ai-usage-popup.py codex",
+    "on-click-middle": "/home/ben/dotfiles/scripts/waybar-ai-refresh.sh codex 8",
     "on-click-right": "/home/ben/dotfiles/scripts/waybar-quick-settings.sh"
   },
 
@@ -52,7 +53,8 @@
     "interval": 300,
     "signal": 9,
     "format": "{}",
-    "on-click": "/home/ben/dotfiles/scripts/waybar-ai-refresh.sh claude 9",
+    "on-click": "/home/ben/dotfiles/scripts/ai-usage-popup.py claude",
+    "on-click-middle": "/home/ben/dotfiles/scripts/waybar-ai-refresh.sh claude 9",
     "on-click-right": "/home/ben/dotfiles/scripts/waybar-quick-settings.sh"
   },
 

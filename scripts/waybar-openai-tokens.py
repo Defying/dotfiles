@@ -139,6 +139,19 @@ def pick_codex_limits(data):
     return by_id.get("codex") or data.get("rateLimits") or {}
 
 
+def write_usage_cache(limits):
+    """Persist the parsed limits so the click-to-open popup can render without
+    re-spawning the Codex app-server (the bubble's 300s poll keeps it fresh)."""
+    try:
+        STATE_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
+        (STATE_DIR / "codex-usage.json").write_text(
+            json.dumps({"updated_at": time.time(), "limits": limits}),
+            encoding="utf-8",
+        )
+    except Exception:
+        pass
+
+
 def fmt_reset(epoch):
     if not epoch:
         return "unknown"
@@ -213,6 +226,7 @@ def main():
         return 0
 
     limits = pick_codex_limits(data)
+    write_usage_cache(limits)
     primary = limits.get("primary") or {}
     secondary = limits.get("secondary") or {}
     credits = limits.get("credits") or {}
