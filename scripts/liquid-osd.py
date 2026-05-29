@@ -357,19 +357,25 @@ class OsdWindow(Gtk.Window):
         cr.paint()
         cr.set_operator(cairo.OPERATOR_OVER)
 
-        # Flat translucent fill — Hyprland's layerrule blur (namespace
-        # ^liquid-osd$) is the background; no gradient or double border.
-        # Clip to the rounded path so the layer-blur edge antialiases against
-        # the surface alpha cleanly instead of cairo's stroke half-pixel
-        # straddling the outside of the surface.
+        # Liquid-glass material, matching the dropdown panels (glass_popup):
+        # translucent base + a diagonal white→cyan→purple sheen, over
+        # Hyprland's layerrule blur (namespace ^liquid-osd$). Clip to the
+        # rounded path so the layer-blur edge antialiases cleanly.
         rounded_rectangle(cr, 0, 0, width, height, RADIUS)
         cr.clip_preserve()
-        cr.set_source_rgba(0.04, 0.06, 0.10, 0.42)
+        cr.set_source_rgba(0.039, 0.055, 0.094, 0.42)
+        cr.fill_preserve()
+        sheen = cairo.LinearGradient(0, 0, width, height)
+        sheen.add_color_stop_rgba(0.00, 1.0, 1.0, 1.0, 0.22)
+        sheen.add_color_stop_rgba(0.42, 1.0, 1.0, 1.0, 0.06)
+        sheen.add_color_stop_rgba(0.68, 0.20, 0.80, 1.0, 0.10)
+        sheen.add_color_stop_rgba(1.00, 0.75, 0.52, 0.96, 0.13)
+        cr.set_source(sheen)
         cr.fill()
         # Inset border by 0.5 px so the 1 px stroke stays fully inside.
         rounded_rectangle(cr, 0.5, 0.5, width - 1, height - 1, RADIUS - 0.5)
         cr.set_line_width(1.0)
-        cr.set_source_rgba(1.0, 1.0, 1.0, 0.22)
+        cr.set_source_rgba(1.0, 1.0, 1.0, 0.42)
         cr.stroke()
 
         cr.select_font_face("SF Pro Text", cairo.FONT_SLANT_NORMAL, cairo.FONT_WEIGHT_BOLD)

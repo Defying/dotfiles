@@ -116,18 +116,21 @@ class WorkspaceOsd(Gtk.Window):
         cr.paint()
         cr.set_operator(cairo.OPERATOR_OVER)
 
-        # Translucent rounded fill + sheen — layerrule blur paints behind.
+        # Liquid-glass material matching the dropdown panels (glass_popup):
+        # translucent base + diagonal white→cyan→purple sheen; layerrule blur
+        # paints behind.
         rrect(cr, 0, 0, w, h, POPUP_R)
-        cr.set_source_rgba(0.04, 0.06, 0.10, 0.48)
+        cr.set_source_rgba(0.039, 0.055, 0.094, 0.48)
         cr.fill_preserve()
-        g = cairo.LinearGradient(0, 0, 0, h)
-        g.add_color_stop_rgba(0.0, 1, 1, 1, 0.22)
-        g.add_color_stop_rgba(0.5, 1, 1, 1, 0.04)
-        g.add_color_stop_rgba(1.0, 0, 0, 0, 0.16)
+        g = cairo.LinearGradient(0, 0, w, h)
+        g.add_color_stop_rgba(0.00, 1.0, 1.0, 1.0, 0.22)
+        g.add_color_stop_rgba(0.42, 1.0, 1.0, 1.0, 0.06)
+        g.add_color_stop_rgba(0.68, 0.20, 0.80, 1.0, 0.10)
+        g.add_color_stop_rgba(1.00, 0.75, 0.52, 0.96, 0.13)
         cr.set_source(g)
         cr.fill()
 
-        cr.set_source_rgba(1, 1, 1, 0.28)
+        cr.set_source_rgba(1, 1, 1, 0.42)
         cr.set_line_width(1.0)
         rrect(cr, 0.5, 0.5, w - 1, h - 1, POPUP_R)
         cr.stroke()
