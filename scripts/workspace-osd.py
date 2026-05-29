@@ -116,7 +116,7 @@ class WorkspaceOsd(Gtk.Window):
 
         # Translucent rounded fill + sheen — layerrule blur paints behind.
         rrect(cr, 0, 0, w, h, POPUP_R)
-        cr.set_source_rgba(0.04, 0.06, 0.10, 0.62)
+        cr.set_source_rgba(0.04, 0.06, 0.10, 0.48)
         cr.fill_preserve()
         g = cairo.LinearGradient(0, 0, 0, h)
         g.add_color_stop_rgba(0.0, 1, 1, 1, 0.22)

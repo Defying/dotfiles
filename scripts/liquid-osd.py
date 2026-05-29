@@ -381,7 +381,7 @@ class OsdWindow(Gtk.Window):
         # straddling the outside of the surface.
         rounded_rectangle(cr, 0, 0, width, height, RADIUS)
         cr.clip_preserve()
-        cr.set_source_rgba(0.04, 0.06, 0.10, 0.55)
+        cr.set_source_rgba(0.04, 0.06, 0.10, 0.42)
         cr.fill()
         # Inset border by 0.5 px so the 1 px stroke stays fully inside.
         rounded_rectangle(cr, 0.5, 0.5, width - 1, height - 1, RADIUS - 0.5)
