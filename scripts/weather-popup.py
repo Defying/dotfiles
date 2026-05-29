@@ -1,38 +1,23 @@
 #!/usr/bin/env python3
-"""weather-popup: layer-shell weather card for Hyprland.
+"""weather-popup: weather card on the shared glass dropdown module.
 
-Hyprland's `layerrule = blur, namespace ^weather-popup$` paints the blur
-behind us; we draw a translucent rounded fill + content on top via cairo.
-No screen-shader, no per-frame GLSL — cheap enough for CPU rendering.
+Was a bespoke cairo-drawn card; now it's GTK widgets inside GlassPopup so it
+shares the one liquid-glass design, Esc, and click-away with every other
+dropdown. Data still comes from wttr.in, fetched off-thread on open.
 """
 
 import json
-import math
-import os
-import signal
-import subprocess
 import sys
 import threading
 import urllib.request
 from datetime import datetime
-from pathlib import Path
 
-import cairo
 import gi
 
 gi.require_version("Gtk", "3.0")
-gi.require_version("Gdk", "3.0")
-gi.require_version("GtkLayerShell", "0.1")
-gi.require_version("Pango", "1.0")
-gi.require_version("PangoCairo", "1.0")
+from gi.repository import GLib, Gtk  # noqa: E402
 
-from gi.repository import Gdk, GLib, Gtk, GtkLayerShell, Pango, PangoCairo
-
-POPUP_W      = 400
-POPUP_H      = 292
-POPUP_R      = 22
-TOP_MARGIN   = 12   # logical px gap below waybar
-RIGHT_MARGIN = 28   # matches waybar right margin
+from glass_popup import GlassPopup  # noqa: E402
 
 WTTR_URL = "https://wttr.in/?format=j1"
 
@@ -55,8 +40,7 @@ def weather_symbol(code):
 def day_label(date_str):
     try:
         dt = datetime.strptime(date_str, "%Y-%m-%d").date()
-        today = datetime.now().date()
-        diff = (dt - today).days
+        diff = (dt - datetime.now().date()).days
         if diff == 0: return "Today"
         if diff == 1: return "Tomorrow"
         return dt.strftime("%A")[:3]
@@ -113,186 +97,82 @@ def parse_weather(data):
         return None
 
 
-# ── Cairo helpers ─────────────────────────────────────────────────────────────
+class Popup(GlassPopup):
+    WIDTH = 380
+    EXTRA_CSS = b"""
+    .bigtemp { font-size: 38px; font-weight: 800; }
+    .wsym    { font-size: 30px; }
+    .wdesc   { color: rgba(244,247,251,0.80); font-size: 13px; }
+    .dlabel  { color: rgba(244,247,251,0.46); font-size: 11px; }
+    .dval    { color: #f4f7fb; font-size: 14px; }
+    .fday    { color: rgba(244,247,251,0.78); font-size: 11px; font-weight: 700; }
+    .fsym    { font-size: 20px; }
+    .ftemp   { color: rgba(244,247,251,0.56); font-size: 12px; }
+    """
 
-def rrect(cr, x, y, w, h, r):
-    cr.new_sub_path()
-    cr.arc(x+w-r, y+r,   r, -math.pi/2, 0)
-    cr.arc(x+w-r, y+h-r, r,  0,          math.pi/2)
-    cr.arc(x+r,   y+h-r, r,  math.pi/2,  math.pi)
-    cr.arc(x+r,   y+r,   r,  math.pi,    math.pi*1.5)
-    cr.close_path()
-
-
-def text(cr, s, font, rgba, x, y, max_w=None, align=Pango.Alignment.LEFT):
-    layout = PangoCairo.create_layout(cr)
-    layout.set_font_description(Pango.FontDescription(font))
-    layout.set_text(s, -1)
-    layout.set_alignment(align)
-    if max_w:
-        layout.set_width(int(max_w * Pango.SCALE))
-        layout.set_ellipsize(Pango.EllipsizeMode.END)
-    cr.set_source_rgba(*rgba)
-    cr.move_to(x, y)
-    PangoCairo.show_layout(cr, layout)
-    return layout.get_pixel_size()
-
-
-def sep(cr, x, y, w):
-    cr.set_source_rgba(1, 1, 1, 0.12)
-    cr.set_line_width(1)
-    cr.move_to(x, y + 0.5)
-    cr.line_to(x + w, y + 0.5)
-    cr.stroke()
-
-
-# ── Window ────────────────────────────────────────────────────────────────────
-
-WHITE     = (1, 1, 1, 0.96)
-WHITE_DIM = (1, 1, 1, 0.70)
-WHITE_SUB = (1, 1, 1, 0.46)
-PAD = 20
-
-
-class WeatherWindow(Gtk.Window):
-    def __init__(self):
-        super().__init__(title="weather-popup")
+    def __init__(self, name, corner="top-right"):
         self.weather = None
-
-        self.set_app_paintable(True)
-        self.set_decorated(False)
-        self.set_resizable(False)
-        screen = self.get_screen()
-        if (visual := screen.get_rgba_visual()):
-            self.set_visual(visual)
-
-        GtkLayerShell.init_for_window(self)
-        GtkLayerShell.set_namespace(self, "weather-popup")
-        GtkLayerShell.set_layer(self, GtkLayerShell.Layer.OVERLAY)
-        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.TOP,   True)
-        GtkLayerShell.set_anchor(self, GtkLayerShell.Edge.RIGHT, True)
-        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.TOP,   TOP_MARGIN)
-        GtkLayerShell.set_margin(self, GtkLayerShell.Edge.RIGHT, RIGHT_MARGIN)
-        GtkLayerShell.set_keyboard_mode(self, GtkLayerShell.KeyboardMode.ON_DEMAND)
-        GtkLayerShell.set_exclusive_zone(self, 0)
-
-        self.set_default_size(POPUP_W, POPUP_H)
-
-        self.area = Gtk.DrawingArea()
-        self.area.set_size_request(POPUP_W, POPUP_H)
-        self.area.connect("draw", self._draw)
-        self.add(self.area)
-
-        self.add_events(Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.KEY_PRESS_MASK)
-        self.connect("key-press-event",    self._on_key)
-        self.connect("button-press-event", self._on_click)
-
+        super().__init__(name, corner=corner)
+        self.populate()
         threading.Thread(target=self._fetch, daemon=True).start()
-        self.show_all()
 
     def _fetch(self):
         self.weather = parse_weather(fetch_weather())
-        GLib.idle_add(self.area.queue_draw)
+        GLib.idle_add(self.populate)
 
-    def _draw(self, widget, cr):
-        w = widget.get_allocated_width()
-        h = widget.get_allocated_height()
+    @staticmethod
+    def _styled(text, cls, xalign=0):
+        lbl = Gtk.Label(label=text, xalign=xalign)
+        lbl.get_style_context().add_class(cls)
+        return lbl
 
-        cr.set_operator(cairo.OPERATOR_CLEAR)
-        cr.paint()
-        cr.set_operator(cairo.OPERATOR_OVER)
-
-        # Translucent rounded fill + top sheen — Hyprland's layerrule blur
-        # behind the window provides the frosted-glass background.
-        rrect(cr, 0, 0, w, h, POPUP_R)
-        cr.set_source_rgba(0.04, 0.06, 0.10, 0.48)
-        cr.fill_preserve()
-        g = cairo.LinearGradient(0, 0, 0, h)
-        g.add_color_stop_rgba(0.0, 1, 1, 1, 0.22)
-        g.add_color_stop_rgba(0.5, 1, 1, 1, 0.04)
-        g.add_color_stop_rgba(1.0, 0, 0, 0, 0.12)
-        cr.set_source(g)
-        cr.fill()
-
-        cr.set_source_rgba(1, 1, 1, 0.28)
-        cr.set_line_width(1.0)
-        rrect(cr, 0.5, 0.5, w - 1, h - 1, POPUP_R)
-        cr.stroke()
-
-        y = PAD
+    def build(self):
         if self.weather is None:
-            text(cr, "fetching weather…", "SF Pro Text 13", WHITE_SUB, PAD, y + 24)
+            self.panel.pack_start(self._styled("fetching weather…", "dim"), False, False, 0)
             return
+        w = self.weather
 
-        wth = self.weather
+        self.panel.pack_start(self._styled(w["location"], "sub"), False, False, 0)
 
-        text(cr, wth["location"], "SF Pro Text 12", WHITE_SUB,
-             PAD, y, max_w=w - PAD * 2 - 50)
-        y += 20
+        top = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        top.pack_start(self._styled(f"{w['temp_c']}°", "bigtemp"), True, True, 0)
+        top.pack_end(self._styled(weather_symbol(w["code"]), "wsym"), False, False, 0)
+        self.panel.pack_start(top, False, False, 0)
 
-        _, th = text(cr, f"{wth['temp_c']}°", "SF Pro Display 44 Bold", WHITE, PAD, y)
-        text(cr, weather_symbol(wth["code"]), "Noto Color Emoji 34",
-             (1, 1, 1, 1), w - PAD - 46, y + 4)
-        y += max(th, 42) + 2
+        desc = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        desc.pack_start(self._styled(w["desc"], "wdesc"), True, True, 0)
+        desc.pack_end(self._styled(f"Feels {w['feels_c']}°", "sub", xalign=1), False, False, 0)
+        self.panel.pack_start(desc, False, False, 0)
 
-        feels_str = f"Feels {wth['feels_c']}°"
-        text(cr, wth["desc"], "SF Pro Text 13", WHITE_DIM, PAD, y)
-        text(cr, feels_str, "SF Pro Text 13", WHITE_SUB,
-             w - PAD - 80, y, max_w=80)
-        y += 20
+        self.panel.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 4)
 
-        y += 14
-        sep(cr, PAD, y, w - PAD * 2)
-        y += 14
-
-        details = [
-            ("Humidity",  f"{wth['humidity']}%"),
-            ("Wind",      wth["wind"]),
-            ("UV Index",  wth["uv"]),
-            ("Precip",    f"{wth['precip']}mm"),
-        ]
-        col_w = (w - PAD * 2) / len(details)
+        details = [("Humidity", f"{w['humidity']}%"), ("Wind", w["wind"]),
+                   ("UV Index", w["uv"]), ("Precip", f"{w['precip']}mm")]
+        dgrid = Gtk.Grid(column_homogeneous=True, column_spacing=8)
         for i, (label, val) in enumerate(details):
-            dx = PAD + i * col_w
-            text(cr, label, "SF Pro Text 11", WHITE_SUB,   dx, y,      max_w=col_w)
-            text(cr, val,   "SF Pro Text 14", WHITE,       dx, y + 16, max_w=col_w)
-        y += 42
+            col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+            col.pack_start(self._styled(label, "dlabel"), False, False, 0)
+            col.pack_start(self._styled(val, "dval"), False, False, 0)
+            dgrid.attach(col, i, 0, 1, 1)
+        self.panel.pack_start(dgrid, False, False, 0)
 
-        y += 12
-        sep(cr, PAD, y, w - PAD * 2)
-        y += 14
-
-        forecast = wth.get("forecast", [])[:3]
+        forecast = w.get("forecast", [])[:3]
         if forecast:
-            day_w = (w - PAD * 2) / 3
+            self.panel.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 4)
+            fgrid = Gtk.Grid(column_homogeneous=True, column_spacing=8, row_spacing=2)
             for i, day in enumerate(forecast):
-                dx = PAD + i * day_w
-                text(cr, day_label(day["date"]), "SF Pro Text 11 SemiBold",
-                     WHITE_DIM, dx, y, max_w=day_w)
-                text(cr, weather_symbol(day["code"]), "Noto Color Emoji 20",
-                     (1, 1, 1, 1), dx, y + 17, max_w=day_w)
-                text(cr, f"{day['max_c']}° / {day['min_c']}°", "SF Pro Text 12",
-                     WHITE_SUB, dx, y + 42, max_w=day_w)
-
-    def _on_key(self, _w, event):
-        if event.keyval == Gdk.KEY_Escape:
-            Gtk.main_quit()
-        return False
-
-    def _on_click(self, *_):
-        Gtk.main_quit()
+                col = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+                col.set_halign(Gtk.Align.CENTER)
+                col.pack_start(self._styled(day_label(day["date"]), "fday", xalign=0.5), False, False, 0)
+                col.pack_start(self._styled(weather_symbol(day["code"]), "fsym", xalign=0.5), False, False, 0)
+                col.pack_start(self._styled(f"{day['max_c']}° / {day['min_c']}°", "ftemp", xalign=0.5), False, False, 0)
+                fgrid.attach(col, i, 0, 1, 1)
+            self.panel.pack_start(fgrid, False, False, 0)
 
 
 def main():
-    def _sig(*_):
-        GLib.idle_add(Gtk.main_quit)
-
-    signal.signal(signal.SIGTERM, _sig)
-    signal.signal(signal.SIGINT,  _sig)
-
-    WeatherWindow()
-    Gtk.main()
+    return GlassPopup.launch("weather", Popup, corner="top-right")
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
