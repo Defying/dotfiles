@@ -398,7 +398,9 @@ def main(force_refresh=False, force_network=False):
             text = countdown
             text_window = "weekly reset countdown"
         elif stale and reset_has_passed(seven_day_reset_epoch):
-            text = "weekly" if retry_limited else "stale"
+            # Weekly reset passed but unconfirmed; no more-meaningful number to
+            # show, so a neutral dash beats a cryptic word.
+            text = "–"
             text_window = "stale weekly reset time"
             stale_expired_reset = True
     elif primary_remaining == 0:
@@ -407,8 +409,16 @@ def main(force_refresh=False, force_network=False):
             text = countdown
             text_window = "5h reset countdown"
         elif stale and reset_has_passed(five_hour_reset_epoch):
-            text = "session" if retry_limited else "stale"
-            text_window = "stale 5h reset time"
+            # The cached 5h reset has passed but we can't confirm the fresh
+            # value (refresh failed / rate-limited). The 5h window has almost
+            # certainly reset — so rather than a cryptic stuck word, show the
+            # still-meaningful weekly remaining if we have it.
+            if weekly_remaining is not None:
+                text = f"{weekly_remaining}%"
+                text_window = "weekly remaining (5h reset, awaiting refresh)"
+            else:
+                text = "–"
+                text_window = "stale 5h reset time"
             stale_expired_reset = True
     tooltip_lines.append(f"bar text shows {text_window}")
     if stale_expired_reset:
