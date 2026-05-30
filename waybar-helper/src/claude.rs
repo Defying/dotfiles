@@ -261,9 +261,24 @@ fn css_class(remaining: i64) -> &'static str {
 
 fn limit_level(remaining: i64) -> &'static str {
     if remaining <= 10 {
-        "critical"
+        "danger"
+    } else if remaining <= 30 {
+        "warn"
     } else {
         ""
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::limit_level;
+
+    #[test]
+    fn notification_level_tracks_warning_and_danger_thresholds() {
+        assert_eq!(limit_level(31), "");
+        assert_eq!(limit_level(30), "warn");
+        assert_eq!(limit_level(10), "danger");
+        assert_eq!(limit_level(0), "danger");
     }
 }
 
