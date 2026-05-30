@@ -37,7 +37,7 @@
   },
 
   "custom/codex-tokens": {
-    "exec": "/home/ben/dotfiles/scripts/waybar-openai-tokens.py",
+    "exec": "/home/ben/.local/bin/waybar-helper codex",
     "return-type": "json",
     "interval": 30,
     "signal": 8,
