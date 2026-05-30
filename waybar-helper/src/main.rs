@@ -455,12 +455,46 @@ fn classify(cpu: i64, mem: i64, ssd: i64) -> &'static str {
     }
 }
 
+/// `sysmon` (one-shot, waybar `interval`) or `sysmon <ms>` (continuous: loops
+/// and prints a JSON line every <ms>, so waybar never re-spawns it — deltas are
+/// kept in memory, no per-tick fork or state-file write). One call is ~1ms of
+/// CPU and touches only procfs/sysfs, so even a sub-second cadence is cheap.
 fn sysmon() -> ExitCode {
-    let prev = read_prev();
-    let now = now_secs();
+    let loop_ms: Option<u64> = env::args()
+        .nth(2)
+        .and_then(|s| s.parse().ok())
+        .filter(|&m| m > 0);
 
+    match loop_ms {
+        None => {
+            // One-shot: state persisted across spawns in a runtime file.
+            let prev = read_prev();
+            let (line, np) = sysmon_sample(&prev, now_secs());
+            write_state(np.t, np.idle, np.total, &np.iface, np.rx, np.tx);
+            println!("{line}");
+            ExitCode::SUCCESS
+        }
+        Some(ms) => {
+            // Continuous: one long-lived process, prev kept in memory. stdout is
+            // block-buffered on a pipe, so flush after every line.
+            let mut prev = read_prev();
+            let period = Duration::from_millis(ms);
+            loop {
+                let (line, np) = sysmon_sample(&prev, now_secs());
+                println!("{line}");
+                let _ = std::io::stdout().flush();
+                prev = np;
+                std::thread::sleep(period);
+            }
+        }
+    }
+}
+
+/// Take one sysmon reading against `prev`, returning the Waybar JSON line and
+/// the fresh sample to use as the next `prev`.
+fn sysmon_sample(prev: &Prev, now: f64) -> (String, Prev) {
     let (cur_idle, cur_total) = read_cpu_totals();
-    let cpu = cpu_percent(&prev, cur_idle, cur_total);
+    let cpu = cpu_percent(prev, cur_idle, cur_total);
 
     let (mem, mem_human) = mem_percent_and_human();
 
@@ -479,7 +513,15 @@ fn sysmon() -> ExitCode {
         }
     }
 
-    write_state(now, cur_idle, cur_total, &iface, rx, tx);
+    let next = Prev {
+        t: now,
+        idle: cur_idle,
+        total: cur_total,
+        iface: iface.clone(),
+        rx,
+        tx,
+        have_net: !iface.is_empty(),
+    };
 
     // Fixed-width fields so the bubble never reflows the bar (SF Mono).
     let dr = fmt_rate(down);
@@ -516,8 +558,8 @@ fn sysmon() -> ExitCode {
     let class = classify(cpu, mem, ssd);
     // Hand-rolled JSON: every field is plain numbers/words/arrows — no quotes
     // or backslashes to escape (the \\n above is literal, as in the Python).
-    println!("{{\"text\": \"{text}\", \"tooltip\": \"{tooltip}\", \"class\": \"{class}\"}}");
-    ExitCode::SUCCESS
+    let line = format!("{{\"text\": \"{text}\", \"tooltip\": \"{tooltip}\", \"class\": \"{class}\"}}");
+    (line, next)
 }
 
 // ── autohide: macOS-style waybar hide while a window is fullscreen ─────────────

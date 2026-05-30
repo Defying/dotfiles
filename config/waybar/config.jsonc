@@ -158,9 +158,9 @@
   },
 
   "custom/sysmon": {
-    "exec": "/home/ben/.local/bin/waybar-helper sysmon",
+    "exec": "/home/ben/.local/bin/waybar-helper sysmon 1400",
     "return-type": "json",
-    "interval": 2,
+    "restart-interval": 3,
     "format": "{}",
     "on-click": "ghostty -e btop"
   }
