@@ -400,6 +400,30 @@ fn fmt_rate(bytes_per_sec: f64) -> String {
     }
 }
 
+/// System power draw in watts plus the charge status, from the Apple SMC
+/// battery. `power_now` magnitude is the battery flow — on battery that is the
+/// whole-system draw; while charging it's the charge rate (noted in the
+/// tooltip). Falls back to current×voltage if `power_now` is absent.
+fn system_watts() -> (f64, String) {
+    let base = "/sys/class/power_supply/macsmc-battery";
+    let read_i = |f: &str| -> Option<i64> {
+        fs::read_to_string(format!("{base}/{f}"))
+            .ok()
+            .and_then(|s| s.trim().parse::<i64>().ok())
+    };
+    let status = fs::read_to_string(format!("{base}/status"))
+        .map(|s| s.trim().to_lowercase())
+        .unwrap_or_default();
+    let watts = if let Some(p) = read_i("power_now") {
+        p.unsigned_abs() as f64 / 1e6
+    } else if let (Some(i), Some(v)) = (read_i("current_now"), read_i("voltage_now")) {
+        (i.unsigned_abs() as f64 / 1e6) * (v as f64 / 1e6)
+    } else {
+        0.0
+    };
+    (watts, status)
+}
+
 /// Used percentage of the filesystem at `path` (df-style: excludes
 /// root-reserved blocks), via statvfs.
 fn disk_percent(path: &str) -> i64 {
@@ -461,23 +485,31 @@ fn sysmon() -> ExitCode {
     let dr = fmt_rate(down);
     let ur = fmt_rate(up);
     let ssd = disk_percent("/");
+    let (watts, power_status) = system_watts();
+    let wstr = format!("{watts:.1}W");
 
     // Two stacked rows in one small bubble:
     //   row 1: cpu  ↓rate  ssd
-    //   row 2: mem  ↑rate
+    //   row 2: mem  ↑rate  watts
     // The leading glyphs \u{f0ee0} (nf-md-cpu_64_bit) and \u{f035b}
     // (nf-md-memory) share the same advance width (1536/2048 em) and the rest
     // is SF Mono fixed-width, so the ↓/↑ rate columns line up across both rows.
-    // SSD (\u{f02ca} nf-md-harddisk) is the last field on row 1 only, so its
-    // width never affects that alignment. \\n is a literal JSON newline Waybar
-    // renders as a second line. (GPU usage is intentionally absent: the Asahi
-    // M1 driver exposes no GPU utilisation sysfs, so there is nothing to read.)
+    // The trailing column pairs SSD (\u{f02ca} nf-md-harddisk) over power
+    // (\u{f0425} nf-md-power) — both advance 1368/2048 em, so that column lines
+    // up too. \\n is a literal JSON newline Waybar renders as a second line.
+    // (GPU usage is intentionally absent: the Asahi M1 driver exposes no GPU
+    // utilisation sysfs, so there is nothing to read.)
     let text = format!(
-        "<small>\u{f0ee0} {cpu:>3}%  ↓ {dr:>9}  \u{f02ca} {ssd:>3}%\\n\u{f035b} {mem:>3}%  ↑ {ur:>9}</small>"
+        "<small>\u{f0ee0} {cpu:>3}%  ↓ {dr:>9}  \u{f02ca} {ssd:>3}%\\n\u{f035b} {mem:>3}%  ↑ {ur:>9}  \u{f0425} {wstr:>5}</small>"
     );
     let iface_disp = if iface.is_empty() { "—" } else { &iface };
+    let power_note = if power_status.is_empty() {
+        String::new()
+    } else {
+        format!(" ({power_status})")
+    };
     let tooltip = format!(
-        "cpu {cpu}% · mem {mem}% ({mem_human}) · ssd {ssd}%\\nnet {iface_disp}  ↓ {dr}  ↑ {ur}"
+        "cpu {cpu}% · mem {mem}% ({mem_human}) · ssd {ssd}%\\nnet {iface_disp}  ↓ {dr}  ↑ {ur}\\npower {wstr}{power_note}"
     );
     let class = classify(cpu, mem, ssd);
     // Hand-rolled JSON: every field is plain numbers/words/arrows — no quotes
