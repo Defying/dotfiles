@@ -524,8 +524,12 @@ fn main_display(force_refresh: bool, force_network: bool) -> i32 {
         } else {
             &five_hour
         };
+        // Claude uses a single OAuth account here (no slot system like Codex),
+        // so the account key is empty; the per-account machinery is ready if
+        // Claude multi-account is added later.
         maybe_notify(
             "Claude",
+            "",
             level,
             display_remaining,
             &fmt_reset_iso(reset_source),

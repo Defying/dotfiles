@@ -217,7 +217,16 @@ fn emit_usage(limits: &Value, account: &Account, opts: EmitOpts) {
     lines.push(CODEX_USAGE_URL.to_string());
 
     if opts.notify {
-        maybe_notify("Codex", level, display, &reset_label, &asset("openai.svg"));
+        // Per-account notify state so each saved Codex account is tracked
+        // independently (email is the stable key; fall back to label/slot).
+        let acct_name = if !account.email.is_empty() {
+            account.email.clone()
+        } else if !account.label.is_empty() {
+            account.label.clone()
+        } else {
+            account.slot.clone().unwrap_or_default()
+        };
+        maybe_notify("Codex", &acct_name, level, display, &reset_label, &asset("openai.svg"));
         if display == 0 {
             reset::schedule(
                 "Codex",

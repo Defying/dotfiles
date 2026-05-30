@@ -35,6 +35,14 @@ invisible=1
 default-timeout=10000
 group-by=app-name,summary
 
+# Urgent AI-usage alerts (danger level): stay until dismissed, solid red.
+[app-name="AI usage" urgency=critical]
+default-timeout=0
+ignore-timeout=1
+background-color=#3a0b12f0
+border-color=#ff6b6bff
+text-color=#ffe8e8ff
+
 [app-name=volume-osd]
 anchor=top-center
 layer=overlay

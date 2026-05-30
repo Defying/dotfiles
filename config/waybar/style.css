@@ -162,22 +162,24 @@ window#waybar {
     rgba(36, 28, 12, 0.58);
 }
 
+/* danger = urgent: solid (opaque) red bar item so it's unmissable, paired with
+   the sticky critical mako notification. */
 #custom-codex-tokens.danger {
-  color: #ffd6d6;
+  color: #ffffff;
+  font-weight: bold;
   background:
     url("/home/ben/dotfiles/assets/openai.png") no-repeat 8px center / 15px 15px,
-    linear-gradient(135deg, rgba(255, 107, 107, 0.34), rgba(255, 255, 255, 0.08)),
-    rgba(46, 10, 14, 0.64);
-  border-color: rgba(255, 214, 214, 0.50);
+    linear-gradient(135deg, #d8392d, #9e1c13);
+  border-color: rgba(255, 224, 224, 0.85);
 }
 
 #custom-claude-tokens.danger {
-  color: #ffd6d6;
+  color: #ffffff;
+  font-weight: bold;
   background:
     url("/home/ben/dotfiles/assets/claude.png") no-repeat 8px center / 15px 15px,
-    linear-gradient(135deg, rgba(255, 107, 107, 0.34), rgba(255, 255, 255, 0.08)),
-    rgba(46, 10, 14, 0.64);
-  border-color: rgba(255, 214, 214, 0.50);
+    linear-gradient(135deg, #d8392d, #9e1c13);
+  border-color: rgba(255, 224, 224, 0.85);
 }
 
 #custom-weather,

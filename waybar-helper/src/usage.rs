@@ -127,13 +127,57 @@ pub fn iso_to_epoch(value: &str) -> Option<i64> {
         .map(|dt| dt.timestamp())
 }
 
+/// Slugify an account label into a filename/tag-safe key (lowercased, only
+/// `[a-z0-9._-]`, other runs collapsed to a single `-`).
+fn slugify(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    let mut prev_dash = false;
+    for c in value.trim().to_lowercase().chars() {
+        if c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-') {
+            out.push(c);
+            prev_dash = false;
+        } else if !prev_dash {
+            out.push('-');
+            prev_dash = true;
+        }
+    }
+    out.trim_matches(['-', '.']).to_string()
+}
+
+/// State/dedup key for a (service, account) pair. With no account it's just the
+/// service, preserving the old single-account behaviour.
+fn notify_key(service: &str, account: &str) -> String {
+    let svc = service.to_lowercase();
+    let acct = slugify(account);
+    if acct.is_empty() {
+        svc
+    } else {
+        format!("{svc}-{acct}")
+    }
+}
+
 /// Fire a desktop notification only on a transition into a worse level; suppress
-/// while staying at the same level. State in `<service>.notify`. Mirrors the
-/// identical `maybe_notify` in both scripts.
-pub fn maybe_notify(service: &str, level: &str, remaining: i64, reset_label: &str, icon: &str) {
+/// while staying at the same level. State is tracked **per (service, account)**
+/// in `<service>[-<account>].notify`, so each account notifies independently and
+/// switching accounts re-arms cleanly.
+///
+/// `level` drives urgency: `danger` → a sticky `critical` notification (the
+/// "notify me urgently" case, paired with the solid `.danger` bar background);
+/// anything else → a `normal`, auto-expiring one. The synchronous hint is keyed
+/// per service+account so Codex/Claude (and different accounts) replace only
+/// their own previous toast, never each other's.
+pub fn maybe_notify(
+    service: &str,
+    account: &str,
+    level: &str,
+    remaining: i64,
+    reset_label: &str,
+    icon: &str,
+) {
     let dir = cache_dir();
     let _ = fs::create_dir_all(&dir);
-    let state_file = dir.join(format!("{}.notify", service.to_lowercase()));
+    let key = notify_key(service, account);
+    let state_file = dir.join(format!("{key}.notify"));
     let last_level = fs::read_to_string(&state_file)
         .ok()
         .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
@@ -143,16 +187,23 @@ pub fn maybe_notify(service: &str, level: &str, remaining: i64, reset_label: &st
         return;
     }
     if !level.is_empty() {
+        let urgent = level == "danger";
+        let urgency = if urgent { "critical" } else { "normal" };
+        // critical stays until dismissed (t=0); warnings auto-expire.
+        let timeout = if urgent { "0" } else { "10000" };
+        let title = if urgent {
+            format!("{service} usage critical")
+        } else {
+            format!("{service} usage low")
+        };
+        let who = if account.is_empty() {
+            String::new()
+        } else {
+            format!("{account}: ")
+        };
+        let sync = format!("string:x-canonical-private-synchronous:ai-usage-{key}");
         let mut args: Vec<String> = [
-            "notify-send",
-            "-a",
-            "AI usage",
-            "-u",
-            "normal",
-            "-t",
-            "10000",
-            "-h",
-            "string:x-canonical-private-synchronous:ai-usage",
+            "notify-send", "-a", "AI usage", "-u", urgency, "-t", timeout, "-h", &sync,
         ]
         .iter()
         .map(|s| s.to_string())
@@ -161,8 +212,8 @@ pub fn maybe_notify(service: &str, level: &str, remaining: i64, reset_label: &st
             args.push("-i".into());
             args.push(icon.into());
         }
-        args.push(format!("{service} usage low"));
-        args.push(format!("{remaining}% remaining · resets {reset_label}"));
+        args.push(title);
+        args.push(format!("{who}{remaining}% remaining · resets {reset_label}"));
         let _ = Command::new("setsid")
             .arg("-f")
             .args(&args)
