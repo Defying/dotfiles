@@ -179,7 +179,11 @@ def cache_age_seconds(cache):
 
 def signal_waybar(signal):
     if signal:
-        subprocess.run(["pkill", f"-RTMIN+{signal}", "waybar"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(
+            ["pkill", f"-RTMIN+{signal}", "-x", "waybar"],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
 
 
 def acquire_refresh_lock():

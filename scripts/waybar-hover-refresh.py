@@ -91,7 +91,7 @@ def in_rect(pt: tuple[int, int], rect: tuple[int, int, int, int]) -> bool:
 
 
 def fire(sig: int) -> None:
-    subprocess.run(["pkill", f"-RTMIN+{sig}", "waybar"],
+    subprocess.run(["pkill", f"-RTMIN+{sig}", "-x", "waybar"],
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 

@@ -42,7 +42,7 @@ def waybar(text, tooltip, css_class="subscription"):
 def signal_waybar(signal):
     if signal:
         subprocess.run(
-            ["pkill", f"-RTMIN+{signal}", "waybar"],
+            ["pkill", f"-RTMIN+{signal}", "-x", "waybar"],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )

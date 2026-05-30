@@ -21,5 +21,5 @@ case "$service" in
 esac
 
 if [[ "$signal" =~ ^[0-9]+$ ]]; then
-  pkill "-RTMIN+$signal" waybar >/dev/null 2>&1 || true
+  pkill "-RTMIN+$signal" -x waybar >/dev/null 2>&1 || true
 fi

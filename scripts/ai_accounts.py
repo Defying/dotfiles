@@ -212,7 +212,7 @@ def clear_codex_cache() -> None:
 
 
 def signal_waybar() -> None:
-    subprocess.run(["pkill", "-RTMIN+8", "waybar"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    subprocess.run(["pkill", "-RTMIN+8", "-x", "waybar"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
 
 def activate(slot: str) -> dict:
