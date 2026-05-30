@@ -436,7 +436,8 @@ fn sysmon() -> ExitCode {
     // Fixed-width fields so the bubble never reflows the bar (SF Mono).
     let dr = fmt_rate(down);
     let ur = fmt_rate(up);
-    let text = format!("cpu {cpu:>3}%  mem {mem:>3}%  ↓ {dr:>9} ↑ {ur:>9}");
+    // \u{f4bc} = nf-oct-cpu, \u{f035b} = nf-md-memory (Symbols Nerd Font).
+    let text = format!("\u{f4bc} {cpu:>3}%  \u{f035b} {mem:>3}%  ↓ {dr:>9} ↑ {ur:>9}");
     let iface_disp = if iface.is_empty() { "—" } else { &iface };
     let tooltip =
         format!("cpu {cpu}% · mem {mem}% ({mem_human})\\nnet {iface_disp}  ↓ {dr}  ↑ {ur}");
