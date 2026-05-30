@@ -32,7 +32,14 @@ core, continuous) and no 12 MB Python RSS per spawn.
   `hypr-auto-brightness.py`. Sets brightness IN-PROCESS via a direct sysfs write
   (needs the `video` group + 90-backlight-perms.rules) — no spawns, even during
   a fade — falling back to one `busctl` logind `SetBrightness` call only if the
-  direct write fails.
+  direct write fails. **Learns your preference:** the log curve is only a prior;
+  whenever you set brightness by hand it records that against the current
+  ambient-light bucket and EMAs toward it. A bucket's influence grows with how
+  many times you've confirmed it (confidence `n/6`, capped), so one nudge barely
+  moves the curve but a consistent preference takes it over. The learned model
+  is a tiny TSV under `$XDG_STATE_HOME/hypr/auto-brightness-model.tsv` so it
+  survives reboots. Toggle off with `Super+Shift+B` (touches
+  `~/.cache/hypr/auto-brightness.off`); delete the TSV to reset what it learned.
 
 The clock/date subcommands still shell out to `date(1)`/`cal(1)` (tiny C
 programs) for locale/timezone formatting, but drop the per-tick Python that

@@ -7,6 +7,7 @@
 //! Output matches the Python module's JSON byte-for-byte (modulo live values),
 //! so it's a drop-in `exec` swap in waybar's config.
 
+use std::collections::HashMap;
 use std::env;
 use std::fs;
 use std::io::{ErrorKind, Read, Write};
@@ -649,6 +650,112 @@ const LUX_EMA: f64 = 0.35; // lower = smoother lux
 const FADE_SECONDS: f64 = 1.8; // gentle macOS-like ramp per adjustment
 const FADE_STEPS: u32 = 110; // fine steps (in-process writes are cheap)
 
+// ── learning: remember the brightness the user prefers at each light level ────
+//
+// The fixed log curve (`default_pct`) is only a prior. Whenever the user sets
+// brightness by hand we record it against the current ambient-light *bucket*
+// (log-spaced, BUCKETS_PER_DECADE per 10× lux) and EMA it toward their choice.
+// The bucket's influence grows with how many times they've confirmed it
+// (confidence = n/CONF_FULL, capped at 1), so one accidental nudge barely moves
+// the curve but a consistent preference takes it over. Targets interpolate
+// linearly between adjacent buckets so the curve stays smooth as light drifts.
+// The model is a tiny TSV under XDG_STATE_HOME so it survives reboots.
+const BUCKETS_PER_DECADE: f64 = 4.0;
+const LEARN_ALPHA: f64 = 0.35; // weight of the newest manual sample
+const SAMPLE_CAP: u32 = 20; // keep adapting; don't freeze a bucket forever
+const CONF_FULL: f64 = 6.0; // confirmations for a bucket to fully own its level
+
+/// Continuous bucket coordinate for a lux reading (log-spaced).
+fn lux_bucket_pos(lux: f64) -> f64 {
+    (lux.max(0.0) + 1.0).log10() * BUCKETS_PER_DECADE
+}
+
+/// The fixed log-curve prior at a bucket's center lux.
+fn default_pct_at_bucket(b: i64) -> f64 {
+    let lux = 10f64.powf(b as f64 / BUCKETS_PER_DECADE) - 1.0;
+    lux_to_pct(lux) as f64
+}
+
+/// Learned (lux-bucket → preferred percent) model, persisted as TSV.
+#[derive(Default)]
+struct Model {
+    buckets: HashMap<i64, (f64, u32)>, // bucket → (preferred pct, sample count)
+}
+
+impl Model {
+    fn path() -> String {
+        let base = env::var("XDG_STATE_HOME")
+            .ok()
+            .filter(|s| !s.is_empty())
+            .unwrap_or_else(|| {
+                let home = env::var("HOME").unwrap_or_else(|_| "/tmp".into());
+                format!("{home}/.local/state")
+            });
+        let dir = format!("{base}/hypr");
+        let _ = fs::create_dir_all(&dir);
+        format!("{dir}/auto-brightness-model.tsv")
+    }
+
+    fn load() -> Self {
+        let mut m = Model::default();
+        if let Ok(s) = fs::read_to_string(Model::path()) {
+            for line in s.lines() {
+                let f: Vec<&str> = line.split('\t').collect();
+                if f.len() == 3 {
+                    if let (Ok(b), Ok(pct), Ok(n)) =
+                        (f[0].parse(), f[1].parse::<f64>(), f[2].parse())
+                    {
+                        m.buckets.insert(b, (pct.clamp(10.0, 100.0), n));
+                    }
+                }
+            }
+        }
+        m
+    }
+
+    fn save(&self) {
+        let mut buckets: Vec<_> = self.buckets.iter().collect();
+        buckets.sort_by_key(|(b, _)| **b);
+        let mut out = String::new();
+        for (b, (pct, n)) in buckets {
+            out.push_str(&format!("{b}\t{pct:.1}\t{n}\n"));
+        }
+        let _ = fs::write(Model::path(), out);
+    }
+
+    /// Fold a manual preference into a bucket. Returns the new (pct, n) so the
+    /// caller can log what was learned.
+    fn learn(&mut self, b: i64, pref_pct: f64) -> (f64, u32) {
+        let e = self.buckets.entry(b).or_insert((pref_pct, 0));
+        e.0 = LEARN_ALPHA * pref_pct + (1.0 - LEARN_ALPHA) * e.0;
+        e.1 = (e.1 + 1).min(SAMPLE_CAP);
+        *e
+    }
+
+    /// A bucket's effective percent: learned value blended over the prior by
+    /// confidence (no samples → pure prior; many → pure learned).
+    fn effective(&self, b: i64) -> f64 {
+        let default = default_pct_at_bucket(b);
+        match self.buckets.get(&b) {
+            Some(&(pct, n)) => {
+                let conf = (n as f64 / CONF_FULL).min(1.0);
+                conf * pct + (1.0 - conf) * default
+            }
+            None => default,
+        }
+    }
+
+    /// Target percent for a lux reading: linear interp between the two buckets
+    /// it falls between, so the curve has no steps as light drifts.
+    fn target_pct(&self, lux: f64) -> i64 {
+        let pos = lux_bucket_pos(lux);
+        let b0 = pos.floor() as i64;
+        let frac = pos - b0 as f64;
+        let v = self.effective(b0) * (1.0 - frac) + self.effective(b0 + 1) * frac;
+        (v.round() as i64).clamp(10, 100)
+    }
+}
+
 fn read_int(path: &str) -> Option<i64> {
     fs::read_to_string(path).ok()?.trim().parse().ok()
 }
@@ -753,6 +860,7 @@ fn autobright() -> ExitCode {
     }
     let tol = ((max_raw as f64 * MANUAL_TOL_FRAC) as i64).max(1);
     let mut setter = Brightness::new();
+    let mut model = Model::load();
 
     let mut last_set_raw: Option<i64> = None;
     let mut backoff_until: Option<std::time::Instant> = None;
@@ -774,20 +882,39 @@ fn autobright() -> ExitCode {
             Some(v) => v as f64,
             None => continue,
         };
-        ema_lux = Some(match ema_lux {
+        let lux = match ema_lux {
             None => raw_lux,
             Some(prev) => LUX_EMA * raw_lux + (1.0 - LUX_EMA) * prev,
-        });
+        };
+        ema_lux = Some(lux);
 
         let cur_raw = match read_int(BRIGHT) {
             Some(v) => v,
             None => continue,
         };
+        let cur_pct = (cur_raw as f64 * 100.0 / max_raw as f64).round() as i64;
 
-        // Manual-change detection: brightness drifted from what we set → adopt
-        // the user's level as the new baseline and back off so we never fight it.
+        // On first sighting, adopt whatever's set now as our baseline instead of
+        // yanking it to the curve. We never override a level the user already
+        // chose, and it makes the next manual change detectable (and learnable).
+        if last_set_raw.is_none() {
+            last_set_raw = Some(cur_raw);
+            continue;
+        }
+
+        // Manual-change detection: brightness drifted from what we set. Learn
+        // the user's choice for this light level, adopt it as the new baseline,
+        // and back off so we never immediately fight the adjustment.
         if let Some(last) = last_set_raw {
             if (cur_raw - last).abs() > tol {
+                let bucket = lux_bucket_pos(lux).round() as i64;
+                let (pref, n) = model.learn(bucket, cur_pct as f64);
+                model.save();
+                eprintln!(
+                    "autobright: learned lux≈{:.0} (bucket {bucket}) → prefer {cur_pct}% \
+                     [now {pref:.0}%, n={n}]",
+                    lux
+                );
                 last_set_raw = Some(cur_raw);
                 backoff_until = Some(std::time::Instant::now() + BACKOFF);
                 continue;
@@ -797,8 +924,7 @@ fn autobright() -> ExitCode {
             continue;
         }
 
-        let target_pct = lux_to_pct(ema_lux.unwrap_or(raw_lux));
-        let cur_pct = (cur_raw as f64 * 100.0 / max_raw as f64).round() as i64;
+        let target_pct = model.target_pct(lux);
         if (target_pct - cur_pct).abs() < DEADBAND_PCT {
             continue;
         }
