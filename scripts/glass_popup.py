@@ -56,10 +56,12 @@ EDGE_GAP = 24
 BASE_CSS = b"""
 .glass-root { background: transparent; }
 .panel {
+  /* Base fill is fairly opaque (0.62) so the panel stays readable over a busy
+     desktop; the Hyprland glass-popup blur rule frosts whatever shows through. */
   background:
-    linear-gradient(145deg, rgba(255,255,255,0.30), rgba(255,255,255,0.09) 42%,
-      rgba(51,204,255,0.14) 68%, rgba(192,132,245,0.18)),
-    rgba(10, 14, 24, 0.34);
+    linear-gradient(145deg, rgba(255,255,255,0.22), rgba(255,255,255,0.07) 42%,
+      rgba(51,204,255,0.12) 68%, rgba(192,132,245,0.16)),
+    rgba(10, 14, 24, 0.62);
   border: 1px solid rgba(255,255,255,0.42);
   border-radius: 22px;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), 0 30px 90px rgba(2,6,23,0.48);
