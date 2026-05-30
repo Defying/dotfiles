@@ -15,6 +15,8 @@ use std::os::unix::net::UnixStream;
 use std::process::{Command, ExitCode};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
+mod accounts;
+
 fn main() -> ExitCode {
     match env::args().nth(1).as_deref() {
         Some("sysmon") => sysmon(),
@@ -24,6 +26,7 @@ fn main() -> ExitCode {
         Some("weather") => weather(),
         Some("autohide") => autohide(),
         Some("autobright") => autobright(),
+        Some("codex-account-status") => ExitCode::from(accounts::status_json() as u8),
         other => {
             eprintln!(
                 "usage: waybar-helper \
