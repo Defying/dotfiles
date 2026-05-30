@@ -487,20 +487,22 @@ fn sysmon() -> ExitCode {
     let ssd = disk_percent("/");
     let (watts, power_status) = system_watts();
     let wstr = format!("{watts:.1}W");
+    // Equal-width (5) so the net column to their right aligns across rows.
+    let ssd_field = format!("{:>5}", format!("{ssd}%"));
+    let watt_field = format!("{wstr:>5}");
 
-    // Two stacked rows in one small bubble:
-    //   row 1: cpu  ↓rate  ssd
-    //   row 2: mem  ↑rate  watts
-    // The leading glyphs \u{f0ee0} (nf-md-cpu_64_bit) and \u{f035b}
-    // (nf-md-memory) share the same advance width (1536/2048 em) and the rest
-    // is SF Mono fixed-width, so the ↓/↑ rate columns line up across both rows.
-    // The trailing column pairs SSD (\u{f02ca} nf-md-harddisk) over power
-    // (\u{f0425} nf-md-power) — both advance 1368/2048 em, so that column lines
-    // up too. \\n is a literal JSON newline Waybar renders as a second line.
-    // (GPU usage is intentionally absent: the Asahi M1 driver exposes no GPU
-    // utilisation sysfs, so there is nothing to read.)
+    // Two stacked rows in one small bubble, three aligned columns:
+    //   row 1: cpu   ssd    ↓rate
+    //   row 2: mem   watts  ↑rate
+    // Column 1 leads with \u{f0ee0} (nf-md-cpu_64_bit) / \u{f035b}
+    // (nf-md-memory) — equal advance 1536/2048 em. Column 2 leads with
+    // \u{f02ca} (nf-md-harddisk) / \u{f0425} (nf-md-power) — equal advance
+    // 1368/2048 em — and its values are padded to a fixed width, so the
+    // rightmost net column (↓/↑) lines up across both rows. \\n is a literal
+    // JSON newline Waybar renders as a second line. (GPU usage is intentionally
+    // absent: the Asahi M1 driver exposes no GPU utilisation sysfs.)
     let text = format!(
-        "<small>\u{f0ee0} {cpu:>3}%  ↓ {dr:>9}  \u{f02ca} {ssd:>3}%\\n\u{f035b} {mem:>3}%  ↑ {ur:>9}  \u{f0425} {wstr:>5}</small>"
+        "<small>\u{f0ee0} {cpu:>3}%  \u{f02ca} {ssd_field}  ↓ {dr:>9}\\n\u{f035b} {mem:>3}%  \u{f0425} {watt_field}  ↑ {ur:>9}</small>"
     );
     let iface_disp = if iface.is_empty() { "—" } else { &iface };
     let power_note = if power_status.is_empty() {
