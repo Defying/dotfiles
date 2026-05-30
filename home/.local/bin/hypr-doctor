@@ -131,15 +131,16 @@ else
 fi
 
 print_section "Autostart"
-# Wallpaper is provided by hyprpaper at login; the aerial screensaver
-# (Super+Shift+A) swaps in an mpvpaper process on demand and kills hyprpaper
-# while active. Either one satisfies "a wallpaper is being drawn".
-if pgrep -f '(^|/| )hyprpaper($| )' >/dev/null 2>&1; then
-  ok "wallpaper provider running: hyprpaper"
+# Static wallpaper is provided by swaybg at login (hyprpaper's GPU pipeline is
+# broken on this Asahi M1, so it never renders here). The aerial screensaver
+# (Super+Shift+A) overlays an mpvpaper process on top on demand. Either one
+# satisfies "a wallpaper is being drawn".
+if pgrep -x swaybg >/dev/null 2>&1; then
+  ok "wallpaper provider running: swaybg"
 elif pgrep -x mpvpaper >/dev/null 2>&1; then
   ok "wallpaper provider running: mpvpaper (aerial)"
 else
-  warn "no wallpaper provider running (hyprpaper or aerial/mpvpaper)"
+  warn "no wallpaper provider running (swaybg or aerial/mpvpaper)"
 fi
 check_process "waybar" '(^|/| )waybar($| )'
 check_process "mako" '(^|/| )mako($| )'
