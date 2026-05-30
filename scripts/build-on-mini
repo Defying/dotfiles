@@ -20,11 +20,16 @@
 #   build-on-mini ~/src/hypr-aerial            # build, fetch binary into its target/
 #
 # Bare names resolve against ~/dotfiles/<name> and ~/src/<name>.
+#
+# SSH multiplexing is enabled by default to remove repeated ssh/rsync handshakes.
+# Set BUILD_ON_MINI_SSH_PERSIST=0 to disable, or set it to another ssh duration
+# such as 30s/5m/1h.
 set -euo pipefail
 
 MINI="${MINI_HOST:-mini}"
 TARGET="aarch64-unknown-linux-gnu"
 REMOTE_ROOT="build"
+SSH_PERSIST="${BUILD_ON_MINI_SSH_PERSIST:-10m}"
 
 die() { printf 'build-on-mini: %s\n' "$1" >&2; exit 1; }
 usage() { echo "usage: build-on-mini <crate-dir|name> [--install [DEST]]" >&2; exit 2; }
@@ -65,20 +70,38 @@ print(b[0]['name'] if b and 'name' in b[0] else d['package']['name'])
 ")"
 [ -n "$bin" ] || die "could not determine binary name from Cargo.toml"
 
+ssh_args=()
+if [ "$SSH_PERSIST" != "0" ] && [ "$SSH_PERSIST" != "false" ]; then
+  runtime_dir="${XDG_RUNTIME_DIR:-/tmp}"
+  mkdir -p "$runtime_dir"
+  safe_host="$(printf '%s' "$MINI" | tr -c 'A-Za-z0-9_.-' '_')"
+  control_path="$runtime_dir/build-on-mini-${safe_host}.sock"
+  ssh_args=(
+    -o ControlMaster=auto
+    -o ControlPersist="$SSH_PERSIST"
+    -o ControlPath="$control_path"
+  )
+fi
+
+ssh_remote="ssh"
+for arg in "${ssh_args[@]}"; do
+  ssh_remote+=" $(printf '%q' "$arg")"
+done
+
 echo "→ syncing $name → $MINI:$REMOTE_ROOT/$name"
-rsync -az --delete \
+rsync -az --delete -e "$ssh_remote" \
   --exclude target --exclude '*.state' --exclude '*.mov' --exclude '.git' \
   "$src/" "$MINI:$REMOTE_ROOT/$name/"
 
 echo "→ cross-building $bin on $MINI ($TARGET)"
 # Force rustup's cargo/rustc ahead of Homebrew's single-target rust on PATH.
-ssh "$MINI" "bash -lc 'export PATH=\$HOME/.cargo/bin:\$PATH; cd $REMOTE_ROOT/$name && cargo build --release --target $TARGET'"
+ssh "${ssh_args[@]}" "$MINI" "bash -lc 'export PATH=\$HOME/.cargo/bin:\$PATH; cd $REMOTE_ROOT/$name && cargo build --release --target $TARGET'"
 
 remote_bin="$REMOTE_ROOT/$name/target/$TARGET/release/$bin"
 out="$src/target/$TARGET/release/$bin"
 mkdir -p "$(dirname "$out")"
 echo "→ fetching $bin"
-rsync -az "$MINI:$remote_bin" "$out"
+rsync -az -e "$ssh_remote" "$MINI:$remote_bin" "$out"
 file "$out"
 
 if [ "$do_install" -eq 1 ]; then
