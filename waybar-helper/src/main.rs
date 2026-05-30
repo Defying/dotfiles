@@ -16,7 +16,9 @@ use std::process::{Command, ExitCode};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 mod accounts;
+mod codex;
 mod reset;
+mod usage;
 
 fn main() -> ExitCode {
     match env::args().nth(1).as_deref() {
@@ -28,6 +30,7 @@ fn main() -> ExitCode {
         Some("autohide") => autohide(),
         Some("autobright") => autobright(),
         Some("codex-account-status") => ExitCode::from(accounts::status_json() as u8),
+        Some("codex") => codex::run(&env::args().skip(2).collect::<Vec<_>>()),
         other => {
             eprintln!(
                 "usage: waybar-helper \
