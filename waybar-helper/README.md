@@ -28,6 +28,11 @@ core, continuous) and no 12 MB Python RSS per spawn.
 - `waybar-helper autohide` — fullscreen Waybar autohide daemon. Drop-in for
   `hypr-waybar-autohide.py`; listens on Hyprland socket2 and only polls the
   cursor while the active workspace has a fullscreen window.
+- `waybar-helper autobright` — adaptive backlight from the M1 ALS. Drop-in for
+  `hypr-auto-brightness.py`. Sets brightness IN-PROCESS via a direct sysfs write
+  (needs the `video` group + 90-backlight-perms.rules) — no spawns, even during
+  a fade — falling back to one `busctl` logind `SetBrightness` call only if the
+  direct write fails.
 
 The clock/date subcommands still shell out to `date(1)`/`cal(1)` (tiny C
 programs) for locale/timezone formatting, but drop the per-tick Python that

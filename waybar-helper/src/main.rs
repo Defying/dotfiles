@@ -22,9 +22,11 @@ fn main() -> ExitCode {
         Some("date") => date_module(),
         Some("weather") => weather(),
         Some("autohide") => autohide(),
+        Some("autobright") => autobright(),
         other => {
             eprintln!(
-                "usage: waybar-helper <sysmon|clock24|clock12|date|weather|autohide>; got {:?}",
+                "usage: waybar-helper \
+                 <sysmon|clock24|clock12|date|weather|autohide|autobright>; got {:?}",
                 other
             );
             ExitCode::from(2)
@@ -620,5 +622,189 @@ fn autohide() -> ExitCode {
             Err(ref e) if e.kind() == ErrorKind::Interrupted => continue,
             Err(_) => return ExitCode::from(1),
         }
+    }
+}
+
+// ── autobright: adaptive backlight from the M1 ambient light sensor ───────────
+//
+// Port of hypr-auto-brightness.py. Polling daemon (one tiny sysfs read every
+// POLL_S, not a busy loop) easing the panel along a log curve. Brightness is set
+// IN-PROCESS via a direct sysfs write when the node is group-writable (the
+// `video` group + 90-backlight-perms.rules path) — NO process spawns, even
+// during a fade. Only if the direct write fails does it fall back to one
+// `busctl` logind SetBrightness call (the std crate has no in-process D-Bus; the
+// Python used Gio there). It acts only when enabled, the target differs by more
+// than a deadband, the session isn't idle-dimmed, and the user hasn't just set
+// brightness manually (then it backs off and adopts their level as baseline).
+
+const ALS: &str = "/sys/bus/iio/devices/iio:device0/in_illuminance_input";
+const BRIGHT: &str = "/sys/class/backlight/apple-panel-bl/brightness";
+const MAXF: &str = "/sys/class/backlight/apple-panel-bl/max_brightness";
+
+const POLL_S: Duration = Duration::from_secs(4);
+const DEADBAND_PCT: i64 = 5;
+const MANUAL_TOL_FRAC: f64 = 0.05;
+const BACKOFF: Duration = Duration::from_secs(300);
+const LUX_EMA: f64 = 0.35; // lower = smoother lux
+const FADE_SECONDS: f64 = 1.8; // gentle macOS-like ramp per adjustment
+const FADE_STEPS: u32 = 110; // fine steps (in-process writes are cheap)
+
+fn read_int(path: &str) -> Option<i64> {
+    fs::read_to_string(path).ok()?.trim().parse().ok()
+}
+
+/// `$XDG_RUNTIME_DIR` (matches private_runtime_dir / hypr-brightness-fade.sh).
+fn runtime_dir() -> String {
+    env::var("XDG_RUNTIME_DIR")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| {
+            let home = env::var("HOME").unwrap_or_else(|_| "/tmp".into());
+            format!("{home}/.cache/hypr-runtime")
+        })
+}
+
+/// True while the idle fade has dimmed the panel (its saved-brightness state
+/// file is present) — auto-brightness must not fight the idle dim.
+fn idle_dimmed() -> bool {
+    let p = format!("{}/hypr-brightness-fade/saved-brightness", runtime_dir());
+    fs::metadata(p).is_ok()
+}
+
+/// Toggle file: present = auto-brightness off (Super+Shift+B touches/removes it).
+fn autobright_off() -> bool {
+    let base = env::var("XDG_CACHE_HOME")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| {
+            let home = env::var("HOME").unwrap_or_else(|_| "/tmp".into());
+            format!("{home}/.cache")
+        });
+    fs::metadata(format!("{base}/hypr/auto-brightness.off")).is_ok()
+}
+
+/// In-process direct sysfs write; falls back to one busctl logind call. Tracks
+/// whether the direct path is usable so the fallback is only tried once it's
+/// actually needed (perms can change under us).
+struct Brightness {
+    direct: bool,
+}
+
+impl Brightness {
+    fn new() -> Self {
+        // Probe writability without a spawn; refined on first real write.
+        Brightness {
+            direct: fs::OpenOptions::new().write(true).open(BRIGHT).is_ok(),
+        }
+    }
+
+    fn set_raw(&mut self, raw: i64) {
+        if self.direct {
+            if fs::write(BRIGHT, raw.to_string()).is_ok() {
+                return;
+            }
+            self.direct = false; // perms changed under us; fall back from here
+        }
+        let _ = Command::new("busctl")
+            .args([
+                "call",
+                "org.freedesktop.login1",
+                "/org/freedesktop/login1/session/auto",
+                "org.freedesktop.login1.Session",
+                "SetBrightness",
+                "ssu",
+                "backlight",
+                "apple-panel-bl",
+                &raw.to_string(),
+            ])
+            .status();
+    }
+
+    fn fade(&mut self, start: i64, target: i64) {
+        if start == target {
+            return;
+        }
+        let delay = Duration::from_secs_f64(FADE_SECONDS / FADE_STEPS as f64);
+        for i in 1..=FADE_STEPS {
+            let t = i as f64 / FADE_STEPS as f64;
+            let e = 1.0 - (1.0 - t).powi(3); // ease-out cubic
+            let raw = (start as f64 + (target - start) as f64 * e).round() as i64;
+            self.set_raw(raw);
+            std::thread::sleep(delay);
+        }
+    }
+}
+
+/// ~10% in the dark, ~50% in a normal room (~75 lux), 100% in daylight.
+fn lux_to_pct(lux: f64) -> i64 {
+    let v = (12.0 + 22.0 * (lux.max(0.0) + 1.0).log10()).round() as i64;
+    v.clamp(10, 100)
+}
+
+fn autobright() -> ExitCode {
+    if read_int(ALS).is_none() {
+        eprintln!("waybar-helper autobright: no ALS at {ALS}");
+        return ExitCode::from(1);
+    }
+    let max_raw = read_int(MAXF).unwrap_or(0);
+    if max_raw <= 0 {
+        eprintln!("waybar-helper autobright: no max brightness");
+        return ExitCode::from(1);
+    }
+    let tol = ((max_raw as f64 * MANUAL_TOL_FRAC) as i64).max(1);
+    let mut setter = Brightness::new();
+
+    let mut last_set_raw: Option<i64> = None;
+    let mut backoff_until: Option<std::time::Instant> = None;
+    let mut ema_lux: Option<f64> = None;
+
+    loop {
+        std::thread::sleep(POLL_S);
+
+        if autobright_off() {
+            last_set_raw = None;
+            ema_lux = None;
+            continue;
+        }
+        if idle_dimmed() {
+            continue;
+        }
+
+        let raw_lux = match read_int(ALS) {
+            Some(v) => v as f64,
+            None => continue,
+        };
+        ema_lux = Some(match ema_lux {
+            None => raw_lux,
+            Some(prev) => LUX_EMA * raw_lux + (1.0 - LUX_EMA) * prev,
+        });
+
+        let cur_raw = match read_int(BRIGHT) {
+            Some(v) => v,
+            None => continue,
+        };
+
+        // Manual-change detection: brightness drifted from what we set → adopt
+        // the user's level as the new baseline and back off so we never fight it.
+        if let Some(last) = last_set_raw {
+            if (cur_raw - last).abs() > tol {
+                last_set_raw = Some(cur_raw);
+                backoff_until = Some(std::time::Instant::now() + BACKOFF);
+                continue;
+            }
+        }
+        if backoff_until.is_some_and(|until| std::time::Instant::now() < until) {
+            continue;
+        }
+
+        let target_pct = lux_to_pct(ema_lux.unwrap_or(raw_lux));
+        let cur_pct = (cur_raw as f64 * 100.0 / max_raw as f64).round() as i64;
+        if (target_pct - cur_pct).abs() < DEADBAND_PCT {
+            continue;
+        }
+
+        let target_raw = (max_raw as f64 * target_pct as f64 / 100.0) as i64;
+        setter.fade(cur_raw, target_raw);
+        last_set_raw = Some(target_raw);
     }
 }
