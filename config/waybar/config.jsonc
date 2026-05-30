@@ -86,7 +86,7 @@
   },
 
   "custom/clock-12": {
-    "exec": "/home/ben/dotfiles/scripts/waybar-clock-12.sh",
+    "exec": "/home/ben/.local/bin/waybar-helper clock12",
     "return-type": "json",
     "interval": 30,
     "format": "{}",
