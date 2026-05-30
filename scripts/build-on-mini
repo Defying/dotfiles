@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+# Build a Rust crate on the mac mini and bring the Linux binary back.
+#
+# The mini (macOS, Apple Silicon, plugged in, 10 cores) cross-compiles to
+# aarch64-unknown-linux-gnu via a Homebrew cross-linker + rustup target, so the
+# thermally-limited M1 Air laptop never has to spin up cargo. Same CPU arch, so
+# it's a true native-speed cross-build; the resulting glibc binary (built against
+# glibc 2.28) runs on this Fedora Asahi laptop (glibc 2.43).
+#
+# One-time mini setup (already done):
+#   curl https://sh.rustup.rs | sh -s -- -y --profile minimal
+#   rustup target add aarch64-unknown-linux-gnu
+#   brew install messense/macos-cross-toolchains/aarch64-unknown-linux-gnu
+#   ~/.cargo/config.toml: [target.aarch64-unknown-linux-gnu] linker = "aarch64-unknown-linux-gnu-gcc"
+#
+# Usage:
+#   build-on-mini <crate-dir|name> [--install [DEST]]
+#
+#   build-on-mini waybar-helper --install      # build + copy into ~/.local/bin
+#   build-on-mini ~/src/hypr-aerial            # build, fetch binary into its target/
+#
+# Bare names resolve against ~/dotfiles/<name> and ~/src/<name>.
+set -euo pipefail
+
+MINI="${MINI_HOST:-mini}"
+TARGET="aarch64-unknown-linux-gnu"
+REMOTE_ROOT="build"
+
+die() { printf 'build-on-mini: %s\n' "$1" >&2; exit 1; }
+usage() { echo "usage: build-on-mini <crate-dir|name> [--install [DEST]]" >&2; exit 2; }
+
+[ $# -ge 1 ] || usage
+src="$1"; shift
+
+install_dest=""
+do_install=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --install)
+      do_install=1
+      if [ $# -ge 2 ] && [ "${2#-}" = "$2" ]; then install_dest="$2"; shift; fi
+      shift ;;
+    *) usage ;;
+  esac
+done
+[ -n "$install_dest" ] || install_dest="$HOME/.local/bin"
+
+# Resolve the crate directory: explicit path, else dotfiles/, else src/.
+if [ ! -d "$src" ]; then
+  for base in "$HOME/dotfiles/$src" "$HOME/src/$src"; do
+    [ -d "$base" ] && { src="$base"; break; }
+  done
+fi
+[ -d "$src" ] || die "crate dir not found: $1"
+src="$(realpath "$src")"
+[ -f "$src/Cargo.toml" ] || die "no Cargo.toml in $src"
+
+name="$(basename "$src")"
+# Binary name = [[bin]] name if set, else package name.
+bin="$(python3 -c "
+import tomllib
+d = tomllib.load(open('$src/Cargo.toml','rb'))
+b = d.get('bin')
+print(b[0]['name'] if b and 'name' in b[0] else d['package']['name'])
+")"
+[ -n "$bin" ] || die "could not determine binary name from Cargo.toml"
+
+echo "→ syncing $name → $MINI:$REMOTE_ROOT/$name"
+rsync -az --delete \
+  --exclude target --exclude '*.state' --exclude '*.mov' --exclude '.git' \
+  "$src/" "$MINI:$REMOTE_ROOT/$name/"
+
+echo "→ cross-building $bin on $MINI ($TARGET)"
+# Force rustup's cargo/rustc ahead of Homebrew's single-target rust on PATH.
+ssh "$MINI" "bash -lc 'export PATH=\$HOME/.cargo/bin:\$PATH; cd $REMOTE_ROOT/$name && cargo build --release --target $TARGET'"
+
+remote_bin="$REMOTE_ROOT/$name/target/$TARGET/release/$bin"
+out="$src/target/$TARGET/release/$bin"
+mkdir -p "$(dirname "$out")"
+echo "→ fetching $bin"
+rsync -az "$MINI:$remote_bin" "$out"
+file "$out"
+
+if [ "$do_install" -eq 1 ]; then
+  mkdir -p "$install_dest"
+  install -m 755 "$out" "$install_dest/$bin"
+  echo "→ installed → $install_dest/$bin"
+fi
+echo "done."
