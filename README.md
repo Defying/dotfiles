@@ -57,6 +57,14 @@ What it does:
 
 If it sees something secret-looking, it aborts instead of pushing.
 
+## agent handoff
+
+Use `handoff` before a Codex or Claude Code session runs low on context or
+limits. It writes a Markdown report under `docs/`, then prints a compact
+`/goal` prompt that tells the next agent to read that file first.
+
+See `docs/agent-context-handoff.md`.
+
 ## local overrides
 
 Your live machine-specific shell helpers stay in `~/.zshrc.local`.

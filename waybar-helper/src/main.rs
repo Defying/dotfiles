@@ -85,7 +85,8 @@ fn emit_text_tooltip(text: &str, tooltip: &str) -> ExitCode {
 // ── clock / date (drop the per-tick Python spawn; just date(1)/cal(1)) ─────────
 
 fn clock24() -> ExitCode {
-    emit_text_tooltip(&cmd("date", &["+%H:%M"]), &cmd("date", &["+%H:%M:%S"]))
+    let tooltip = cmd("date", &["+%-I:%M:%S %p"]).to_lowercase();
+    emit_text_tooltip(&cmd("date", &["+%H:%M"]), &tooltip)
 }
 
 fn clock12() -> ExitCode {
@@ -386,21 +387,44 @@ fn net_bytes(iface: &str) -> (u64, u64) {
     (rd("rx_bytes"), rd("tx_bytes"))
 }
 
-fn fmt_rate(bits_per_sec: f64) -> String {
-    let bps = bits_per_sec.max(0.0);
-    if bps >= 1e9 {
-        format!("{:.1}gbps", bps / 1e9)
-    } else if bps >= 1e6 {
-        format!("{:.1}mbps", bps / 1e6)
+/// Byte-rate in IEC units (KiB/s, MiB/s) — what most people read a transfer
+/// rate in, rather than bits.
+fn fmt_rate(bytes_per_sec: f64) -> String {
+    let b = bytes_per_sec.max(0.0);
+    if b >= 1024.0 * 1024.0 {
+        format!("{:.1}MiB/s", b / (1024.0 * 1024.0))
+    } else if b >= 1024.0 {
+        format!("{:.0}KiB/s", b / 1024.0)
     } else {
-        format!("{:.1}kbps", bps / 1e3)
+        format!("{b:.0}B/s")
     }
 }
 
-fn classify(cpu: i64, mem: i64) -> &'static str {
-    if cpu >= 90 || mem >= 90 {
+/// Used percentage of the filesystem at `path` (df-style: excludes
+/// root-reserved blocks), via statvfs.
+fn disk_percent(path: &str) -> i64 {
+    let cpath = match std::ffi::CString::new(path) {
+        Ok(c) => c,
+        Err(_) => return 0,
+    };
+    let mut st: libc::statvfs = unsafe { std::mem::zeroed() };
+    if unsafe { libc::statvfs(cpath.as_ptr(), &mut st) } != 0 {
+        return 0;
+    }
+    let total = st.f_blocks as f64;
+    let avail = st.f_bavail as f64;
+    let used = total - st.f_bfree as f64;
+    let denom = used + avail;
+    if denom <= 0.0 {
+        return 0;
+    }
+    (used * 100.0 / denom).round().clamp(0.0, 100.0) as i64
+}
+
+fn classify(cpu: i64, mem: i64, ssd: i64) -> &'static str {
+    if cpu >= 90 || mem >= 90 || ssd >= 95 {
         "hot"
-    } else if cpu >= 60 || mem >= 70 {
+    } else if cpu >= 60 || mem >= 70 || ssd >= 85 {
         "busy"
     } else {
         "ok"
@@ -426,8 +450,8 @@ fn sysmon() -> ExitCode {
         let dt = now - prev.t;
         // Only trust a delta if the same interface was sampled last tick.
         if prev.have_net && prev.iface == iface && dt > 0.0 {
-            down = (rx.saturating_sub(prev.rx)) as f64 * 8.0 / dt;
-            up = (tx.saturating_sub(prev.tx)) as f64 * 8.0 / dt;
+            down = (rx.saturating_sub(prev.rx)) as f64 / dt;
+            up = (tx.saturating_sub(prev.tx)) as f64 / dt;
         }
     }
 
@@ -436,18 +460,26 @@ fn sysmon() -> ExitCode {
     // Fixed-width fields so the bubble never reflows the bar (SF Mono).
     let dr = fmt_rate(down);
     let ur = fmt_rate(up);
-    // Two stacked rows (cpu/↓ on top, mem/↑ below) in one small bubble. The
-    // leading glyphs \u{f0ee0} (nf-md-cpu_64_bit) and \u{f035b} (nf-md-memory)
-    // share the same advance width (1536/2048 em) and the rest is SF Mono
-    // fixed-width, so the ↓/↑ rate columns line up across both rows. \\n is a
-    // literal JSON newline that Waybar renders as a second line.
+    let ssd = disk_percent("/");
+
+    // Two stacked rows in one small bubble:
+    //   row 1: cpu  ↓rate  ssd
+    //   row 2: mem  ↑rate
+    // The leading glyphs \u{f0ee0} (nf-md-cpu_64_bit) and \u{f035b}
+    // (nf-md-memory) share the same advance width (1536/2048 em) and the rest
+    // is SF Mono fixed-width, so the ↓/↑ rate columns line up across both rows.
+    // SSD (\u{f02ca} nf-md-harddisk) is the last field on row 1 only, so its
+    // width never affects that alignment. \\n is a literal JSON newline Waybar
+    // renders as a second line. (GPU usage is intentionally absent: the Asahi
+    // M1 driver exposes no GPU utilisation sysfs, so there is nothing to read.)
     let text = format!(
-        "<small>\u{f0ee0} {cpu:>3}%  ↓ {dr:>9}\\n\u{f035b} {mem:>3}%  ↑ {ur:>9}</small>"
+        "<small>\u{f0ee0} {cpu:>3}%  ↓ {dr:>9}  \u{f02ca} {ssd:>3}%\\n\u{f035b} {mem:>3}%  ↑ {ur:>9}</small>"
     );
     let iface_disp = if iface.is_empty() { "—" } else { &iface };
-    let tooltip =
-        format!("cpu {cpu}% · mem {mem}% ({mem_human})\\nnet {iface_disp}  ↓ {dr}  ↑ {ur}");
-    let class = classify(cpu, mem);
+    let tooltip = format!(
+        "cpu {cpu}% · mem {mem}% ({mem_human}) · ssd {ssd}%\\nnet {iface_disp}  ↓ {dr}  ↑ {ur}"
+    );
+    let class = classify(cpu, mem, ssd);
     // Hand-rolled JSON: every field is plain numbers/words/arrows — no quotes
     // or backslashes to escape (the \\n above is literal, as in the Python).
     println!("{{\"text\": \"{text}\", \"tooltip\": \"{tooltip}\", \"class\": \"{class}\"}}");

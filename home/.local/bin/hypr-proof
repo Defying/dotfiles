@@ -138,7 +138,16 @@ else
 fi
 
 printf '\n== Normal Config Autostart ==\n'
-check_process "hyprpaper" '(^|/| )hyprpaper($| )'
+# Static wallpaper is provided by swaybg at login. hyprpaper is intentionally
+# not the active wallpaper provider on this Asahi setup because its renderer
+# currently fails here; aerial can temporarily own the wallpaper via mpvpaper.
+if pgrep -x swaybg >/dev/null 2>&1; then
+  ok "wallpaper provider running: swaybg"
+elif pgrep -x mpvpaper >/dev/null 2>&1; then
+  ok "wallpaper provider running: mpvpaper (aerial)"
+else
+  fail "wallpaper provider not found: swaybg or mpvpaper"
+fi
 check_process "waybar" '(^|/| )waybar($| )'
 check_process "mako" '(^|/| )mako($| )'
 check_process "hypridle" '(^|/| )hypridle($| )'

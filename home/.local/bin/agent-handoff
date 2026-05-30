@@ -1,0 +1,265 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage:
+  agent-handoff [options] [goal text...]
+  handoff [options] [goal text...]
+
+Writes a Markdown handoff report, then prints a paste-ready /goal prompt that
+points the next agent at that report.
+
+Options:
+  --title TEXT     Short report title. Defaults to the current directory name.
+  --goal TEXT      Current objective. Positional text is also accepted.
+  --next TEXT      Next action. May be used multiple times.
+  --note TEXT      Extra context note. May be used multiple times.
+  --output FILE    Report path. Defaults to ./docs/agent-handoff-*.md.
+  --agent NAME     Source agent name. Defaults to AGENT_NAME or codex.
+  --no-copy        Do not copy the /goal prompt to the clipboard.
+  -h, --help       Show this help.
+EOF
+}
+
+die() {
+  printf 'agent-handoff: %s\n' "$*" >&2
+  exit 1
+}
+
+have() {
+  command -v "$1" >/dev/null 2>&1
+}
+
+markdown_block() {
+  local cmd=("$@")
+
+  printf '```text\n'
+  if "${cmd[@]}" 2>&1; then
+    :
+  else
+    printf '[command failed: %s]\n' "${cmd[*]}"
+  fi
+  printf '```\n'
+}
+
+slugify() {
+  local input="$1"
+  printf '%s\n' "$input" |
+    tr '[:upper:]' '[:lower:]' |
+    sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//; s/-+/-/g' |
+    cut -c 1-80
+}
+
+copy_prompt() {
+  local prompt="$1"
+
+  if have wl-copy && [ -n "${WAYLAND_DISPLAY:-}" ]; then
+    if printf '%s\n' "$prompt" | wl-copy; then
+      printf 'copied_prompt=wl-copy\n'
+    else
+      printf 'copied_prompt=false\n'
+    fi
+  elif have xclip && [ -n "${DISPLAY:-}" ]; then
+    if printf '%s\n' "$prompt" | xclip -selection clipboard; then
+      printf 'copied_prompt=xclip\n'
+    else
+      printf 'copied_prompt=false\n'
+    fi
+  else
+    printf 'copied_prompt=false\n'
+  fi
+}
+
+title=""
+goal=""
+output=""
+agent="${AGENT_NAME:-codex}"
+copy=1
+declare -a next_items=()
+declare -a notes=()
+declare -a positional=()
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --title)
+      [ "$#" -ge 2 ] || die "--title needs a value"
+      title="$2"
+      shift 2
+      ;;
+    --goal)
+      [ "$#" -ge 2 ] || die "--goal needs a value"
+      goal="$2"
+      shift 2
+      ;;
+    --next)
+      [ "$#" -ge 2 ] || die "--next needs a value"
+      next_items+=("$2")
+      shift 2
+      ;;
+    --note)
+      [ "$#" -ge 2 ] || die "--note needs a value"
+      notes+=("$2")
+      shift 2
+      ;;
+    --output)
+      [ "$#" -ge 2 ] || die "--output needs a value"
+      output="$2"
+      shift 2
+      ;;
+    --agent)
+      [ "$#" -ge 2 ] || die "--agent needs a value"
+      agent="$2"
+      shift 2
+      ;;
+    --no-copy)
+      copy=0
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    --)
+      shift
+      while [ "$#" -gt 0 ]; do
+        positional+=("$1")
+        shift
+      done
+      ;;
+    -*)
+      die "unknown option: $1"
+      ;;
+    *)
+      positional+=("$1")
+      shift
+      ;;
+  esac
+done
+
+if [ -z "$goal" ] && [ "${#positional[@]}" -gt 0 ]; then
+  goal="${positional[*]}"
+fi
+
+repo_root=""
+if repo_root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+  :
+else
+  repo_root="$PWD"
+fi
+
+repo_name="$(basename "$repo_root")"
+if [ -z "$title" ]; then
+  title="$repo_name handoff"
+fi
+
+if [ -z "$goal" ]; then
+  goal="Continue the work described in this report from the current live state."
+fi
+
+timestamp_file="$(date +%Y-%m-%d-%H%M%S)"
+timestamp_human="$(date --iso-8601=seconds)"
+slug="$(slugify "$title")"
+[ -n "$slug" ] || slug="handoff"
+
+if [ -z "$output" ]; then
+  output="$repo_root/docs/agent-handoff-${slug}-${timestamp_file}.md"
+fi
+
+mkdir -p "$(dirname "$output")"
+if [ -e "$output" ]; then
+  die "refusing to overwrite existing report: $output"
+fi
+
+abs_output="$(realpath -m "$output")"
+
+handoff_prompt="/goal Read ${abs_output} in full before doing anything. Continue the work described under Current Objective and Next Actions. Work from the live repo and external state as authoritative, not chat memory. Keep this Markdown report updated as work changes, and before limits or context get low, write a refreshed .md report plus a new /goal prompt that points to it."
+
+{
+  printf '# Agent Handoff Report - %s\n\n' "$title"
+  printf 'Generated: `%s`\n\n' "$timestamp_human"
+  printf 'Source agent: `%s`\n\n' "$agent"
+  printf 'Working directory: `%s`\n\n' "$PWD"
+  printf 'Repository: `%s`\n\n' "$repo_root"
+  printf 'Report path: `%s`\n\n' "$abs_output"
+
+  printf '## Current Objective\n\n'
+  printf '%s\n\n' "$goal"
+
+  printf '## Current State\n\n'
+  printf '%s\n' '- This report is the handoff source of truth for the next agent.'
+  printf '%s\n' '- Treat live repo state, running services, and external hosts as authoritative if they differ from this report.'
+  printf '%s\n' '- Preserve unrelated dirty work unless Ben explicitly asks to revert it.'
+  printf '%s\n\n' '- Do not print tokens, passwords, private keys, auth headers, or secret env values.'
+
+  if [ "${#notes[@]}" -gt 0 ]; then
+    printf '## Context Notes\n\n'
+    for note in "${notes[@]}"; do
+      printf '%s\n' "- $note"
+    done
+    printf '\n'
+  fi
+
+  printf '## Completed Before Handoff\n\n'
+  printf '%s\n\n' '- Fill this in with completed work before handing off.'
+
+  printf '## Next Actions\n\n'
+  if [ "${#next_items[@]}" -gt 0 ]; then
+    n=1
+    for item in "${next_items[@]}"; do
+      printf '%s. %s\n' "$n" "$item"
+      n=$((n + 1))
+    done
+  else
+    printf '1. Read this report and inspect the current live state before editing.\n'
+    printf '2. Continue the current objective from the latest verified evidence.\n'
+    printf '3. Update this report, then leave a new /goal prompt before context or limits get low.\n'
+  fi
+  printf '\n'
+
+  printf '## Validation To Re-Run\n\n'
+  printf '%s\n' '- Re-run the relevant build, lint, test, or live-service checks for any changed files.'
+  printf '%s\n\n' '- Record exact commands and outcomes here before handing off again.'
+
+  printf '## Risks And Guardrails\n\n'
+  printf '%s\n' '- Do not rely on invisible chat context; make the Markdown report sufficient.'
+  printf '%s\n' '- Keep the handoff prompt compact and point it at this file.'
+  printf '%s\n\n' '- If investigating remote services, redact secret-looking values in command output.'
+
+  printf '## Machine Snapshot\n\n'
+  printf '```text\n'
+  printf 'host=%s\n' "$(hostname 2>/dev/null || printf unknown)"
+  printf 'user=%s\n' "$(id -un 2>/dev/null || printf unknown)"
+  printf 'date=%s\n' "$timestamp_human"
+  printf 'shell=%s\n' "${SHELL:-unknown}"
+  printf 'pwd=%s\n' "$PWD"
+  printf '```\n\n'
+
+  printf '## Git Snapshot\n\n'
+  if git -C "$repo_root" rev-parse --git-dir >/dev/null 2>&1; then
+    printf 'Branch or HEAD:\n\n'
+    markdown_block git -C "$repo_root" branch --show-current
+    printf '\nHEAD:\n\n'
+    markdown_block git -C "$repo_root" rev-parse --short HEAD
+    printf '\nStatus:\n\n'
+    markdown_block git -C "$repo_root" status --short
+    printf '\nRecent commits:\n\n'
+    markdown_block git -C "$repo_root" log --oneline -5
+    printf '\nDiff stat:\n\n'
+    markdown_block git -C "$repo_root" diff --stat
+  else
+    printf 'Not inside a git repository.\n'
+  fi
+  printf '\n'
+
+  printf '## Handoff Prompt\n\n'
+  printf '```text\n%s\n```\n' "$handoff_prompt"
+} >"$output"
+
+printf 'report=%s\n' "$abs_output"
+if [ "$copy" -eq 1 ]; then
+  copy_prompt "$handoff_prompt"
+else
+  printf 'copied_prompt=disabled\n'
+fi
+printf '\n%s\n' "$handoff_prompt"
