@@ -124,13 +124,16 @@ check "Hyprland readiness command" test -x /home/ben/.local/bin/hypr-readiness
 check "Hyprland smoke test command" test -x /home/ben/.local/bin/hypr-smoke-test
 check "Hyprland first-login notice command" test -x /home/ben/.local/bin/hypr-first-login-notice
 check "Hyprland first-login terminal command" test -x /home/ben/.local/bin/hypr-first-login-terminal
-check "Plasma Login remembered session readable" bash -lc 'sudo -n test -r /var/lib/plasmalogin/.local/state/plasma-login-greeterstaterc'
+check "greetd greeter offers Plasma fallback" bash -lc 'grep -q startplasma-wayland /usr/local/bin/hypr-greeter-app'
 check "Hyprland session autocheck command" test -x /home/ben/.local/bin/hypr-session-autocheck
 check "notify-send command" test -x /usr/bin/notify-send
 check "Hyprland portal preference" bash -lc 'grep -Eq "^default=hyprland(;|$)" /usr/share/xdg-desktop-portal/hyprland-portals.conf'
 check "Hyprland portal descriptor" bash -lc 'grep -Eq "^UseIn=.*Hyprland" /usr/share/xdg-desktop-portal/portals/hyprland.portal'
 check "Hyprland share picker" test -x /usr/bin/hyprland-share-picker
-check "Plasma login manager active" systemctl is-active --quiet plasmalogin.service
+check "greetd login manager active" systemctl is-active --quiet greetd.service
+check "greetd is the default display manager" bash -lc 'test "$(readlink -f /etc/systemd/system/display-manager.service)" = /usr/lib/systemd/system/greetd.service'
+check_match "greetd config installed" system/etc/greetd/config.toml /etc/greetd/config.toml
+check_match "greetd greeter app installed" system/usr/local/bin/hypr-greeter-app /usr/local/bin/hypr-greeter-app
 check "Hyprland package installed" rpm -q hyprland
 check "Plasma package still installed" rpm -q plasma-desktop
 check "dotfiles repo clean" bash -lc 'test -z "$(git -C /home/ben/dotfiles status --porcelain)"'
@@ -138,14 +141,13 @@ check "dotfiles pushed" bash -lc 'local_head="$(git -C /home/ben/dotfiles rev-pa
 check "backup bundle present" test -d /home/ben/system-backups/pre-hyprland-20260522-083751
 check "first-login backup bundle present" test -d /home/ben/system-backups/pre-first-hyprland-login-20260522-093108
 
-if sudo -n true >/dev/null 2>&1; then
-  check "Btrfs root snapshot present" bash -lc 'sudo btrfs subvolume list -a / | grep -Eq "/.snapshots/pre-hyprland-20260522-083751/root$"'
-  check "Btrfs home snapshot present" bash -lc 'sudo btrfs subvolume list -a / | grep -Eq "/.snapshots/pre-hyprland-20260522-083751/home$"'
-  check "First-login root snapshot present" bash -lc 'sudo btrfs subvolume list -a / | grep -Eq "/.snapshots/pre-first-hyprland-login-20260522-093108/root$"'
-  check "First-login home snapshot present" bash -lc 'sudo btrfs subvolume list -a / | grep -Eq "/.snapshots/pre-first-hyprland-login-20260522-093108/home$"'
-else
-  printf '%-42sSKIP (sudo unavailable)\n' "Btrfs snapshot checks"
-fi
+# The pre-migration Btrfs snapshots (pre-hyprland / pre-first-hyprland-login,
+# 2026-05-22) have been reclaimed; /.snapshots no longer exists. Recreating
+# them now would capture the current Hyprland state, not the pre-Hyprland one,
+# so they would be useless as a rollback point. The on-disk backup bundles
+# checked above remain the rollback artifact, alongside the greetd greeter's
+# Plasma fallback session.
+printf '%-42sretired (pre-migration snapshots reclaimed)\n' "Btrfs snapshot checks"
 
 if [ "$failures" -ne 0 ]; then
   printf '\n%s check(s) failed.\n' "$failures" >&2

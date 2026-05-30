@@ -39,6 +39,11 @@ the rollback path for this MacBook Air M1:
 - `Hyprland (Recovery Terminal)` is the terminal-first test session.
 - `Plasma (Rollback Hyprland)` disables `~/.config/hypr` from the login screen.
 
+Hyprland implementation rule: anything newly built for this desktop should be
+Rust-based by default. Use shell/Python/Lua only as glue around existing tools,
+for one-off migrations, or where the runtime must be embedded in another
+program.
+
 ## auto sync
 
 Use `scripts/auto-sync.sh` to keep this repo archived to GitHub.

@@ -10,7 +10,7 @@
 use std::env;
 use std::fs;
 use std::io::{BufRead, BufReader, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::{Command, ExitCode, Stdio};
 use std::sync::mpsc;
 use std::thread;
@@ -544,12 +544,25 @@ fn refresh_usage() {
 // ── refresh lock + background spawn ───────────────────────────────────────────
 
 fn refresh_in_progress() -> bool {
-    fs::metadata(refresh_lock())
+    let lock = refresh_lock();
+    fs::metadata(&lock)
         .and_then(|m| m.modified())
         .ok()
         .and_then(|t| t.elapsed().ok())
         .map(|d| d.as_secs() as i64 <= REFRESH_LOCK_MAX_AGE_SECONDS)
         .unwrap_or(false)
+        && refresh_lock_holder_alive(&lock)
+}
+
+fn refresh_lock_holder_alive(lock: &Path) -> bool {
+    let pid = match fs::read_to_string(lock)
+        .ok()
+        .and_then(|s| s.trim().parse::<u32>().ok())
+    {
+        Some(pid) => pid,
+        None => return true,
+    };
+    PathBuf::from(format!("/proc/{pid}")).exists()
 }
 
 /// O_CREAT|O_EXCL lock; clears a stale (>max-age) lock first. None if held.
@@ -563,7 +576,8 @@ fn acquire_refresh_lock() -> Option<fs::File> {
             .ok()
             .and_then(|t| t.elapsed().ok())
             .map(|d| d.as_secs() as i64 > REFRESH_LOCK_MAX_AGE_SECONDS)
-            .unwrap_or(true);
+            .unwrap_or(true)
+            || !refresh_lock_holder_alive(&lock);
         if stale {
             let _ = fs::remove_file(&lock);
         }

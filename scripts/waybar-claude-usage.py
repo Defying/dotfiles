@@ -6,6 +6,7 @@ It does not use API keys and does not read Claude Code transcript logs.
 """
 
 import datetime as dt
+import html
 import json
 import os
 import pathlib
@@ -36,7 +37,11 @@ STATE_DIR = CACHE_PATH.parent
 
 
 def waybar(text, tooltip, css_class="subscription"):
-    print(json.dumps({"text": text, "tooltip": tooltip, "class": css_class}))
+    print(json.dumps({
+        "text": html.escape(str(text), quote=False),
+        "tooltip": html.escape(str(tooltip), quote=False),
+        "class": css_class,
+    }))
 
 
 def signal_waybar(signal):

@@ -16,6 +16,7 @@ use std::process::{Command, ExitCode};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 mod accounts;
+mod claude;
 mod codex;
 mod reset;
 mod usage;
@@ -31,6 +32,7 @@ fn main() -> ExitCode {
         Some("autobright") => autobright(),
         Some("codex-account-status") => ExitCode::from(accounts::status_json() as u8),
         Some("codex") => codex::run(&env::args().skip(2).collect::<Vec<_>>()),
+        Some("claude") => claude::run(&env::args().skip(2).collect::<Vec<_>>()),
         other => {
             eprintln!(
                 "usage: waybar-helper \

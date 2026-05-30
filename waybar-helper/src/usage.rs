@@ -36,10 +36,25 @@ pub fn asset(name: &str) -> String {
 /// Print a Waybar JSON line. Key order differs from the Python (serde sorts),
 /// but Waybar parses JSON so order is irrelevant.
 pub fn emit(text: &str, tooltip: &str, class: &str) {
+    let text = pango_escape(text);
+    let tooltip = pango_escape(tooltip);
     println!(
         "{}",
         json!({ "text": text, "tooltip": tooltip, "class": class })
     );
+}
+
+fn pango_escape(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    for c in value.chars() {
+        match c {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            _ => out.push(c),
+        }
+    }
+    out
 }
 
 /// Local-time reset label: "%H:%M" if today, else "%a %H:%M" lowercased.

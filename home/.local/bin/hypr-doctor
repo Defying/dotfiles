@@ -131,12 +131,23 @@ else
 fi
 
 print_section "Autostart"
-check_process "hyprpaper" '(^|/| )hyprpaper($| )'
+# Wallpaper is provided by hyprpaper at login; the aerial screensaver
+# (Super+Shift+A) swaps in an mpvpaper process on demand and kills hyprpaper
+# while active. Either one satisfies "a wallpaper is being drawn".
+if pgrep -f '(^|/| )hyprpaper($| )' >/dev/null 2>&1; then
+  ok "wallpaper provider running: hyprpaper"
+elif pgrep -x mpvpaper >/dev/null 2>&1; then
+  ok "wallpaper provider running: mpvpaper (aerial)"
+else
+  warn "no wallpaper provider running (hyprpaper or aerial/mpvpaper)"
+fi
 check_process "waybar" '(^|/| )waybar($| )'
 check_process "mako" '(^|/| )mako($| )'
 check_process "hypridle" '(^|/| )hypridle($| )'
 check_process "hyprpolkitagent" 'hyprpolkitagent'
-check_process "NetworkManager applet" '(^|/| )nm-applet($| )'
+# Network status is handled by Waybar's native network module plus
+# scripts/network-popup.py and nm-connection-editor, so nm-applet is not part
+# of the intended session and is deliberately not checked here.
 check_process "cliphist text watcher" 'wl-paste --type text --watch cliphist store'
 check_process "cliphist image watcher" 'wl-paste --type image --watch cliphist store'
 

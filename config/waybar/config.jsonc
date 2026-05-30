@@ -48,7 +48,7 @@
   },
 
   "custom/claude-tokens": {
-    "exec": "/home/ben/dotfiles/scripts/waybar-claude-usage.py",
+    "exec": "/home/ben/.local/bin/waybar-helper claude",
     "return-type": "json",
     "interval": 60,
     "signal": 9,

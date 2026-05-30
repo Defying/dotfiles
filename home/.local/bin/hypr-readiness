@@ -5,7 +5,6 @@ failures=0
 warnings=0
 pending=0
 
-state_file="/var/lib/plasmalogin/.local/state/plasma-login-greeterstaterc"
 proof_marker="$HOME/.local/state/hyprland/real-login-proof"
 
 private_runtime_dir() {
@@ -50,17 +49,6 @@ latest_file() {
     sort -n |
     tail -n 1 |
     cut -d' ' -f2-
-}
-
-read_key() {
-  local file="$1"
-  local key="$2"
-
-  if [ -r "$file" ]; then
-    awk -F= -v key="$key" '$1 == key { value = $2 } END { if (value != "") print value }' "$file"
-  elif sudo -n true >/dev/null 2>&1; then
-    sudo awk -F= -v key="$key" '$1 == key { value = $2 } END { if (value != "") print value }' "$file" 2>/dev/null
-  fi
 }
 
 session_property() {
@@ -124,11 +112,20 @@ if [ "$current_session_is_hyprland" -eq 1 ]; then
 fi
 
 section "Login Safety"
-remembered_session="$(read_key "$state_file" LastLoggedInSession)"
-if [ "$remembered_session" = "plasma.desktop" ]; then
-  ok "Plasma is the remembered greeter session"
+display_manager="$(readlink -f /etc/systemd/system/display-manager.service 2>/dev/null || true)"
+if [ "$display_manager" = /usr/lib/systemd/system/greetd.service ]; then
+  ok "greetd is the active display manager"
 else
-  warn "remembered greeter session is ${remembered_session:-unknown}, not plasma.desktop"
+  warn "display manager is ${display_manager:-unknown}, not greetd"
+fi
+
+# Under greetd there is no persisted "remembered session"; Hyprland is the
+# greeter's default and Plasma is reachable as an explicit fallback entry. The
+# safety property is that the greeter still offers that Plasma escape hatch.
+if grep -q startplasma-wayland /usr/local/bin/hypr-greeter-app 2>/dev/null; then
+  ok "greetd greeter offers a Plasma fallback session"
+else
+  fail "greetd greeter no longer offers a Plasma fallback session"
 fi
 
 for path in \
@@ -168,21 +165,12 @@ for path in \
   fi
 done
 
-if sudo -n true >/dev/null 2>&1; then
-  for pattern in \
-    '/.snapshots/pre-hyprland-20260522-083751/root$' \
-    '/.snapshots/pre-hyprland-20260522-083751/home$' \
-    '/.snapshots/pre-first-hyprland-login-20260522-093108/root$' \
-    '/.snapshots/pre-first-hyprland-login-20260522-093108/home$'; do
-    if sudo btrfs subvolume list -a / | grep -Eq "$pattern"; then
-      ok "Btrfs snapshot present: $pattern"
-    else
-      fail "Btrfs snapshot missing: $pattern"
-    fi
-  done
-else
-  warn "sudo unavailable; Btrfs snapshot presence not checked"
-fi
+# The pre-migration Btrfs snapshots (2026-05-22) have been reclaimed and are
+# intentionally retired: recreating them now would snapshot the current
+# Hyprland state, not the pre-Hyprland one, so they would not be a valid
+# rollback point. The backup bundles above plus the greetd greeter's Plasma
+# fallback session are the remaining recovery artifacts.
+ok "Btrfs snapshot checks retired (pre-migration snapshots reclaimed)"
 
 section "Dotfiles"
 if [ -d /home/ben/dotfiles/.git ]; then

@@ -1,0 +1,14 @@
+[General]
+ColorScheme=BreezeDark
+fixed=SF Mono,10,-1,5,50,0,0,0,0,0
+font=SF Pro Text,10,-1,5,50,0,0,0,0,0
+menuFont=SF Pro Text,10,-1,5,50,0,0,0,0,0
+smallestReadableFont=SF Pro Text,8,-1,5,50,0,0,0,0,0
+toolBarFont=SF Pro Text,9,-1,5,50,0,0,0,0,0
+
+[Icons]
+Theme=breeze-dark
+
+[KDE]
+LookAndFeelPackage=org.fedoraproject.fedoradark.desktop
+widgetStyle=Breeze

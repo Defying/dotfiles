@@ -7,6 +7,7 @@ OpenAI API keys and does not read Codex logs.
 """
 
 import datetime as dt
+import html
 import json
 import os
 from pathlib import Path
@@ -31,7 +32,11 @@ CODEX_BIN = str(BUN_CODEX) if BUN_CODEX.exists() else "codex"
 
 
 def waybar(text, tooltip, css_class="subscription"):
-    payload = {"text": text, "tooltip": tooltip, "class": css_class}
+    payload = {
+        "text": html.escape(str(text), quote=False),
+        "tooltip": html.escape(str(tooltip), quote=False),
+        "class": css_class,
+    }
     print(json.dumps(payload))
 
 
@@ -190,7 +195,7 @@ def acquire_refresh_lock():
     STATE_DIR.mkdir(mode=0o700, parents=True, exist_ok=True)
     try:
         age = time.time() - REFRESH_LOCK.stat().st_mtime
-        if age > REFRESH_LOCK_MAX_AGE_SECONDS:
+        if age > REFRESH_LOCK_MAX_AGE_SECONDS or not refresh_lock_holder_alive():
             REFRESH_LOCK.unlink()
     except FileNotFoundError:
         pass
@@ -220,9 +225,26 @@ def release_refresh_lock(fd):
 
 def refresh_in_progress():
     try:
-        return time.time() - REFRESH_LOCK.stat().st_mtime <= REFRESH_LOCK_MAX_AGE_SECONDS
+        return (
+            time.time() - REFRESH_LOCK.stat().st_mtime <= REFRESH_LOCK_MAX_AGE_SECONDS
+            and refresh_lock_holder_alive()
+        )
     except OSError:
         return False
+
+
+def refresh_lock_holder_alive():
+    try:
+        pid = int(REFRESH_LOCK.read_text(encoding="ascii").strip())
+    except (OSError, ValueError):
+        return True
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
 
 
 def spawn_background_refresh():
