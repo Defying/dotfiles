@@ -76,9 +76,11 @@ window#waybar {
 }
 
 #custom-sysmon {
-  /* Match the date/time bubbles: inherit global SF Mono / normal weight and
-     the same shadow + color, instead of a smaller bold style. */
+  /* Two stacked rows (cpu/↓ over mem/↑) in small text — tighten the vertical
+     padding so both lines fit inside the 44px bar's right-side bubble. */
   margin-right: 10px;
+  padding-top: 2px;
+  padding-bottom: 2px;
   color: rgba(255, 255, 255, 0.96);
   text-shadow:
     0 1px 1px rgba(0, 0, 0, 0.55),

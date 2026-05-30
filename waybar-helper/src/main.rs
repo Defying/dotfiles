@@ -436,8 +436,14 @@ fn sysmon() -> ExitCode {
     // Fixed-width fields so the bubble never reflows the bar (SF Mono).
     let dr = fmt_rate(down);
     let ur = fmt_rate(up);
-    // \u{f4bc} = nf-oct-cpu, \u{f035b} = nf-md-memory (Symbols Nerd Font).
-    let text = format!("\u{f4bc} {cpu:>3}%  \u{f035b} {mem:>3}%  ↓ {dr:>9} ↑ {ur:>9}");
+    // Two stacked rows (cpu/↓ on top, mem/↑ below) in one small bubble. The
+    // leading glyphs \u{f0ee0} (nf-md-cpu_64_bit) and \u{f035b} (nf-md-memory)
+    // share the same advance width (1536/2048 em) and the rest is SF Mono
+    // fixed-width, so the ↓/↑ rate columns line up across both rows. \\n is a
+    // literal JSON newline that Waybar renders as a second line.
+    let text = format!(
+        "<small>\u{f0ee0} {cpu:>3}%  ↓ {dr:>9}\\n\u{f035b} {mem:>3}%  ↑ {ur:>9}</small>"
+    );
     let iface_disp = if iface.is_empty() { "—" } else { &iface };
     let tooltip =
         format!("cpu {cpu}% · mem {mem}% ({mem_human})\\nnet {iface_disp}  ↓ {dr}  ↑ {ur}");
