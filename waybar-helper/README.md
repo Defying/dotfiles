@@ -20,6 +20,11 @@ core, continuous) and no 12 MB Python RSS per spawn.
 - `waybar-helper clock24` — 24h clock (drop-in for `waybar-clock-24.sh`).
 - `waybar-helper clock12` — 12h clock (drop-in for `waybar-clock-12.sh`).
 - `waybar-helper date` — date + `cal -3` tooltip (drop-in for `waybar-date.sh`).
+- `waybar-helper weather` — wttr.in glyph + temp, with the fuller forecast in
+  the tooltip (drop-in for `waybar-weather.sh`). `curl(1)` still does the
+  network, but parsing/icon-map/JSON are all in Rust now — the shell version
+  shelled out to `python3` purely to JSON-escape the tooltip. Caches the last
+  good JSON so a transient curl failure doesn't blank the bar.
 - `waybar-helper autohide` — fullscreen Waybar autohide daemon. Drop-in for
   `hypr-waybar-autohide.py`; listens on Hyprland socket2 and only polls the
   cursor while the active workspace has a fullscreen window.

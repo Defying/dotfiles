@@ -20,10 +20,11 @@ fn main() -> ExitCode {
         Some("clock24") => clock24(),
         Some("clock12") => clock12(),
         Some("date") => date_module(),
+        Some("weather") => weather(),
         Some("autohide") => autohide(),
         other => {
             eprintln!(
-                "usage: waybar-helper <sysmon|clock24|clock12|date|autohide>; got {:?}",
+                "usage: waybar-helper <sysmon|clock24|clock12|date|weather|autohide>; got {:?}",
                 other
             );
             ExitCode::from(2)
@@ -98,6 +99,123 @@ fn date_module() -> ExitCode {
         format!("{agenda}\n\n{calendar}")
     };
     emit_text_tooltip(&text, &tooltip)
+}
+
+// ── weather (wttr.in → JSON; drop the python-just-to-JSON-escape spawn) ───────
+//
+// Port of waybar-weather.sh. curl(1) still does the network (no TLS in std),
+// but parsing, the icon map, tooltip assembly and JSON building are all in
+// Rust now — the shell version shelled out to python3 purely to json.dumps the
+// tooltip. Caches the last good JSON so a transient curl failure doesn't blank
+// the bar until the next interval tick.
+
+fn weather_cache_path() -> String {
+    let base = env::var("XDG_CACHE_HOME")
+        .ok()
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| {
+            let home = env::var("HOME").unwrap_or_else(|_| "/tmp".into());
+            format!("{home}/.cache")
+        });
+    let dir = format!("{base}/waybar-weather");
+    let _ = fs::create_dir_all(&dir);
+    format!("{dir}/last.json")
+}
+
+const WEATHER_BLANK: &str =
+    "{\"text\":\" --°\",\"tooltip\":\"weather unavailable\",\"class\":\"unavailable\"}";
+
+/// Reprint the last good JSON, or a blank "unavailable" bubble. Always exits 0:
+/// a weather hiccup must never make waybar drop the module.
+fn emit_cached_or_blank() -> ExitCode {
+    match fs::read_to_string(weather_cache_path()) {
+        Ok(s) if !s.is_empty() => print!("{s}"),
+        _ => println!("{WEATHER_BLANK}"),
+    }
+    ExitCode::SUCCESS
+}
+
+/// curl one wttr.in URL; trimmed stdout, empty on any failure.
+fn curl(url: &str) -> String {
+    cmd("curl", &["-s", "--max-time", "8", url])
+}
+
+fn weather_icon(emoji: &str) -> &'static str {
+    // Glyphs match the shell version's Nerd Font weather icons.
+    const SUN: &str = "\u{f185}";
+    const CLOUD_SUN: &str = "\u{f6c4}";
+    const CLOUD: &str = "\u{f0c2}";
+    const RAIN: &str = "\u{f73d}";
+    const SNOW: &str = "\u{f2dc}";
+    const BOLT: &str = "\u{f0e7}";
+    const SMOG: &str = "\u{f75f}";
+    let has = |c: &str| emoji.contains(c);
+    if has("☀") {
+        SUN
+    } else if has("⛅") || has("🌤") || has("🌥") {
+        CLOUD_SUN
+    } else if has("☁") {
+        CLOUD
+    } else if has("🌧") || has("🌦") {
+        RAIN
+    } else if has("🌨") || has("❄") {
+        SNOW
+    } else if has("⛈") {
+        BOLT
+    } else if has("🌫") {
+        SMOG
+    } else {
+        CLOUD_SUN
+    }
+}
+
+fn weather() -> ExitCode {
+    let out = curl("https://wttr.in/?format=%c+%t");
+    if out.is_empty() || out.contains("Unknown location") {
+        return emit_cached_or_blank();
+    }
+
+    // out is "<emoji> +<temp>°F"; split on the first '+' like ${out%%+*}/${out#*+}.
+    let (emoji, temp_raw) = out.split_once('+').unwrap_or((out.as_str(), out.as_str()));
+    let temp: String = temp_raw
+        .replace("°F", "")
+        .replace("°C", "")
+        .replace(['+', ' '], "");
+    if temp.is_empty() {
+        return emit_cached_or_blank();
+    }
+
+    let icon = weather_icon(emoji);
+
+    let tip = curl(
+        "https://wttr.in/?format=%l:+%C\\nfeels+%f++humidity+%h\\nwind+%w++%p+precip\\nsun+%S+→+%s",
+    );
+    let forecast: String = curl("https://wttr.in/?T&0")
+        .lines()
+        .take(7)
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    let tooltip = if !tip.is_empty() || !forecast.is_empty() {
+        if forecast.is_empty() {
+            tip
+        } else {
+            format!("{tip}\n\n{forecast}")
+        }
+    } else {
+        "weather details unavailable".to_string()
+    };
+
+    let json = format!(
+        "{{\"text\": \"{} {}°\", \"tooltip\": \"{}\"}}",
+        esc(icon),
+        esc(&temp),
+        esc(&tooltip)
+    );
+    // Cache + emit the same bytes (trailing newline, as the shell's tee did).
+    let _ = fs::write(weather_cache_path(), format!("{json}\n"));
+    println!("{json}");
+    ExitCode::SUCCESS
 }
 
 // ── sysmon ──────────────────────────────────────────────────────────────────
