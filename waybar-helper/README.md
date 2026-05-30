@@ -20,6 +20,9 @@ core, continuous) and no 12 MB Python RSS per spawn.
 - `waybar-helper clock24` — 24h clock (drop-in for `waybar-clock-24.sh`).
 - `waybar-helper clock12` — 12h clock (drop-in for `waybar-clock-12.sh`).
 - `waybar-helper date` — date + `cal -3` tooltip (drop-in for `waybar-date.sh`).
+- `waybar-helper autohide` — fullscreen Waybar autohide daemon. Drop-in for
+  `hypr-waybar-autohide.py`; listens on Hyprland socket2 and only polls the
+  cursor while the active workspace has a fullscreen window.
 
 The clock/date subcommands still shell out to `date(1)`/`cal(1)` (tiny C
 programs) for locale/timezone formatting, but drop the per-tick Python that
@@ -36,5 +39,6 @@ cargo build --release
 install -m755 target/release/waybar-helper ~/.local/bin/waybar-helper
 ```
 
-waybar config points at `~/.local/bin/waybar-helper sysmon`. `/target` is
-git-ignored; rebuild + reinstall after changes.
+Waybar config points at `~/.local/bin/waybar-helper sysmon`; Hyprland launches
+`~/.local/bin/waybar-helper autohide`. `/target` is git-ignored; rebuild +
+reinstall after changes.

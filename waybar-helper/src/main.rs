@@ -9,8 +9,10 @@
 
 use std::env;
 use std::fs;
+use std::io::{ErrorKind, Read, Write};
+use std::os::unix::net::UnixStream;
 use std::process::{Command, ExitCode};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 fn main() -> ExitCode {
     match env::args().nth(1).as_deref() {
@@ -18,8 +20,12 @@ fn main() -> ExitCode {
         Some("clock24") => clock24(),
         Some("clock12") => clock12(),
         Some("date") => date_module(),
+        Some("autohide") => autohide(),
         other => {
-            eprintln!("usage: waybar-helper <sysmon|clock24|clock12|date>; got {:?}", other);
+            eprintln!(
+                "usage: waybar-helper <sysmon|clock24|clock12|date|autohide>; got {:?}",
+                other
+            );
             ExitCode::from(2)
         }
     }
@@ -55,7 +61,11 @@ fn esc(s: &str) -> String {
 }
 
 fn emit_text_tooltip(text: &str, tooltip: &str) -> ExitCode {
-    println!("{{\"text\": \"{}\", \"tooltip\": \"{}\"}}", esc(text), esc(tooltip));
+    println!(
+        "{{\"text\": \"{}\", \"tooltip\": \"{}\"}}",
+        esc(text),
+        esc(tooltip)
+    );
     ExitCode::SUCCESS
 }
 
@@ -76,7 +86,11 @@ fn date_module() -> ExitCode {
     let agenda = cmd("date", &["+%A, %B %-d, %Y"]);
     let calendar = {
         let c = cmd("cal", &["-3"]);
-        if c.is_empty() { cmd("cal", &[]) } else { c }
+        if c.is_empty() {
+            cmd("cal", &[])
+        } else {
+            c
+        }
     };
     let tooltip = if calendar.is_empty() {
         agenda.clone()
@@ -114,7 +128,11 @@ fn read_prev() -> Prev {
             p.t = f[0].parse().unwrap_or(0.0);
             p.idle = f[1].parse().unwrap_or(0);
             p.total = f[2].parse().unwrap_or(0);
-            p.iface = if f[3] == "-" { String::new() } else { f[3].to_string() };
+            p.iface = if f[3] == "-" {
+                String::new()
+            } else {
+                f[3].to_string()
+            };
             p.rx = f[4].parse().unwrap_or(0);
             p.tx = f[5].parse().unwrap_or(0);
             p.have_net = true;
@@ -129,7 +147,10 @@ fn write_state(t: f64, idle: u64, total: u64, iface: &str, rx: u64, tx: u64) {
 }
 
 fn now_secs() -> f64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs_f64()).unwrap_or(0.0)
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_secs_f64())
+        .unwrap_or(0.0)
 }
 
 /// (idle, total) jiffies from the aggregate `cpu` line of /proc/stat.
@@ -143,7 +164,11 @@ fn read_cpu_totals() -> (u64, u64) {
     if parts.first() != Some(&"cpu") {
         return (0, 0);
     }
-    let f: Vec<u64> = parts[1..].iter().take(10).map(|x| x.parse().unwrap_or(0)).collect();
+    let f: Vec<u64> = parts[1..]
+        .iter()
+        .take(10)
+        .map(|x| x.parse().unwrap_or(0))
+        .collect();
     if f.len() < 5 {
         return (0, 0);
     }
@@ -176,7 +201,11 @@ fn mem_percent_and_human() -> (i64, String) {
             Some(kv) => kv,
             None => continue,
         };
-        let val: u64 = rest.split_whitespace().next().and_then(|v| v.parse().ok()).unwrap_or(0);
+        let val: u64 = rest
+            .split_whitespace()
+            .next()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(0);
         match key {
             "MemTotal" => total = val,
             "MemAvailable" => avail = val,
@@ -189,7 +218,9 @@ fn mem_percent_and_human() -> (i64, String) {
     }
     let avail = if avail > 0 { avail } else { free };
     let used = total.saturating_sub(avail);
-    let pct = (used as f64 * 100.0 / total as f64).round().clamp(0.0, 100.0) as i64;
+    let pct = (used as f64 * 100.0 / total as f64)
+        .round()
+        .clamp(0.0, 100.0) as i64;
     let used_gi = used as f64 / (1024.0 * 1024.0);
     let total_gi = total as f64 / (1024.0 * 1024.0);
     (pct, format!("{used_gi:.1}/{total_gi:.0} GiB"))
@@ -277,12 +308,199 @@ fn sysmon() -> ExitCode {
     let ur = fmt_rate(up);
     let text = format!("cpu {cpu:>3}%  mem {mem:>3}%  ↓ {dr:>9} ↑ {ur:>9}");
     let iface_disp = if iface.is_empty() { "—" } else { &iface };
-    let tooltip = format!(
-        "cpu {cpu}% · mem {mem}% ({mem_human})\\nnet {iface_disp}  ↓ {dr}  ↑ {ur}"
-    );
+    let tooltip =
+        format!("cpu {cpu}% · mem {mem}% ({mem_human})\\nnet {iface_disp}  ↓ {dr}  ↑ {ur}");
     let class = classify(cpu, mem);
     // Hand-rolled JSON: every field is plain numbers/words/arrows — no quotes
     // or backslashes to escape (the \\n above is literal, as in the Python).
     println!("{{\"text\": \"{text}\", \"tooltip\": \"{tooltip}\", \"class\": \"{class}\"}}");
     ExitCode::SUCCESS
+}
+
+// ── autohide: macOS-style waybar hide while a window is fullscreen ─────────────
+//
+// Port of hypr-waybar-autohide.py. Single-threaded, std-only: it blocks on
+// Hyprland's socket2 and does nothing until a window is fullscreen, then uses
+// the socket *read timeout* itself as the 10 Hz poll clock (no GLib, no GTK, no
+// extra threads). When nothing is fullscreen the read is fully blocking — the
+// poll only runs while fullscreen, the single sanctioned poll in the setup.
+
+const POLL: Duration = Duration::from_millis(100); // 10 Hz, only while fullscreen
+const REVEAL_PX: i32 = 6; // cursor at/above this Y reveals the bar
+const HIDE_PX: i32 = 50; // cursor below this Y hides it; gap = hysteresis
+
+// Any event that can change whether the focused workspace has a fullscreen
+// window. We reconcile against Hyprland's real state on each — the `fullscreen`
+// payload alone isn't emitted on every transition (closing the fullscreen
+// window, some workspace switches), which is what left the bar stuck before.
+const RELEVANT: &[&str] = &[
+    "fullscreen",
+    "workspace",
+    "workspacev2",
+    "focusedmon",
+    "closewindow",
+    "openwindow",
+    "movewindow",
+    "movewindowv2",
+    "activewindow",
+    "activewindowv2",
+];
+
+struct AutoHide {
+    cmd_sock: String,
+    fullscreen: bool,
+    bar_visible: bool,
+}
+
+impl AutoHide {
+    fn toggle_bar(&self) {
+        let _ = Command::new("pkill")
+            .args(["-SIGUSR1", "-x", "waybar"])
+            .status();
+    }
+    fn show_bar(&mut self) {
+        if !self.bar_visible {
+            self.toggle_bar();
+            self.bar_visible = true;
+        }
+    }
+    fn hide_bar(&mut self) {
+        if self.bar_visible {
+            self.toggle_bar();
+            self.bar_visible = false;
+        }
+    }
+
+    /// One request/response on the Hyprland command socket (no hyprctl spawn).
+    fn query(&self, request: &[u8]) -> String {
+        let s = UnixStream::connect(&self.cmd_sock);
+        let mut s = match s {
+            Ok(s) => s,
+            Err(_) => return String::new(),
+        };
+        let _ = s.set_read_timeout(Some(Duration::from_millis(100)));
+        if s.write_all(request).is_err() {
+            return String::new();
+        }
+        let mut out = String::new();
+        let _ = s.read_to_string(&mut out);
+        out
+    }
+
+    fn cursor_y(&self) -> Option<i32> {
+        // cursorpos → "x, y"
+        self.query(b"cursorpos")
+            .split(',')
+            .nth(1)?
+            .trim()
+            .parse()
+            .ok()
+    }
+
+    /// Ground truth from Hyprland; None if the query failed (keep current state).
+    fn has_fullscreen(&self) -> Option<bool> {
+        let out = self.query(b"j/activeworkspace");
+        let idx = out.find("\"hasfullscreen\"")?;
+        // Only inspect the value token (up to the next comma), so a later field
+        // or a window title containing "true"/"false" can't fool us.
+        let tail = &out[idx + "\"hasfullscreen\"".len()..];
+        let token = tail.split(',').next().unwrap_or("");
+        if token.contains("true") {
+            Some(true)
+        } else if token.contains("false") {
+            Some(false)
+        } else {
+            None
+        }
+    }
+
+    fn reconcile(&mut self) {
+        match self.has_fullscreen() {
+            Some(true) if !self.fullscreen => {
+                self.fullscreen = true;
+                self.hide_bar();
+                eprintln!("autohide: enter fullscreen → hide bar");
+            }
+            Some(false) if self.fullscreen => {
+                self.fullscreen = false;
+                self.show_bar(); // always restore the bar when leaving fullscreen
+                eprintln!("autohide: exit fullscreen → show bar");
+            }
+            _ => {}
+        }
+    }
+
+    fn poll_cursor(&mut self) {
+        if let Some(y) = self.cursor_y() {
+            if y <= REVEAL_PX {
+                self.show_bar();
+            } else if y >= HIDE_PX {
+                self.hide_bar();
+            }
+        }
+    }
+}
+
+fn autohide() -> ExitCode {
+    let his = env::var("HYPRLAND_INSTANCE_SIGNATURE").unwrap_or_default();
+    if his.is_empty() {
+        eprintln!("waybar-helper autohide: not inside a Hyprland session");
+        return ExitCode::from(1);
+    }
+    let runtime = env::var("XDG_RUNTIME_DIR").unwrap_or_else(|_| "/tmp".into());
+    let sock2 = format!("{runtime}/hypr/{his}/.socket2.sock");
+    let cmd_sock = format!("{runtime}/hypr/{his}/.socket.sock");
+
+    let mut stream = match UnixStream::connect(&sock2) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("waybar-helper autohide: cannot connect socket2: {e}");
+            return ExitCode::from(1);
+        }
+    };
+
+    let mut ah = AutoHide {
+        cmd_sock,
+        fullscreen: false,
+        bar_visible: true,
+    };
+    ah.reconcile(); // sync to current state on launch
+
+    // Read timeout doubles as the 10Hz poll clock — only set while fullscreen.
+    let apply_timeout = |s: &UnixStream, fs: bool| {
+        let _ = s.set_read_timeout(if fs { Some(POLL) } else { None });
+    };
+    apply_timeout(&stream, ah.fullscreen);
+
+    let mut buf: Vec<u8> = Vec::new();
+    let mut chunk = [0u8; 4096];
+    loop {
+        match stream.read(&mut chunk) {
+            Ok(0) => return ExitCode::SUCCESS, // socket closed (compositor gone)
+            Ok(n) => {
+                buf.extend_from_slice(&chunk[..n]);
+                let mut changed = false;
+                while let Some(pos) = buf.iter().position(|&b| b == b'\n') {
+                    let line: Vec<u8> = buf.drain(..=pos).collect();
+                    let line = String::from_utf8_lossy(&line[..line.len() - 1]);
+                    let event = line.split(">>").next().unwrap_or("");
+                    if RELEVANT.contains(&event) {
+                        ah.reconcile();
+                        changed = true;
+                    }
+                }
+                if changed {
+                    apply_timeout(&stream, ah.fullscreen);
+                }
+            }
+            // Read timeout while fullscreen → a poll tick.
+            Err(ref e) if e.kind() == ErrorKind::WouldBlock || e.kind() == ErrorKind::TimedOut => {
+                if ah.fullscreen {
+                    ah.poll_cursor();
+                }
+            }
+            Err(ref e) if e.kind() == ErrorKind::Interrupted => continue,
+            Err(_) => return ExitCode::from(1),
+        }
+    }
 }
