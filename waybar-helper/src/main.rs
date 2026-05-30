@@ -16,6 +16,7 @@ use std::process::{Command, ExitCode};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 mod accounts;
+mod reset;
 
 fn main() -> ExitCode {
     match env::args().nth(1).as_deref() {
