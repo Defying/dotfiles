@@ -203,7 +203,15 @@ pub fn maybe_notify(
         };
         let sync = format!("string:x-canonical-private-synchronous:ai-usage-{key}");
         let mut args: Vec<String> = [
-            "notify-send", "-a", "AI usage", "-u", urgency, "-t", timeout, "-h", &sync,
+            "notify-send",
+            "-a",
+            "AI usage",
+            "-u",
+            urgency,
+            "-t",
+            timeout,
+            "-h",
+            &sync,
         ]
         .iter()
         .map(|s| s.to_string())
@@ -213,7 +221,9 @@ pub fn maybe_notify(
             args.push(icon.into());
         }
         args.push(title);
-        args.push(format!("{who}{remaining}% remaining · resets {reset_label}"));
+        args.push(format!(
+            "{who}{remaining}% remaining · resets {reset_label}"
+        ));
         let _ = Command::new("setsid")
             .arg("-f")
             .args(&args)

@@ -91,7 +91,10 @@ fn read_json(path: &Path) -> Value {
 }
 
 fn ensure_private_dir(dir: &Path) {
-    let _ = fs::DirBuilder::new().recursive(true).mode(0o700).create(dir);
+    let _ = fs::DirBuilder::new()
+        .recursive(true)
+        .mode(0o700)
+        .create(dir);
     let _ = fs::set_permissions(dir, fs::Permissions::from_mode(0o700));
 }
 
@@ -126,7 +129,10 @@ fn write_private(path: &Path, data: &[u8]) -> std::io::Result<()> {
 }
 
 fn str_field(v: &Value, key: &str) -> String {
-    v.get(key).and_then(|x| x.as_str()).unwrap_or("").to_string()
+    v.get(key)
+        .and_then(|x| x.as_str())
+        .unwrap_or("")
+        .to_string()
 }
 
 /// base64url-decode, ignoring padding (`=`), like Python's urlsafe_b64decode
@@ -212,7 +218,12 @@ pub fn account_from_auth(path: &Path, name: Option<&str>) -> Account {
     } else {
         Value::Object(Default::default())
     };
-    let claims = jwt_claims(tokens.get("id_token").and_then(|x| x.as_str()).unwrap_or(""));
+    let claims = jwt_claims(
+        tokens
+            .get("id_token")
+            .and_then(|x| x.as_str())
+            .unwrap_or(""),
+    );
     let openai = claims
         .get("https://api.openai.com/auth")
         .cloned()
@@ -255,7 +266,7 @@ pub fn account_from_auth(path: &Path, name: Option<&str>) -> Account {
     }
 }
 
-fn slot_dir(slot: &str) -> PathBuf {
+pub fn slot_dir(slot: &str) -> PathBuf {
     accounts_dir().join(slot)
 }
 fn slot_auth(slot: &str) -> PathBuf {
@@ -329,7 +340,10 @@ pub fn sync_active_slot() -> std::io::Result<Account> {
         let mut meta = account_from_auth(&auth_path(), None);
         let existing = read_json(&slot_meta(&slot));
         let current_id = &meta.account_id;
-        let existing_id = existing.get("account_id").and_then(|x| x.as_str()).unwrap_or("");
+        let existing_id = existing
+            .get("account_id")
+            .and_then(|x| x.as_str())
+            .unwrap_or("");
         if !current_id.is_empty() && !existing_id.is_empty() && current_id != existing_id {
             return save_current(None); // the live login changed account
         }
@@ -346,7 +360,8 @@ pub fn sync_active_slot() -> std::io::Result<Account> {
         return Ok(meta);
     }
     // No live auth: fall back to the slot's stored meta.
-    let mut meta: Account = serde_json::from_value(read_json(&slot_meta(&slot))).unwrap_or_default();
+    let mut meta: Account =
+        serde_json::from_value(read_json(&slot_meta(&slot))).unwrap_or_default();
     meta.slot = Some(slot);
     Ok(meta)
 }
@@ -367,6 +382,52 @@ pub fn active_account() -> Account {
         return sync_active_slot().unwrap_or_else(|_| account_from_auth(&auth_path(), None));
     }
     Account::default()
+}
+
+pub fn list_accounts() -> Vec<Account> {
+    ensure_private_dir(&accounts_dir());
+    let mut accounts = Vec::new();
+    let entries = match fs::read_dir(accounts_dir()) {
+        Ok(e) => e,
+        Err(_) => return accounts,
+    };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+        let slot = match path.file_name().and_then(|s| s.to_str()) {
+            Some(s) if !s.is_empty() => s.to_string(),
+            _ => continue,
+        };
+        let auth = path.join("auth.json");
+        if !auth.exists() {
+            continue;
+        }
+        let meta = read_json(&path.join("meta.json"));
+        let mut account: Account =
+            if meta.is_object() && !meta.as_object().map(|m| m.is_empty()).unwrap_or(true) {
+                serde_json::from_value(meta).unwrap_or_default()
+            } else {
+                account_from_auth(&auth, None)
+            };
+        account.slot = Some(slot);
+        accounts.push(account);
+    }
+    accounts.sort_by(|a, b| {
+        let al = if a.label.is_empty() {
+            &a.email
+        } else {
+            &a.label
+        };
+        let bl = if b.label.is_empty() {
+            &b.email
+        } else {
+            &b.label
+        };
+        al.to_lowercase().cmp(&bl.to_lowercase())
+    });
+    accounts
 }
 
 /// "label (plan)" for tooltips. Mirrors Python `display_label`.

@@ -43,11 +43,35 @@ fn mac_list() -> String {
     env::var("AI_RESET_MAC_LIST").unwrap_or_else(|_| "AI Resets".into())
 }
 
+fn slugify(value: &str) -> String {
+    let mut out = String::with_capacity(value.len());
+    let mut prev_dash = false;
+    for c in value.trim().to_lowercase().chars() {
+        if c.is_ascii_alphanumeric() || matches!(c, '_' | '.' | '-') {
+            out.push(c);
+            prev_dash = false;
+        } else if !prev_dash {
+            out.push('-');
+            prev_dash = true;
+        }
+    }
+    let trimmed = out.trim_matches(['-', '.']).to_string();
+    if trimmed.is_empty() {
+        "service".to_string()
+    } else {
+        trimmed
+    }
+}
+
+fn service_key(service: &str) -> String {
+    slugify(service)
+}
+
 fn unit(service: &str) -> String {
-    format!("ai-reset-{}", service.to_lowercase())
+    format!("ai-reset-{}", service_key(service))
 }
 fn state_file(service: &str) -> PathBuf {
-    state_dir().join(format!("{}.reset-timer", service.to_lowercase()))
+    state_dir().join(format!("{}.reset-timer", service_key(service)))
 }
 
 fn read_json(path: &Path) -> Value {
@@ -222,6 +246,10 @@ pub fn schedule(service: &str, window_label: &str, reset_epoch: Option<i64>, ico
 
     let unit_arg = format!("--unit={}", unit(service));
     let on_active = format!("--on-active={delay}s");
+    let sync_hint = format!(
+        "string:x-canonical-private-synchronous:ai-reset-{}",
+        service_key(service)
+    );
     let title = format!("{service} limit reset");
     let body = format!("{window_label} window reset — usage is back to 100%");
     let mut args: Vec<String> = [
@@ -240,7 +268,7 @@ pub fn schedule(service: &str, window_label: &str, reset_epoch: Option<i64>, ico
         "-t",
         "0",
         "-h",
-        "string:x-canonical-private-synchronous:ai-reset",
+        &sync_hint,
     ]
     .iter()
     .map(|s| s.to_string())
@@ -349,7 +377,10 @@ mod tests {
 
         // Idempotent: same reset must not churn the timer.
         schedule(svc, "5h", Some(epoch), None);
-        assert!(timer_active(svc), "timer still armed after idempotent re-schedule");
+        assert!(
+            timer_active(svc),
+            "timer still armed after idempotent re-schedule"
+        );
 
         cancel(svc);
         assert!(!timer_active(svc), "timer cleared after cancel");
@@ -367,5 +398,16 @@ mod tests {
         });
         // Default host is "mini" (env unset in test), which differs from "oldmac".
         assert!(!mac_already_requested(&prev, "weekly", 1000));
+    }
+
+    #[test]
+    fn service_key_keeps_accounts_independent() {
+        assert_eq!(unit("Codex defying"), "ai-reset-codex-defying");
+        assert_eq!(
+            state_file("Codex ben@carveworkshop.com")
+                .file_name()
+                .and_then(|s| s.to_str()),
+            Some("codex-ben-carveworkshop.com.reset-timer")
+        );
     }
 }
