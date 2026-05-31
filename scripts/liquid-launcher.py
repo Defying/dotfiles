@@ -195,6 +195,9 @@ window { background: transparent; }
     background: transparent;
     border-radius: 12px;
     padding: 0 4px;
+    /* Inset the selected/hover highlight from the card edges so the rounded
+       pill floats inside the panel instead of touching the sides. */
+    margin: 1px 14px;
     min-height: 0;
 }
 #result-list row:hover { background: rgba(255,255,255,0.08); outline: none; }
