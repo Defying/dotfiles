@@ -8,6 +8,7 @@ just sends "toggle" over a Unix socket and exits *before* the heavy GTK stack
 (~90ms) is ever imported. `--daemon` (exec-once) pre-warms the resident window.
 """
 
+import json
 import math
 import os
 import re
@@ -15,11 +16,41 @@ import signal
 import socket
 import sys
 import threading
+import time
 from pathlib import Path
 
 from runtime_dirs import private_runtime_dir
 
 SOCK = str(private_runtime_dir("liquid-launcher") / "liquid-launcher.sock")
+
+# Recently-launched apps float to the top. Persisted under XDG state (survives
+# reboot, unlike the runtime socket dir). Maps app name -> last-launch epoch.
+STATE_DIR = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local/state")) \
+    / "liquid-launcher"
+RECENTS_FILE = STATE_DIR / "recents.json"
+# Cap stored entries so the file can't grow without bound.
+RECENTS_MAX = 50
+
+
+def load_recents():
+    """name -> last-launch epoch. Empty/corrupt file is treated as no history."""
+    try:
+        data = json.loads(RECENTS_FILE.read_text(encoding="utf-8"))
+        return {k: float(v) for k, v in data.items()} if isinstance(data, dict) else {}
+    except (OSError, ValueError, TypeError):
+        return {}
+
+
+def save_recents(recents):
+    """Persist the most-recent RECENTS_MAX entries, newest kept first."""
+    trimmed = dict(sorted(recents.items(), key=lambda kv: kv[1], reverse=True)[:RECENTS_MAX])
+    try:
+        STATE_DIR.mkdir(parents=True, exist_ok=True)
+        tmp = RECENTS_FILE.with_suffix(".json.tmp")
+        tmp.write_text(json.dumps(trimmed), encoding="utf-8")
+        tmp.replace(RECENTS_FILE)
+    except OSError as e:
+        log(f"recents save failed: {e}")
 
 
 def log(*a):
@@ -162,13 +193,26 @@ def score_app(app, q):
     return 0
 
 
-def filter_apps(apps, query):
+def _recency_ranks(recents):
+    """name -> rank, 0 = most recently launched. Absent names aren't included."""
+    ordered = sorted(recents.items(), key=lambda kv: kv[1], reverse=True)
+    return {name: i for i, (name, _) in enumerate(ordered)}
+
+
+def filter_apps(apps, query, recents=None):
     q = query.lower().strip()
+    ranks = _recency_ranks(recents or {})
+    big = len(ranks) + 1  # sorts all non-recent apps after the recent ones
+
     if not q:
-        return apps
+        # No query: recently launched first (in recency order), then the rest
+        # alphabetically.
+        return sorted(apps, key=lambda a: (ranks.get(a["name"], big), a["name"].lower()))
+
     scored = [(score_app(a, q), a) for a in apps]
     scored = [(s, a) for s, a in scored if s > 0]
-    scored.sort(key=lambda x: (-x[0], x[1]["name"].lower()))
+    # Within the same match score, prefer recently-used apps, then alphabetical.
+    scored.sort(key=lambda x: (-x[0], ranks.get(x[1]["name"], big), x[1]["name"].lower()))
     return [a for _, a in scored]
 
 
@@ -234,7 +278,8 @@ class LauncherWindow(Gtk.Window):
     def __init__(self, apps):
         super().__init__(title="liquid-launcher")
         self.apps = apps
-        self.results = list(apps)
+        self.recents = load_recents()
+        self.results = filter_apps(apps, "", self.recents)
         self._icon_theme = Gtk.IconTheme.get_default()
 
         self.set_app_paintable(True)
@@ -456,7 +501,7 @@ class LauncherWindow(Gtk.Window):
     # ── Events ────────────────────────────────────────────────────────────────
 
     def _on_changed(self, entry):
-        self.results = filter_apps(self.apps, entry.get_text())
+        self.results = filter_apps(self.apps, entry.get_text(), self.recents)
         self._match_ids = {id(a) for a in self.results}
         self._order = {id(a): i for i, a in enumerate(self.results)}
         self.listbox.invalidate_filter()
@@ -493,6 +538,11 @@ class LauncherWindow(Gtk.Window):
             GLib.spawn_command_line_async(cmd)
         except Exception as e:
             log(f"launch failed: {e}")
+        # Record the launch so this app floats to the top next time. Persisted
+        # immediately; the reordering is applied on the next open (show_launcher
+        # resets the query, which re-runs filter_apps with the updated recents).
+        self.recents[app["name"]] = time.time()
+        save_recents(self.recents)
         self.hide_launcher()
 
     # ── Show / hide (the daemon keeps the process alive between opens) ──────────
