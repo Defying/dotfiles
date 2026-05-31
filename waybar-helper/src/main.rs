@@ -19,6 +19,7 @@ mod accounts;
 mod claude;
 mod codex;
 mod reset;
+mod trackpad;
 mod usage;
 
 fn main() -> ExitCode {
@@ -30,13 +31,14 @@ fn main() -> ExitCode {
         Some("weather") => weather(),
         Some("autohide") => autohide(),
         Some("autobright") => autobright(),
+        Some("trackpad") => trackpad::run(),
         Some("codex-account-status") => ExitCode::from(accounts::status_json() as u8),
         Some("codex") => codex::run(&env::args().skip(2).collect::<Vec<_>>()),
         Some("claude") => claude::run(&env::args().skip(2).collect::<Vec<_>>()),
         other => {
             eprintln!(
                 "usage: waybar-helper \
-                 <sysmon|clock24|clock12|date|weather|autohide|autobright>; got {:?}",
+                 <sysmon|clock24|clock12|date|weather|autohide|autobright|trackpad>; got {:?}",
                 other
             );
             ExitCode::from(2)
@@ -565,7 +567,8 @@ fn sysmon_sample(prev: &Prev, now: f64) -> (String, Prev) {
     let class = classify(cpu, mem, ssd);
     // Hand-rolled JSON: every field is plain numbers/words/arrows — no quotes
     // or backslashes to escape (the \\n above is literal, as in the Python).
-    let line = format!("{{\"text\": \"{text}\", \"tooltip\": \"{tooltip}\", \"class\": \"{class}\"}}");
+    let line =
+        format!("{{\"text\": \"{text}\", \"tooltip\": \"{tooltip}\", \"class\": \"{class}\"}}");
     (line, next)
 }
 
