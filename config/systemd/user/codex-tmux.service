@@ -1,0 +1,12 @@
+[Unit]
+Description=Keep isolated Codex tmux sessions alive
+After=default.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/codex-tmux supervise
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

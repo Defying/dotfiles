@@ -1,0 +1,257 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+ACCOUNTS_DIR="${CODEX_ACCOUNTS_DIR:-$HOME/.codex/accounts}"
+GLOBAL_CODEX_HOME="${CODEX_GLOBAL_HOME:-$HOME/.codex}"
+CODEX_BIN="${CODEX_BIN:-$HOME/.local/bin/codex}"
+TMUX_BIN="${TMUX_BIN:-/usr/bin/tmux}"
+SHELL_BIN="${SHELL:-/usr/bin/zsh}"
+DEFAULT_SLOTS=(defying ben-7b0d6a0e)
+
+[ -x "$CODEX_BIN" ] || CODEX_BIN="$(command -v codex)"
+[ -x "$TMUX_BIN" ] || TMUX_BIN="$(command -v tmux)"
+
+usage() {
+  cat <<'EOF'
+usage:
+  codex-tmux SLOT          attach/switch to an isolated Codex tmux session
+  codex-tmux start SLOT    create the session without attaching
+  codex-tmux login SLOT    run Codex login inside one account slot
+  codex-tmux start-all     create all default Codex sessions
+  codex-tmux list          show saved account slots and session names
+  codex-tmux status        show session + login status
+  codex-tmux supervise     keep default sessions alive
+
+easy commands:
+  codex-defying            attach/switch to tmux session codex-defying
+  codex-ben                attach/switch to tmux session codex-ben
+  codex-both               start codex-defying and codex-ben
+EOF
+}
+
+die() {
+  printf 'codex-tmux: %s\n' "$*" >&2
+  exit 1
+}
+
+slot_dir() {
+  printf '%s/%s\n' "$ACCOUNTS_DIR" "$1"
+}
+
+slot_label() {
+  local slot="$1"
+  case "$slot" in
+    defying) printf 'defying' ;;
+    ben-*) printf 'ben' ;;
+    *) printf '%s' "${slot%%-*}" ;;
+  esac
+}
+
+session_name() {
+  printf 'codex-%s\n' "$(slot_label "$1")"
+}
+
+resolve_slot() {
+  local key="$1"
+  case "$key" in
+    defying|personal|me) printf 'defying\n'; return 0 ;;
+    ben|work|carve|carveworkshop) printf 'ben-7b0d6a0e\n'; return 0 ;;
+  esac
+
+  if [ -f "$(slot_dir "$key")/auth.json" ]; then
+    printf '%s\n' "$key"
+    return 0
+  fi
+
+  local match=""
+  local candidate
+  for candidate in "$ACCOUNTS_DIR"/"$key"*; do
+    [ -f "$candidate/auth.json" ] || continue
+    if [ -n "$match" ]; then
+      die "slot '$key' is ambiguous"
+    fi
+    match="$(basename "$candidate")"
+  done
+  [ -n "$match" ] || die "unknown Codex account slot: $key"
+  printf '%s\n' "$match"
+}
+
+ensure_slot_home() {
+  local slot="$1"
+  local home
+  home="$(slot_dir "$slot")"
+  mkdir -p "$home"
+  chmod 700 "$home" 2>/dev/null || true
+
+  # CODEX_HOME points at the account slot for auth/session isolation. Share the
+  # normal non-secret CLI config unless the slot already has its own override.
+  if [ -f "$GLOBAL_CODEX_HOME/config.toml" ] && [ ! -e "$home/config.toml" ]; then
+    ln -s "$GLOBAL_CODEX_HOME/config.toml" "$home/config.toml"
+  fi
+}
+
+ensure_account_home() {
+  local slot="$1"
+  local home
+  home="$(slot_dir "$slot")"
+  ensure_slot_home "$slot"
+  [ -f "$home/auth.json" ] || die "missing auth.json for slot '$slot' at $home"
+}
+
+set_session_env() {
+  local session="$1"
+  local slot="$2"
+  local home="$3"
+  local label="$4"
+  "$TMUX_BIN" set-environment -t "$session" CODEX_HOME "$home"
+  "$TMUX_BIN" set-environment -t "$session" CODEX_ACCOUNT_SLOT "$slot"
+  "$TMUX_BIN" set-environment -t "$session" CODEX_ACCOUNT_LABEL "$label"
+  "$TMUX_BIN" set-option -t "$session" default-command \
+    "env CODEX_HOME=$home CODEX_ACCOUNT_SLOT=$slot CODEX_ACCOUNT_LABEL=$label $SHELL_BIN -l" >/dev/null
+  "$TMUX_BIN" set-option -t "$session" @codex_home "$home" >/dev/null
+  "$TMUX_BIN" set-option -t "$session" @codex_slot "$slot" >/dev/null
+}
+
+seed_pane() {
+  local session="$1"
+  local slot="$2"
+  local home="$3"
+  local label="$4"
+  local target="$session:codex"
+
+  "$TMUX_BIN" send-keys -t "$target" -l "export CODEX_HOME=$home CODEX_ACCOUNT_SLOT=$slot CODEX_ACCOUNT_LABEL=$label"
+  "$TMUX_BIN" send-keys -t "$target" C-m
+  "$TMUX_BIN" send-keys -t "$target" -l "clear"
+  "$TMUX_BIN" send-keys -t "$target" C-m
+  "$TMUX_BIN" send-keys -t "$target" -l "echo Codex account: $label"
+  "$TMUX_BIN" send-keys -t "$target" C-m
+  "$TMUX_BIN" send-keys -t "$target" -l "echo CODEX_HOME=$home"
+  "$TMUX_BIN" send-keys -t "$target" C-m
+  "$TMUX_BIN" send-keys -t "$target" -l "$CODEX_BIN"
+  "$TMUX_BIN" send-keys -t "$target" C-m
+}
+
+ensure_session() {
+  local slot="$1"
+  local workdir="${2:-$PWD}"
+  local home label session
+  home="$(slot_dir "$slot")"
+  label="$(slot_label "$slot")"
+  session="$(session_name "$slot")"
+
+  ensure_account_home "$slot"
+  if "$TMUX_BIN" has-session -t "$session" 2>/dev/null; then
+    set_session_env "$session" "$slot" "$home" "$label"
+    return 0
+  fi
+
+  TERM="${TERM:-xterm-256color}" "$TMUX_BIN" new-session -d -s "$session" -n codex -c "$workdir" \
+    "env CODEX_HOME=$home CODEX_ACCOUNT_SLOT=$slot CODEX_ACCOUNT_LABEL=$label $SHELL_BIN -l"
+  set_session_env "$session" "$slot" "$home" "$label"
+  seed_pane "$session" "$slot" "$home" "$label"
+}
+
+attach_session() {
+  local session="$1"
+  if [ -n "${TMUX:-}" ]; then
+    exec "$TMUX_BIN" switch-client -t "$session"
+  fi
+  exec "$TMUX_BIN" attach-session -t "$session"
+}
+
+start_slot() {
+  local slot
+  slot="$(resolve_slot "$1")"
+  ensure_session "$slot" "${2:-$PWD}"
+  printf '%s\n' "$(session_name "$slot")"
+}
+
+attach_slot() {
+  local slot session
+  slot="$(resolve_slot "$1")"
+  ensure_session "$slot" "$PWD"
+  session="$(session_name "$slot")"
+  attach_session "$session"
+}
+
+login_slot() {
+  local slot home label
+  slot="$(resolve_slot "$1")"
+  shift
+  home="$(slot_dir "$slot")"
+  label="$(slot_label "$slot")"
+  ensure_slot_home "$slot"
+  CODEX_HOME="$home" CODEX_ACCOUNT_SLOT="$slot" CODEX_ACCOUNT_LABEL="$label" "$CODEX_BIN" login "$@"
+}
+
+list_slots() {
+  local slot
+  for slot in "${DEFAULT_SLOTS[@]}"; do
+    [ -f "$(slot_dir "$slot")/auth.json" ] || continue
+    printf '%-16s -> tmux attach -t %s\n' "$(slot_label "$slot")" "$(session_name "$slot")"
+  done
+}
+
+status_slots() {
+  local slot session home attached login
+  for slot in "${DEFAULT_SLOTS[@]}"; do
+    [ -f "$(slot_dir "$slot")/auth.json" ] || continue
+    session="$(session_name "$slot")"
+    home="$(slot_dir "$slot")"
+    if "$TMUX_BIN" has-session -t "$session" 2>/dev/null; then
+      attached="$("$TMUX_BIN" display-message -p -t "$session" '#{session_attached}' 2>/dev/null || printf '?')"
+    else
+      attached="missing"
+    fi
+    login="$(CODEX_HOME="$home" timeout 5 "$CODEX_BIN" login status 2>&1 | head -n 1 || true)"
+    printf '%-14s %-14s attached=%s  %s\n' "$(slot_label "$slot")" "$session" "$attached" "$login"
+  done
+}
+
+start_all() {
+  local slot
+  for slot in "${DEFAULT_SLOTS[@]}"; do
+    [ -f "$(slot_dir "$slot")/auth.json" ] || continue
+    ensure_session "$slot" "$HOME"
+    printf '%s\n' "$(session_name "$slot")"
+  done
+}
+
+supervise() {
+  local interval="${CODEX_TMUX_SUPERVISE_INTERVAL:-60}"
+  while :; do
+    start_all >/dev/null || true
+    sleep "$interval"
+  done
+}
+
+main() {
+  local invoked slot
+  invoked="$(basename "$0")"
+  case "$invoked" in
+    codex-defying) attach_slot defying ;;
+    codex-ben) attach_slot ben ;;
+    codex-both) start_all ;;
+  esac
+
+  case "${1:-}" in
+    ""|-h|--help|help) usage ;;
+    list) list_slots ;;
+    status) status_slots ;;
+    start)
+      [ $# -ge 2 ] || die "start requires a slot"
+      start_slot "$2"
+      ;;
+    login)
+      [ $# -ge 2 ] || die "login requires a slot"
+      slot="$2"
+      shift 2
+      login_slot "$slot" "$@"
+      ;;
+    start-all) start_all ;;
+    supervise) supervise ;;
+    *) attach_slot "$1" ;;
+  esac
+}
+
+main "$@"
