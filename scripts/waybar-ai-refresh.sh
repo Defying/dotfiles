@@ -8,20 +8,12 @@ signal="${2:-}"
 
 refresh_codex() {
   local sig="${1:-8}"
-  if [[ -x /home/ben/.local/bin/waybar-helper ]]; then
-    setsid -f /home/ben/.local/bin/waybar-helper codex --refresh --signal "$sig" >/dev/null 2>&1
-  else
-    setsid -f /home/ben/dotfiles/scripts/waybar-openai-tokens.py --refresh --signal "$sig" >/dev/null 2>&1
-  fi
+  setsid -f /home/ben/.local/bin/waybar-helper codex --refresh --signal "$sig" >/dev/null 2>&1
 }
 
 refresh_claude() {
   local sig="${1:-9}"
-  if [[ -x /home/ben/.local/bin/waybar-helper ]]; then
-    setsid -f /home/ben/.local/bin/waybar-helper claude --refresh --signal "$sig" >/dev/null 2>&1
-  else
-    setsid -f /home/ben/dotfiles/scripts/waybar-claude-usage.py --refresh --signal "$sig" >/dev/null 2>&1
-  fi
+  setsid -f /home/ben/.local/bin/waybar-helper claude --refresh --signal "$sig" >/dev/null 2>&1
 }
 
 case "$service" in

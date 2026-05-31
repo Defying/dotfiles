@@ -37,7 +37,7 @@ SERVICES = {
         "icon": ASSETS / "openai.png",
         "cache": CACHE / "codex-usage.json",
         "url": "https://chatgpt.com/codex/settings/usage",
-        "refresh": [str(SCRIPTS / "waybar-openai-tokens.py"), "--refresh", "--signal", "8"],
+        "refresh": [str(SCRIPTS / "waybar-ai-refresh.sh"), "codex", "8"],
         "account": [str(SCRIPTS / "ai_accounts.py"), "codex-menu"],
     },
     "claude": {
