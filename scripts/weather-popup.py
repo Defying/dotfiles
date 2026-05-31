@@ -112,12 +112,14 @@ class Popup(GlassPopup):
 
     def __init__(self, name, corner="top-right"):
         self.weather = None
+        self.fetch_done = False
         super().__init__(name, corner=corner)
         self.populate()
         threading.Thread(target=self._fetch, daemon=True).start()
 
     def _fetch(self):
         self.weather = parse_weather(fetch_weather())
+        self.fetch_done = True
         GLib.idle_add(self.populate)
 
     @staticmethod
@@ -128,7 +130,8 @@ class Popup(GlassPopup):
 
     def build(self):
         if self.weather is None:
-            self.panel.pack_start(self._styled("fetching weather…", "dim"), False, False, 0)
+            msg = "weather unavailable" if self.fetch_done else "fetching weather…"
+            self.panel.pack_start(self._styled(msg, "dim"), False, False, 0)
             return
         w = self.weather
 

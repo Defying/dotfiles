@@ -10,7 +10,7 @@ mkdir -p "$cache_dir"
 cache_file="$cache_dir/last.json"
 
 emit_cached_or_blank() {
-  if [[ -s "$cache_file" ]]; then
+  if [[ -s "$cache_file" ]] && [[ "$(tr '[:upper:]' '[:lower:]' < "$cache_file")" != *"weather data source not available"* ]]; then
     cat "$cache_file"
   else
     printf '{"text":" --°","tooltip":"weather unavailable","class":"unavailable"}\n'
@@ -18,7 +18,7 @@ emit_cached_or_blank() {
 }
 
 out=$(curl -s --max-time 8 'https://wttr.in/?format=%c+%t' 2>/dev/null)
-if [[ -z "$out" || "$out" == *"Unknown location"* ]]; then
+if [[ -z "$out" || "$out" == *"Unknown location"* || "${out,,}" == *"weather data source not available"* ]]; then
   emit_cached_or_blank
   exit 0
 fi
@@ -56,6 +56,8 @@ esac
 
 tip=$(curl -s --max-time 8 'https://wttr.in/?format=%l:+%C\nfeels+%f++humidity+%h\nwind+%w++%p+precip\nsun+%S+→+%s' 2>/dev/null)
 forecast=$(curl -s --max-time 10 'https://wttr.in/?T&0' 2>/dev/null | sed -n '1,7p')
+[[ "${tip,,}" == *"weather data source not available"* ]] && tip=""
+[[ "${forecast,,}" == *"weather data source not available"* ]] && forecast=""
 
 if [[ -n "$tip" || -n "$forecast" ]]; then
   tooltip="${tip}"

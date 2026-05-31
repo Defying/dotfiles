@@ -142,7 +142,7 @@ const WEATHER_BLANK: &str =
 /// a weather hiccup must never make waybar drop the module.
 fn emit_cached_or_blank() -> ExitCode {
     match fs::read_to_string(weather_cache_path()) {
-        Ok(s) if !s.is_empty() => print!("{s}"),
+        Ok(s) if !weather_provider_failed(&s) => print!("{s}"),
         _ => println!("{WEATHER_BLANK}"),
     }
     ExitCode::SUCCESS
@@ -151,6 +151,13 @@ fn emit_cached_or_blank() -> ExitCode {
 /// curl one wttr.in URL; trimmed stdout, empty on any failure.
 fn curl(url: &str) -> String {
     cmd("curl", &["-s", "--max-time", "8", url])
+}
+
+fn weather_provider_failed(s: &str) -> bool {
+    let lower = s.to_ascii_lowercase();
+    lower.is_empty()
+        || lower.contains("unknown location")
+        || lower.contains("weather data source not available")
 }
 
 fn weather_icon(emoji: &str) -> &'static str {
@@ -184,7 +191,7 @@ fn weather_icon(emoji: &str) -> &'static str {
 
 fn weather() -> ExitCode {
     let out = curl("https://wttr.in/?format=%c+%t");
-    if out.is_empty() || out.contains("Unknown location") {
+    if weather_provider_failed(&out) {
         return emit_cached_or_blank();
     }
 
@@ -209,8 +216,8 @@ fn weather() -> ExitCode {
         .collect::<Vec<_>>()
         .join("\n");
 
-    let tooltip = if !tip.is_empty() || !forecast.is_empty() {
-        if forecast.is_empty() {
+    let tooltip = if !weather_provider_failed(&tip) || !weather_provider_failed(&forecast) {
+        if weather_provider_failed(&forecast) {
             tip
         } else {
             format!("{tip}\n\n{forecast}")
