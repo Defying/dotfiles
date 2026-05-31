@@ -35,3 +35,6 @@ backups/
 !home/.local/bin/backup-raspberrypi-sd-card.sh
 !home/.local/bin/check-carve-health.sh
 !home/.local/bin/check-carve-connected.sh
+
+# Claude Code session scaffolding (goals, hooks, local state)
+.claude/
