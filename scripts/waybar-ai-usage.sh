@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Short Waybar click wrapper for the AI usage panels. The Python panel owns the
+# Short Waybar click wrapper for the AI usage panels. The Rust panel owns the
 # actual toggle logic; this wrapper just detaches it so Waybar can receive the
 # next click while the panel is open.
 
@@ -14,7 +14,10 @@ case "$service" in
     ;;
 esac
 
-panel="/home/ben/dotfiles/scripts/ai-usage-popup.py"
+panel="${HOME}/.local/bin/ai-usage-panel"
+if [[ ! -x "$panel" ]]; then
+  panel="/home/ben/dotfiles/ai-usage-panel/target/release/ai-usage-panel"
+fi
 
 private_runtime_dir() {
   if [[ -n "${XDG_RUNTIME_DIR:-}" ]]; then

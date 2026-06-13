@@ -451,7 +451,7 @@ fn launch(service: Service) -> i32 {
     app.connect_shutdown(move |_| cleanup_pidfile(&cleanup_path, pid));
     app.connect_activate(move |app| build_panel(app, service));
 
-    let _ = app.run();
+    let _ = app.run_with_args(&["ai-usage-panel"]);
     0
 }
 
