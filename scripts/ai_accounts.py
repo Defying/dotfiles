@@ -43,7 +43,10 @@ def _safe_json(path: Path) -> dict:
 
 def _ensure_private_dir(path: Path) -> None:
     path.mkdir(mode=0o700, parents=True, exist_ok=True)
-    path.chmod(0o700)
+    try:
+        path.chmod(0o700)
+    except OSError:
+        pass
 
 
 def _write_private(path: Path, data: bytes) -> None:
@@ -130,6 +133,29 @@ def write_active_slot(slot: str) -> None:
     _write_private(ACTIVE_PATH, (slot + "\n").encode("utf-8"))
 
 
+def _account_slot_candidates(account_id: str) -> list[dict]:
+    if not account_id:
+        return []
+    return [account for account in list_accounts() if account.get("account_id") == account_id]
+
+
+def _preferred_slot_for_account_id(account_id: str, current_slot: str | None = None) -> str:
+    candidates = _account_slot_candidates(account_id)
+    if not candidates:
+        return ""
+    suffix = f"-{account_id[:8].lower()}"
+
+    def rank(account: dict) -> tuple[int, int, str]:
+        slot = account.get("slot") or ""
+        auto_suffix = slot.lower().endswith(suffix)
+        current = slot == current_slot
+        # Prefer human aliases like "defying" over auto-created
+        # "defying-e9273352"; otherwise keep the current slot stable.
+        return (1 if auto_suffix else 0, 0 if current else 1, slot)
+
+    return min(candidates, key=rank).get("slot") or ""
+
+
 def save_current(name: str | None = None) -> dict:
     if not AUTH_PATH.exists():
         raise RuntimeError("Codex auth.json does not exist; run Codex login first")
@@ -138,6 +164,13 @@ def save_current(name: str | None = None) -> dict:
     slot = _slug(name or meta.get("email") or account_id or meta.get("label"), "codex")
     if account_id:
         slot = f"{slot}-{account_id[:8]}"
+    if account_id and not name:
+        existing_slot = _preferred_slot_for_account_id(account_id)
+        if existing_slot:
+            slot = existing_slot
+            existing = _safe_json(slot_meta(slot))
+            if existing.get("label"):
+                meta["label"] = existing["label"]
     meta["slot"] = slot
     _write_private(slot_auth(slot), AUTH_PATH.read_bytes())
     _write_private(slot_meta(slot), json.dumps(meta, indent=2, sort_keys=True).encode("utf-8"))
@@ -158,6 +191,12 @@ def sync_active_slot() -> dict:
         existing_id = existing.get("account_id")
         if current_id and existing_id and current_id != existing_id:
             return save_current()
+        if current_id:
+            preferred_slot = _preferred_slot_for_account_id(current_id, current_slot=slot)
+            if preferred_slot and preferred_slot != slot:
+                slot = preferred_slot
+                existing = _safe_json(slot_meta(slot))
+                write_active_slot(slot)
         _write_private(slot_auth(slot), AUTH_PATH.read_bytes())
         if existing.get("label"):
             meta["label"] = existing["label"]
@@ -351,7 +390,10 @@ def codex_menu() -> int:
 
 
 def status_json() -> int:
-    meta = active_account()
+    try:
+        meta = sync_active_slot()
+    except Exception:
+        meta = active_account()
     if meta:
         write_account_cache(meta)
     print(json.dumps(meta))

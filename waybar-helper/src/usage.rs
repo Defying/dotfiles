@@ -8,7 +8,9 @@ use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use chrono::{Datelike, Local, TimeZone};
-use serde_json::json;
+use serde_json::{json, Value};
+
+pub const AUTH_BUBBLE_TEXT: &str = " ";
 
 pub fn now() -> i64 {
     SystemTime::now()
@@ -36,8 +38,22 @@ pub fn asset(name: &str) -> String {
 /// Print a Waybar JSON line. Key order differs from the Python (serde sorts),
 /// but Waybar parses JSON so order is irrelevant.
 pub fn emit(text: &str, tooltip: &str, class: &str) {
+    emit_classes(text, tooltip, &[class]);
+}
+
+pub fn emit_classes(text: &str, tooltip: &str, classes: &[&str]) {
     let text = pango_escape(text);
     let tooltip = pango_escape(tooltip);
+    let class = match classes {
+        [] => Value::String(String::new()),
+        [one] => Value::String((*one).to_string()),
+        many => Value::Array(
+            many.iter()
+                .filter(|class| !class.is_empty())
+                .map(|class| Value::String((*class).to_string()))
+                .collect(),
+        ),
+    };
     println!(
         "{}",
         json!({ "text": text, "tooltip": tooltip, "class": class })

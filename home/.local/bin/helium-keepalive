@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+interval="${HELIUM_KEEPALIVE_INTERVAL:-15}"
+
+helium_running() {
+  pgrep -u "$(id -u)" -f "$HOME/Applications/Helium.AppImage|/opt/helium/helium" >/dev/null 2>&1
+}
+
+launch_helium() {
+  setsid -f "$HOME/.local/bin/helium" >/dev/null 2>&1 || true
+}
+
+while :; do
+  if ! helium_running; then
+    launch_helium
+  fi
+  sleep "$interval"
+done

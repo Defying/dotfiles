@@ -9,6 +9,7 @@
 //! Credential files are written 0600 via a same-dir temp + atomic rename, in
 //! 0700 dirs — matching the Python `_write_private` / `_ensure_private_dir`.
 
+use std::collections::HashSet;
 use std::env;
 use std::fs;
 use std::io::Write;
@@ -287,6 +288,84 @@ fn write_active_slot(slot: &str) {
     let _ = write_private(&active_path(), format!("{slot}\n").as_bytes());
 }
 
+fn preferred_slot_for_account_id(account_id: &str, current_slot: Option<&str>) -> Option<String> {
+    if account_id.is_empty() {
+        return None;
+    }
+    let suffix = format!("-{}", &account_id[..account_id.len().min(8)]).to_lowercase();
+    list_accounts()
+        .into_iter()
+        .filter(|a| a.account_id == account_id)
+        .filter_map(|a| a.slot)
+        .min_by_key(|slot| {
+            let auto_suffix = slot.to_lowercase().ends_with(&suffix);
+            let current = current_slot.map(|s| s == slot).unwrap_or(false);
+            // Prefer human aliases like "defying" over auto-created
+            // "defying-e9273352"; otherwise keep the current slot stable.
+            (auto_suffix, !current, slot.clone())
+        })
+}
+
+fn account_identity_key(account: &Account) -> String {
+    if !account.account_id.is_empty() {
+        return format!("id:{}", account.account_id);
+    }
+    if !account.email.is_empty() {
+        return format!("email:{}", account.email.to_lowercase());
+    }
+    if let Some(slot) = &account.slot {
+        if !slot.is_empty() {
+            return format!("slot:{slot}");
+        }
+    }
+    format!("label:{}", account.label.to_lowercase())
+}
+
+fn has_auto_account_suffix(account: &Account) -> bool {
+    let Some(slot) = account.slot.as_deref() else {
+        return false;
+    };
+    if account.account_id.is_empty() {
+        return false;
+    }
+    let suffix = format!(
+        "-{}",
+        &account.account_id[..account.account_id.len().min(8)]
+    )
+    .to_lowercase();
+    slot.to_lowercase().ends_with(&suffix)
+}
+
+fn account_label_key(account: &Account) -> String {
+    if account.label.is_empty() {
+        account.email.to_lowercase()
+    } else {
+        account.label.to_lowercase()
+    }
+}
+
+fn dedupe_accounts(mut accounts: Vec<Account>) -> Vec<Account> {
+    accounts.sort_by_key(|a| {
+        (
+            has_auto_account_suffix(a),
+            a.slot.as_deref().map(str::len).unwrap_or(usize::MAX),
+            account_label_key(a),
+            a.slot.clone().unwrap_or_default(),
+        )
+    });
+
+    let mut seen = HashSet::new();
+    let mut deduped = Vec::with_capacity(accounts.len());
+    for account in accounts {
+        if seen.insert(account_identity_key(&account)) {
+            deduped.push(account);
+        }
+    }
+
+    deduped.sort_by(|a, b| account_label_key(a).cmp(&account_label_key(b)));
+    deduped
+}
+
 fn write_meta(slot: &str, meta: &Account) {
     if let Ok(s) = serde_json::to_string_pretty(meta) {
         let _ = write_private(&slot_meta(slot), s.as_bytes());
@@ -319,6 +398,17 @@ pub fn save_current(name: Option<&str>) -> std::io::Result<Account> {
     if !account_id.is_empty() {
         slot = format!("{slot}-{}", &account_id[..account_id.len().min(8)]);
     }
+    if name.is_none() {
+        if let Some(existing_slot) = preferred_slot_for_account_id(&account_id, None) {
+            slot = existing_slot;
+            let existing = read_json(&slot_meta(&slot));
+            if let Some(lbl) = existing.get("label").and_then(|x| x.as_str()) {
+                if !lbl.is_empty() {
+                    meta.label = lbl.to_string();
+                }
+            }
+        }
+    }
     meta.slot = Some(slot.clone());
     let auth_bytes = fs::read(auth_path())?;
     write_private(&slot_auth(&slot), &auth_bytes)?;
@@ -332,13 +422,13 @@ pub fn save_current(name: Option<&str>) -> std::io::Result<Account> {
 /// a slot if none is active). Mirrors Python `sync_active_slot`.
 pub fn sync_active_slot() -> std::io::Result<Account> {
     ensure_private_dir(&accounts_dir());
-    let slot = read_active_slot();
+    let mut slot = read_active_slot();
     if slot.is_empty() {
         return save_current(None);
     }
     if auth_path().exists() {
         let mut meta = account_from_auth(&auth_path(), None);
-        let existing = read_json(&slot_meta(&slot));
+        let mut existing = read_json(&slot_meta(&slot));
         let current_id = &meta.account_id;
         let existing_id = existing
             .get("account_id")
@@ -346,6 +436,15 @@ pub fn sync_active_slot() -> std::io::Result<Account> {
             .unwrap_or("");
         if !current_id.is_empty() && !existing_id.is_empty() && current_id != existing_id {
             return save_current(None); // the live login changed account
+        }
+        if !current_id.is_empty() {
+            if let Some(preferred_slot) = preferred_slot_for_account_id(current_id, Some(&slot)) {
+                if preferred_slot != slot {
+                    slot = preferred_slot;
+                    existing = read_json(&slot_meta(&slot));
+                    write_active_slot(&slot);
+                }
+            }
         }
         let auth_bytes = fs::read(auth_path())?;
         write_private(&slot_auth(&slot), &auth_bytes)?;
@@ -414,20 +513,7 @@ pub fn list_accounts() -> Vec<Account> {
         account.slot = Some(slot);
         accounts.push(account);
     }
-    accounts.sort_by(|a, b| {
-        let al = if a.label.is_empty() {
-            &a.email
-        } else {
-            &a.label
-        };
-        let bl = if b.label.is_empty() {
-            &b.email
-        } else {
-            &b.label
-        };
-        al.to_lowercase().cmp(&bl.to_lowercase())
-    });
-    accounts
+    dedupe_accounts(accounts)
 }
 
 /// "label (plan)" for tooltips. Mirrors Python `display_label`.
@@ -452,7 +538,7 @@ pub fn display_label(meta: &Account) -> String {
 
 /// `codex-status-json`: print the active account, refreshing its cache.
 pub fn status_json() -> i32 {
-    let meta = active_account();
+    let meta = sync_active_slot().unwrap_or_else(|_| active_account());
     if !meta.is_empty() {
         write_account_cache(&meta);
     }
@@ -461,4 +547,34 @@ pub fn status_json() -> i32 {
         Err(_) => println!("{{}}"),
     }
     0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{dedupe_accounts, Account};
+
+    #[test]
+    fn duplicate_account_ids_prefer_human_alias_slots() {
+        let accounts = vec![
+            Account {
+                account_id: "e9273352-2eea-4e1d-8f56-06e3846508e5".to_string(),
+                email: "defying@me.com".to_string(),
+                label: "defying@me.com".to_string(),
+                slot: Some("defying-e9273352".to_string()),
+                ..Account::default()
+            },
+            Account {
+                account_id: "e9273352-2eea-4e1d-8f56-06e3846508e5".to_string(),
+                email: "defying@me.com".to_string(),
+                label: "defying".to_string(),
+                slot: Some("defying".to_string()),
+                ..Account::default()
+            },
+        ];
+
+        let deduped = dedupe_accounts(accounts);
+
+        assert_eq!(deduped.len(), 1);
+        assert_eq!(deduped[0].slot.as_deref(), Some("defying"));
+    }
 }

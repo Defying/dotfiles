@@ -13,6 +13,7 @@ Cmd + Alt + Space        open Hyprland menu
 Ctrl + Alt + Space       open Hyprland menu fallback
 Cmd + K                  show this keybinding list
 Ctrl + Alt + K           show this keybinding list fallback
+Cmd + H                  open Helium
 Cmd + W                  close focused window
 Cmd + Shift + Q          exit Hyprland
 Ctrl + Alt + Q           exit Hyprland fallback

@@ -16,7 +16,7 @@ use serde_json::{json, Value};
 use crate::reset;
 use crate::usage::{
     asset, cache_dir, compact_countdown, compact_duration, emit, fmt_reset, iso_to_epoch,
-    maybe_notify, now,
+    maybe_notify, now, AUTH_BUBBLE_TEXT,
 };
 
 const CLAUDE_USAGE_URL: &str = "https://claude.ai/settings/usage";
@@ -316,7 +316,7 @@ fn main_display(force_refresh: bool, force_network: bool) -> i32 {
         .is_empty()
     {
         emit(
-            "login",
+            AUTH_BUBBLE_TEXT,
             "Claude Code OAuth token not found.\nOpen quick settings, then use Claude Login.",
             "auth",
         );

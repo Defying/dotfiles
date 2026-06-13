@@ -17,6 +17,12 @@ private_runtime_dir() {
 runtime_dir="$(private_runtime_dir || printf '%s\n' "${HOME}/.cache")"
 pid_file="$runtime_dir/quick-settings-panel.pid"
 log_file="$runtime_dir/quick-settings-panel.log"
+awake_pid_file="$runtime_dir/awake.pid"
+awake_state_file="$runtime_dir/awake.json"
+power_state_file="$runtime_dir/power.json"
+low_power_profile="powersave"
+default_power_profile="balanced"
+battery_device="/org/freedesktop/UPower/devices/battery_macsmc_battery"
 
 if [[ -r "$pid_file" ]]; then
   panel_pid="$(sed -n '1p' "$pid_file")"
@@ -47,6 +53,96 @@ notify() {
   notify-send -a "quick-settings" -t 2200 "$1" "${2:-}" >/dev/null 2>&1 || true
 }
 
+stop_awake() {
+  local pid
+  pid="$(python3 - "$awake_state_file" "$awake_pid_file" <<'PY' 2>/dev/null || true
+import json
+import sys
+from pathlib import Path
+
+state = Path(sys.argv[1])
+legacy = Path(sys.argv[2])
+if state.exists():
+    try:
+        print(json.loads(state.read_text()).get("pid") or "")
+        raise SystemExit
+    except Exception:
+        pass
+if legacy.exists():
+    print(legacy.read_text().strip())
+PY
+)"
+  if [[ "$pid" =~ ^[0-9]+$ ]]; then
+    kill -- "-$pid" >/dev/null 2>&1 || kill "$pid" >/dev/null 2>&1 || true
+  fi
+  rm -f "$awake_state_file" "$awake_pid_file"
+}
+
+start_awake() {
+  local mode="$1"
+  local what="$2"
+  local label="$3"
+  if ! command -v systemd-inhibit >/dev/null 2>&1; then
+    notify "Awake" "systemd-inhibit not found"
+    return 0
+  fi
+  stop_awake
+  setsid systemd-inhibit \
+    --what="$what" \
+    --who=quick-settings \
+    --why="Awake mode: $label" \
+    --mode=block \
+    sleep infinity >/dev/null 2>&1 &
+  local pid=$!
+  printf '%s\n' "$pid" >"$awake_pid_file"
+  python3 - "$awake_state_file" "$pid" "$mode" "$what" <<'PY' >/dev/null 2>&1 || true
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+path.write_text(json.dumps({"pid": int(sys.argv[2]), "mode": sys.argv[3], "what": sys.argv[4]}), encoding="utf-8")
+PY
+  notify "Awake" "$label"
+}
+
+profile_exists() {
+  tuned-adm list 2>/dev/null | awk '{ if ($1 == "-" && $2 == p) found = 1 } END { exit found ? 0 : 1 }' p="$1"
+}
+
+current_power_profile() {
+  tuned-adm active 2>/dev/null | awk -F': ' '/Current active profile:/ { print $2; exit }'
+}
+
+write_power_restore() {
+  install -d -m 700 "$(dirname "$power_state_file")" 2>/dev/null || return 0
+  python3 - "$power_state_file" "$1" <<'PY' >/dev/null 2>&1 || true
+import json
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+path.write_text(json.dumps({"restore_profile": sys.argv[2]}, sort_keys=True), encoding="utf-8")
+PY
+}
+
+read_power_restore() {
+  python3 - "$power_state_file" "$default_power_profile" <<'PY' 2>/dev/null || printf '%s\n' "$default_power_profile"
+import json
+import sys
+from pathlib import Path
+
+try:
+    print(json.loads(Path(sys.argv[1]).read_text()).get("restore_profile") or sys.argv[2])
+except Exception:
+    print(sys.argv[2])
+PY
+}
+
+set_power_profile() {
+  sudo -n tuned-adm profile "$1" >/dev/null 2>&1
+}
+
 wifi_state="unknown"
 if command -v nmcli >/dev/null 2>&1; then
   wifi_state="$(nmcli radio wifi 2>/dev/null || echo unknown)"
@@ -57,18 +153,72 @@ if command -v bluetoothctl >/dev/null 2>&1; then
   bt_state="$(bluetoothctl show 2>/dev/null | awk -F': ' '/Powered:/ {print tolower($2); exit}')"
 fi
 
+awake_mode="off"
+awake_pid="$(python3 - "$awake_state_file" "$awake_pid_file" <<'PY' 2>/dev/null || true
+import json
+import sys
+from pathlib import Path
+
+state = Path(sys.argv[1])
+legacy = Path(sys.argv[2])
+if state.exists():
+    try:
+        data = json.loads(state.read_text())
+        print(f"{data.get('pid') or ''}\t{data.get('mode') or ''}")
+        raise SystemExit
+    except Exception:
+        pass
+if legacy.exists():
+    print(f"{legacy.read_text().strip()}\tdisplay")
+PY
+)"
+if [[ -n "$awake_pid" ]]; then
+  awake_mode="${awake_pid#*$'\t'}"
+  awake_pid="${awake_pid%%$'\t'*}"
+  if [[ "$awake_pid" =~ ^[0-9]+$ ]] && kill -0 "$awake_pid" >/dev/null 2>&1; then
+    :
+  else
+    awake_mode="off"
+    rm -f "$awake_state_file" "$awake_pid_file"
+  fi
+fi
+
+dnd_state="off"
+if makoctl mode 2>/dev/null | grep -qE '(^|[* ])do-not-disturb$'; then
+  dnd_state="on"
+fi
+
+power_profile="$(current_power_profile)"
+low_power_state="unsupported"
+if command -v tuned-adm >/dev/null 2>&1 && profile_exists "$low_power_profile"; then
+  if [[ "$power_profile" == "$low_power_profile" ]]; then
+    low_power_state="on"
+  else
+    low_power_state="off"
+  fi
+fi
+
+charge_limit_state="unsupported"
+if busctl get-property org.freedesktop.UPower "$battery_device" org.freedesktop.UPower.Device ChargeThresholdSupported 2>/dev/null | grep -q 'b true'; then
+  if busctl get-property org.freedesktop.UPower "$battery_device" org.freedesktop.UPower.Device ChargeThresholdEnabled 2>/dev/null | grep -q 'b true'; then
+    charge_limit_state="on"
+  else
+    charge_limit_state="off"
+  fi
+fi
+
 choice=$(
   {
     printf 'wifi: %s\n' "$wifi_state"
     printf 'bluetooth: %s\n' "$bt_state"
+    printf 'dnd: %s\n' "$dnd_state"
+    printf 'system awake: %s\n' "$([[ "$awake_mode" == "system" ]] && printf on || printf off)"
+    printf 'display awake: %s\n' "$([[ "$awake_mode" == "display" ]] && printf on || printf off)"
+    printf 'display sleep now\n'
+    printf 'low power: %s\n' "$low_power_state"
+    printf 'charge limit: %s\n' "$charge_limit_state"
+    printf 'awake blockers\n'
     printf 'audio devices\n'
-    printf 'codex usage\n'
-    printf 'codex account\n'
-    printf 'codex login\n'
-    printf 'codex web\n'
-    printf 'claude usage\n'
-    printf 'claude login\n'
-    printf 'claude web\n'
     printf 'network settings\n'
     printf 'sound settings\n'
     printf 'brightness 25%%\n'
@@ -81,7 +231,7 @@ choice=$(
     printf 'reload hyprland\n'
     printf 'lock\n'
     printf 'power\n'
-  } | fuzzel --dmenu --prompt='settings  ' --lines=17 --width=34
+  } | fuzzel --dmenu --prompt='settings  ' --lines=22 --width=36
 )
 choice="${choice%$'\n'}"
 [[ -z "$choice" ]] && exit 0
@@ -104,36 +254,77 @@ case "$choice" in
   "audio devices")
     /home/ben/dotfiles/scripts/audio-menu.sh
     ;;
-  "codex usage")
-    setsid -f xdg-open "https://chatgpt.com/codex/settings/usage" >/dev/null 2>&1
-    ;;
-  "codex account")
-    setsid -f /home/ben/dotfiles/scripts/ai_accounts.py codex-menu >/dev/null 2>&1
-    ;;
-  "codex login")
-    setsid -f /home/ben/dotfiles/scripts/ai_accounts.py codex-login-new >/dev/null 2>&1
-    ;;
-  "codex web")
-    setsid -f xdg-open "https://chatgpt.com/codex" >/dev/null 2>&1
-    ;;
-  "claude usage")
-    setsid -f xdg-open "https://claude.ai/settings/usage" >/dev/null 2>&1
-    ;;
-  "claude login")
-    if command -v ghostty >/dev/null 2>&1; then
-      setsid -f ghostty -e claude auth login --claudeai >/dev/null 2>&1
-    elif command -v foot >/dev/null 2>&1; then
-      setsid -f foot claude auth login --claudeai >/dev/null 2>&1
-    elif command -v kitty >/dev/null 2>&1; then
-      setsid -f kitty claude auth login --claudeai >/dev/null 2>&1
-    elif command -v alacritty >/dev/null 2>&1; then
-      setsid -f alacritty -e claude auth login --claudeai >/dev/null 2>&1
+  dnd:*)
+    if [[ "$dnd_state" == "on" ]]; then
+      makoctl mode -r do-not-disturb >/dev/null 2>&1
+      notify "Do Not Disturb off"
     else
-      setsid -f xdg-open "https://claude.ai" >/dev/null 2>&1
+      makoctl mode -a do-not-disturb >/dev/null 2>&1
+      notify "Do Not Disturb on"
+    fi
+    pkill -RTMIN+10 -x waybar >/dev/null 2>&1 || true
+    ;;
+  system\ awake:*)
+    if [[ "$awake_mode" == "system" ]]; then
+      stop_awake
+      notify "Awake off"
+    else
+      start_awake system sleep "system awake"
     fi
     ;;
-  "claude web")
-    setsid -f xdg-open "https://claude.ai" >/dev/null 2>&1
+  display\ awake:*)
+    if [[ "$awake_mode" == "display" ]]; then
+      stop_awake
+      notify "Awake off"
+    else
+      start_awake display idle:sleep "display awake"
+    fi
+    ;;
+  "display sleep now")
+    hyprctl dispatch dpms off >/dev/null 2>&1
+    notify "Display sleep"
+    ;;
+  low\ power:*)
+    if [[ "$low_power_state" == "unsupported" ]]; then
+      notify "Low Power" "not supported"
+    elif [[ "$low_power_state" == "on" ]]; then
+      restore="$(read_power_restore)"
+      if [[ "$restore" == "$low_power_profile" ]] || ! profile_exists "$restore"; then
+        restore="$default_power_profile"
+      fi
+      if set_power_profile "$restore"; then
+        rm -f "$power_state_file"
+        notify "Low Power" "off · $restore"
+      else
+        notify "Low Power" "sudo unavailable"
+      fi
+    else
+      if [[ -n "$power_profile" && "$power_profile" != "$low_power_profile" ]]; then
+        write_power_restore "$power_profile"
+      else
+        write_power_restore "$default_power_profile"
+      fi
+      if set_power_profile "$low_power_profile"; then
+        notify "Low Power" "on"
+      else
+        notify "Low Power" "sudo unavailable"
+      fi
+    fi
+    ;;
+  charge\ limit:*)
+    if [[ "$charge_limit_state" == "unsupported" ]]; then
+      notify "Charge limit" "not supported"
+    elif [[ "$charge_limit_state" == "on" ]]; then
+      busctl call org.freedesktop.UPower "$battery_device" org.freedesktop.UPower.Device EnableChargeThreshold b false >/dev/null 2>&1
+      notify "Charge limit off"
+    else
+      busctl call org.freedesktop.UPower "$battery_device" org.freedesktop.UPower.Device EnableChargeThreshold b true >/dev/null 2>&1
+      notify "Charge limit on"
+    fi
+    ;;
+  "awake blockers")
+    blockers="$(systemd-inhibit --list --no-pager --no-legend 2>/dev/null | sed -n '1,5p')"
+    notify "Awake blockers" "${blockers:-none}"
     ;;
   "network settings")
     setsid -f nm-connection-editor >/dev/null 2>&1

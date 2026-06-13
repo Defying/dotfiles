@@ -6,7 +6,7 @@ gi.require_version('Gtk', '3.0')
 gi.require_version('Gio', '2.0')
 from gi.repository import Gtk, Gdk, GLib, Gio
 
-import json, os, socket, struct, sys, threading
+import json, os, socket, struct, subprocess, sys, threading
 
 GREETD_SOCK = os.environ.get('GREETD_SOCK', '/run/greetd.sock')
 USERNAME    = 'ben'
@@ -34,6 +34,25 @@ SESSIONS = [
     ('Hyprland (safe)',     ['/usr/local/bin/asahi-hyprland-safe'], _HYPR_ENV),
     ('Hyprland (recovery)', ['/usr/local/bin/asahi-hyprland-recovery'], _HYPR_ENV),
 ]
+
+
+def prepare_handoff():
+    """Hide any console text during the greeter-to-session compositor handoff."""
+    try:
+        with open('/dev/tty1', 'wb', buffering=0) as tty:
+            tty.write(b'\033[?25l\033[2J\033[3J\033[H')
+    except Exception:
+        pass
+    try:
+        subprocess.run(
+            ['hyprctl', 'dispatch', 'dpms', 'off'],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=1.0,
+            check=False,
+        )
+    except Exception:
+        pass
 
 
 def available_sessions():
@@ -195,6 +214,7 @@ def do_auth(password, start_cmd, start_env):
         if resp['type'] == 'success':
             resp = session.start_session(start_cmd, start_env)
             if resp['type'] == 'success':
+                prepare_handoff()
                 return True, None
             return False, resp.get('description', 'Failed to start session')
 

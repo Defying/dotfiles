@@ -2,30 +2,45 @@
   "reload_style_on_change": true,
   "layer": "top",
   "position": "top",
-  "height": 44,
+  "height": 52,
   "spacing": 0,
   "tooltip-delay": 100,
-  "modules-left": ["hyprland/workspaces", "custom/codex-tokens", "custom/claude-tokens"],
-  "modules-center": ["custom/date", "custom/clock-24", "custom/weather"],
-  "modules-right": ["tray", "custom/sysmon", "group/status", "custom/notifications", "custom/quick-settings"],
-
+  "modules-left": [
+    "hyprland/workspaces",
+    "custom/codex-tokens-primary",
+    "custom/codex-tokens-secondary"
+  ],
+  "modules-center": [
+    "custom/date",
+    "custom/clock-24",
+    "custom/weather"
+  ],
+  "modules-right": [
+    "tray",
+    "custom/sysmon",
+    "group/status",
+    "custom/notifications",
+    "custom/quick-settings"
+  ],
   "group/status": {
     "orientation": "inherit",
-    "modules": ["network", "bluetooth", "pulseaudio", "battery"]
+    "modules": [
+      "network",
+      "bluetooth",
+      "pulseaudio",
+      "battery"
+    ]
   },
-
   "custom/launcher": {
-    "format": "⌘",
+    "format": "\u2318",
     "tooltip": "launcher: cmd + space",
     "on-click": "fuzzel --show drun"
   },
-
   "custom/quick-settings": {
-    "format": "",
+    "format": "\uf013",
     "tooltip": "quick settings",
     "on-click": "/home/ben/dotfiles/scripts/waybar-quick-settings.sh"
   },
-
   "custom/notifications": {
     "exec": "/home/ben/dotfiles/scripts/waybar-notifications-count.sh",
     "return-type": "json",
@@ -35,29 +50,36 @@
     "tooltip": "notifications",
     "on-click": "/home/ben/dotfiles/scripts/waybar-notifications.sh"
   },
-
-  "custom/codex-tokens": {
-    "exec": "/home/ben/.local/bin/waybar-helper codex",
+  "custom/codex-tokens-primary": {
+    "exec": "/home/ben/.local/bin/waybar-helper codex --rank 0",
     "return-type": "json",
     "interval": 30,
     "signal": 8,
     "format": "{}",
-    "on-click": "/home/ben/dotfiles/scripts/ai-usage-popup.py codex",
+    "on-click": "/home/ben/dotfiles/scripts/waybar-ai-usage.sh codex",
     "on-click-middle": "/home/ben/dotfiles/scripts/waybar-ai-refresh.sh codex 8",
     "on-click-right": "/home/ben/dotfiles/scripts/waybar-quick-settings.sh"
   },
-
+  "custom/codex-tokens-secondary": {
+    "exec": "/home/ben/.local/bin/waybar-helper codex --rank 1",
+    "return-type": "json",
+    "interval": 30,
+    "signal": 8,
+    "format": "{}",
+    "on-click": "/home/ben/dotfiles/scripts/waybar-ai-usage.sh codex",
+    "on-click-middle": "/home/ben/dotfiles/scripts/waybar-ai-refresh.sh codex 8",
+    "on-click-right": "/home/ben/dotfiles/scripts/waybar-quick-settings.sh"
+  },
   "custom/claude-tokens": {
     "exec": "/home/ben/.local/bin/waybar-helper claude",
     "return-type": "json",
     "interval": 60,
     "signal": 9,
     "format": "{}",
-    "on-click": "/home/ben/dotfiles/scripts/ai-usage-popup.py claude",
+    "on-click": "/home/ben/dotfiles/scripts/waybar-ai-usage.sh claude",
     "on-click-middle": "/home/ben/dotfiles/scripts/waybar-ai-refresh.sh claude 9",
     "on-click-right": "/home/ben/dotfiles/scripts/waybar-quick-settings.sh"
   },
-
   "hyprland/workspaces": {
     "format": "{}",
     "persistent-workspaces": {
@@ -68,7 +90,6 @@
       "5": []
     }
   },
-
   "custom/date": {
     "exec": "/home/ben/.local/bin/waybar-helper date",
     "return-type": "json",
@@ -76,7 +97,6 @@
     "format": "{}",
     "on-click": "korganizer"
   },
-
   "custom/clock-24": {
     "exec": "/home/ben/.local/bin/waybar-helper clock24",
     "return-type": "json",
@@ -84,7 +104,6 @@
     "format": "{}",
     "on-click": "korganizer"
   },
-
   "custom/clock-12": {
     "exec": "/home/ben/.local/bin/waybar-helper clock12",
     "return-type": "json",
@@ -92,12 +111,15 @@
     "format": "{}",
     "on-click": "korganizer"
   },
-
   "network": {
     "format-wifi": "{icon}",
-    "format-ethernet": "",
-    "format-disconnected": "",
-    "format-icons": ["", "", ""],
+    "format-ethernet": "\uf0c1",
+    "format-disconnected": "\uf072",
+    "format-icons": [
+      "\uf1eb",
+      "\uf1eb",
+      "\uf1eb"
+    ],
     "tooltip-format-wifi": "{essid} ({signalStrength}%)",
     "tooltip-format-ethernet": "ethernet",
     "tooltip-format-disconnected": "disconnected",
@@ -105,7 +127,6 @@
     "on-click-right": "nm-connection-editor",
     "interval": 3
   },
-
   "bluetooth": {
     "format-on": "",
     "format-connected": "",
@@ -114,41 +135,47 @@
     "tooltip-format": "{controller_alias}\n{status}",
     "tooltip-format-connected": "{controller_alias}\n{num_connections} connected",
     "tooltip-format-enumerate-connected": "{device_alias}",
-    "tooltip-format-enumerate-connected-battery": "{device_alias} · {device_battery_percentage}%",
+    "tooltip-format-enumerate-connected-battery": "{device_alias} \u00b7 {device_battery_percentage}%",
     "on-click": "/home/ben/dotfiles/scripts/audio-menu.sh"
   },
-
   "pulseaudio": {
     "format": "{icon}",
-    "format-bluetooth": "󰋋",
-    "format-bluetooth-muted": "󰋋",
-    "format-muted": "",
-    "format-icons": ["", "", ""],
+    "format-bluetooth": "\udb80\udecb",
+    "format-bluetooth-muted": "\udb80\udecb",
+    "format-muted": "\uf026",
+    "format-icons": [
+      "\uf026",
+      "\uf027",
+      "\uf028"
+    ],
     "scroll-step": 5,
     "max-volume": 100,
     "on-click": "/home/ben/dotfiles/scripts/audio-menu.sh",
     "on-click-middle": "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle",
     "on-click-right": "pavucontrol",
-    "tooltip-format": "{desc}  ·  click for devices · middle-click mutes"
+    "tooltip-format": "{desc}  \u00b7  click for devices \u00b7 middle-click mutes"
   },
-
   "battery": {
     "format": "{icon} {capacity}%",
-    "format-charging": " {capacity}%",
-    "format-plugged": " {capacity}%",
+    "format-charging": "\uf0e7 {capacity}%",
+    "format-plugged": "\uf1e6 {capacity}%",
     "format-time": "{H}h {M}m",
     "tooltip-format": "battery {capacity}%\n{time}\n{power} W\nhealth {health}%\ncycles {cycles}",
-    "format-icons": ["", "", "", "", ""],
+    "format-icons": [
+      "\uf244",
+      "\uf243",
+      "\uf242",
+      "\uf241",
+      "\uf240"
+    ],
     "states": {
       "critical": 10
     }
   },
-
   "tray": {
     "icon-size": 12,
     "spacing": 6
   },
-
   "custom/weather": {
     "exec": "/home/ben/.local/bin/waybar-helper weather",
     "return-type": "json",
@@ -156,7 +183,6 @@
     "format": "{}",
     "on-click": "/home/ben/dotfiles/scripts/weather-popup.py"
   },
-
   "custom/sysmon": {
     "exec": "/home/ben/.local/bin/waybar-helper sysmon 1400",
     "return-type": "json",

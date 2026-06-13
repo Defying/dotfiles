@@ -16,6 +16,10 @@ window#waybar {
 #custom-clock-24,
 #custom-clock-12,
 #custom-codex-tokens,
+#custom-codex-tokens-primary,
+#custom-codex-tokens-secondary,
+#custom-codex-tokens-defying,
+#custom-codex-tokens-ben,
 #custom-claude-tokens,
 #custom-quick-settings,
 #custom-weather,
@@ -37,7 +41,7 @@ window#waybar {
 
 .modules-left,
 .modules-center {
-  margin: 7px 28px 7px 28px;
+  margin: 15px 28px 7px 28px;
 }
 
 .modules-left {
@@ -56,6 +60,10 @@ window#waybar {
 #custom-date,
 #custom-clock-24,
 #custom-codex-tokens,
+#custom-codex-tokens-primary,
+#custom-codex-tokens-secondary,
+#custom-codex-tokens-defying,
+#custom-codex-tokens-ben,
 #custom-claude-tokens {
   margin-right: 10px;
 }
@@ -67,7 +75,7 @@ window#waybar {
   background: transparent;
   border: none;
   padding: 0;
-  margin: 7px 28px 7px 28px;
+  margin: 15px 28px 7px 28px;
 }
 
 #custom-weather {
@@ -117,7 +125,11 @@ window#waybar {
   color: #f4f7fb;
 }
 
-#custom-codex-tokens {
+#custom-codex-tokens,
+#custom-codex-tokens-primary,
+#custom-codex-tokens-secondary,
+#custom-codex-tokens-defying,
+#custom-codex-tokens-ben {
   color: rgba(222, 244, 255, 0.96);
   font-weight: normal;
   background-image: url("/home/ben/dotfiles/assets/openai.png");
@@ -143,7 +155,35 @@ window#waybar {
 #custom-codex-tokens.rate,
 #custom-codex-tokens.api,
 #custom-codex-tokens.warn,
-#custom-codex-tokens.error {
+#custom-codex-tokens.error,
+#custom-codex-tokens-primary.missing,
+#custom-codex-tokens-primary.auth,
+#custom-codex-tokens-primary.denied,
+#custom-codex-tokens-primary.rate,
+#custom-codex-tokens-primary.api,
+#custom-codex-tokens-primary.warn,
+#custom-codex-tokens-primary.error,
+#custom-codex-tokens-secondary.missing,
+#custom-codex-tokens-secondary.auth,
+#custom-codex-tokens-secondary.denied,
+#custom-codex-tokens-secondary.rate,
+#custom-codex-tokens-secondary.api,
+#custom-codex-tokens-secondary.warn,
+#custom-codex-tokens-secondary.error,
+#custom-codex-tokens-defying.missing,
+#custom-codex-tokens-defying.auth,
+#custom-codex-tokens-defying.denied,
+#custom-codex-tokens-defying.rate,
+#custom-codex-tokens-defying.api,
+#custom-codex-tokens-defying.warn,
+#custom-codex-tokens-defying.error,
+#custom-codex-tokens-ben.missing,
+#custom-codex-tokens-ben.auth,
+#custom-codex-tokens-ben.denied,
+#custom-codex-tokens-ben.rate,
+#custom-codex-tokens-ben.api,
+#custom-codex-tokens-ben.warn,
+#custom-codex-tokens-ben.error {
   color: #ffe08a;
   background:
     url("/home/ben/dotfiles/assets/openai.png") no-repeat 8px center / 15px 15px,
@@ -162,9 +202,37 @@ window#waybar {
     rgba(36, 28, 12, 0.58);
 }
 
+#custom-codex-tokens.auth,
+#custom-codex-tokens-primary.auth,
+#custom-codex-tokens-secondary.auth,
+#custom-codex-tokens-defying.auth,
+#custom-codex-tokens-ben.auth {
+  font-size: 0;
+  min-width: 15px;
+  padding: 4px 8px;
+  background:
+    url("/home/ben/dotfiles/assets/openai.png") no-repeat center / 15px 15px,
+    linear-gradient(135deg, rgba(255, 209, 102, 0.26), rgba(255, 255, 255, 0.08)),
+    rgba(36, 28, 12, 0.58);
+}
+
+#custom-claude-tokens.auth {
+  font-size: 0;
+  min-width: 15px;
+  padding: 4px 8px;
+  background:
+    url("/home/ben/dotfiles/assets/claude.png") no-repeat center / 15px 15px,
+    linear-gradient(135deg, rgba(255, 209, 102, 0.26), rgba(255, 255, 255, 0.08)),
+    rgba(36, 28, 12, 0.58);
+}
+
 /* danger = urgent: solid (opaque) red bar item so it's unmissable, paired with
    the sticky critical mako notification. */
-#custom-codex-tokens.danger {
+#custom-codex-tokens.danger,
+#custom-codex-tokens-primary.danger,
+#custom-codex-tokens-secondary.danger,
+#custom-codex-tokens-defying.danger,
+#custom-codex-tokens-ben.danger {
   color: #ffffff;
   font-weight: bold;
   background:
@@ -180,6 +248,21 @@ window#waybar {
     url("/home/ben/dotfiles/assets/claude.png") no-repeat 8px center / 15px 15px,
     linear-gradient(135deg, #d8392d, #9e1c13);
   border-color: rgba(255, 224, 224, 0.85);
+}
+
+#custom-codex-tokens.active,
+#custom-codex-tokens-primary.active,
+#custom-codex-tokens-secondary.active,
+#custom-codex-tokens-defying.active,
+#custom-codex-tokens-ben.active {
+  color: #f4f7fb;
+  font-weight: 800;
+  border-color: rgba(51, 204, 255, 0.88);
+  box-shadow:
+    inset 0 1px rgba(255, 255, 255, 0.34),
+    inset 0 -1px rgba(0, 0, 0, 0.18),
+    0 0 0 1px rgba(51, 204, 255, 0.54),
+    0 0 13px rgba(51, 204, 255, 0.32);
 }
 
 #custom-weather,

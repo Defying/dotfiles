@@ -7,6 +7,7 @@
 //! token — then caches it, notifies on a worse level, and arms/cancels the
 //! reset reminder. No OpenAI API keys, no Codex logs.
 
+use std::cmp::Ordering;
 use std::env;
 use std::fs;
 use std::io::{BufRead, BufReader, Write};
@@ -20,7 +21,9 @@ use serde_json::{json, Value};
 
 use crate::accounts::{self, Account};
 use crate::reset;
-use crate::usage::{asset, cache_dir, compact_countdown, emit, fmt_reset, maybe_notify, now};
+use crate::usage::{
+    asset, cache_dir, emit, emit_classes, fmt_reset, maybe_notify, now, AUTH_BUBBLE_TEXT,
+};
 
 const CODEX_USAGE_URL: &str = "https://chatgpt.com/codex/settings/usage";
 const CACHE_MAX_AGE_SECONDS: i64 = 30;
@@ -168,6 +171,10 @@ impl LimitStatus {
     }
 }
 
+fn bar_text_for_status(status: &LimitStatus) -> String {
+    format!("{}%", status.display_remaining())
+}
+
 fn limit_status(limits: &Value) -> LimitStatus {
     let primary = limits.get("primary").cloned().unwrap_or(Value::Null);
     let secondary = limits.get("secondary").cloned().unwrap_or(Value::Null);
@@ -233,7 +240,12 @@ fn limit_level_for_status(status: &LimitStatus) -> &'static str {
 
 #[cfg(test)]
 mod tests {
-    use super::{css_class_for_status, limit_level_for_status, limit_status};
+    use super::{
+        account_bar_label, bar_text_for_account, bar_text_for_status, block_notify_state,
+        compare_ranked_accounts, css_class_for_status, legacy_block_notify_file_matches,
+        limit_level_for_status, limit_status, AccountSnapshot, RankedAccount,
+    };
+    use crate::accounts::Account;
     use serde_json::json;
 
     #[test]
@@ -257,12 +269,104 @@ mod tests {
         assert_eq!(limit_level_for_status(&weekly), "");
         assert_eq!(css_class_for_status(&weekly), "subscription");
     }
+
+    #[test]
+    fn blocked_bar_text_stays_percent_not_countdown() {
+        let blocked = limit_status(&json!({
+            "rateLimitReachedType": "rate_limit_reached",
+            "primary": {"usedPercent": 100, "resetsAt": 1787331600, "windowDurationMins": 300}
+        }));
+        assert_eq!(bar_text_for_status(&blocked), "0%");
+    }
+
+    #[test]
+    fn blocked_notification_state_tolerates_reset_jitter() {
+        let blocked = limit_status(&json!({
+            "rateLimitReachedType": "rate_limit_reached",
+            "primary": {"usedPercent": 100, "resetsAt": 1787331600, "windowDurationMins": 300}
+        }));
+        let jittered = limit_status(&json!({
+            "rateLimitReachedType": "rate_limit_reached",
+            "primary": {"usedPercent": 100, "resetsAt": 1787331601, "windowDurationMins": 300}
+        }));
+        assert_eq!(block_notify_state(&blocked), block_notify_state(&jittered));
+    }
+
+    #[test]
+    fn legacy_block_notify_file_matches_same_reset_bucket() {
+        let prefix = "codex-block-account-5h-";
+        assert!(legacy_block_notify_file_matches(
+            prefix,
+            1787331600 / 300,
+            "codex-block-account-5h-1787331601.notify"
+        ));
+        assert!(!legacy_block_notify_file_matches(
+            prefix,
+            1787331600 / 300,
+            "codex-block-account-5h-1787331901.notify"
+        ));
+    }
+
+    #[test]
+    fn active_bar_text_uses_compact_slot_label() {
+        let account = Account {
+            account_id: "7b0d6a0e-0000-0000-0000-000000000000".to_string(),
+            label: "ben@carveworkshop.com".to_string(),
+            slot: Some("ben-7b0d6a0e".to_string()),
+            ..Default::default()
+        };
+        let status = limit_status(&json!({"primary": {"usedPercent": 5}}));
+
+        assert_eq!(account_bar_label(&account), "ben");
+        assert_eq!(bar_text_for_account(&status, &account, true), "ben 95%");
+        assert_eq!(bar_text_for_account(&status, &account, false), "95%");
+    }
+
+    #[test]
+    fn usable_account_sorts_before_blocked_active_account() {
+        let blocked_account = Account {
+            label: "defying".to_string(),
+            slot: Some("defying".to_string()),
+            ..Default::default()
+        };
+        let usable_account = Account {
+            label: "ben".to_string(),
+            slot: Some("ben-7b0d6a0e".to_string()),
+            ..Default::default()
+        };
+        let mut accounts = [
+            RankedAccount {
+                snapshot: Some(AccountSnapshot {
+                    status: limit_status(&json!({
+                        "rateLimitReachedType": "rate_limit_reached",
+                        "primary": {"usedPercent": 100, "resetsAt": 2000}
+                    })),
+                    account: blocked_account.clone(),
+                }),
+                account: blocked_account,
+                active: true,
+            },
+            RankedAccount {
+                snapshot: Some(AccountSnapshot {
+                    status: limit_status(&json!({"primary": {"usedPercent": 20}})),
+                    account: usable_account.clone(),
+                }),
+                account: usable_account,
+                active: false,
+            },
+        ];
+
+        accounts.sort_by(compare_ranked_accounts);
+
+        assert_eq!(accounts[0].account.slot.as_deref(), Some("ben-7b0d6a0e"));
+    }
 }
 
 struct EmitOpts {
     stale_age: Option<i64>,
     refresh_error: Option<String>,
     notify: bool,
+    active: bool,
 }
 
 fn emit_usage(limits: &Value, account: &Account, opts: EmitOpts) {
@@ -283,13 +387,7 @@ fn emit_usage(limits: &Value, account: &Account, opts: EmitOpts) {
         &primary
     };
 
-    let mut text = format!("{display}%");
-    if status.blocked() {
-        let countdown = compact_countdown(status.blocked_reset);
-        if !countdown.is_empty() {
-            text = countdown;
-        }
-    }
+    let text = bar_text_for_account(&status, account, opts.active);
 
     let credit_line = if credits
         .get("unlimited")
@@ -328,9 +426,9 @@ fn emit_usage(limits: &Value, account: &Account, opts: EmitOpts) {
     ];
     lines.push(
         if status.weekly_blocked && display == 0 {
-            "bar shows weekly reset countdown"
+            "bar shows weekly window remaining %"
         } else if display == 0 {
-            "bar shows 5h reset countdown"
+            "bar shows 5h window remaining %"
         } else {
             "bar shows 5h window remaining %"
         }
@@ -377,7 +475,12 @@ fn emit_usage(limits: &Value, account: &Account, opts: EmitOpts) {
         }
     }
 
-    emit(&text, &lines.join("\n"), css_class_for_status(&status));
+    let class = css_class_for_status(&status);
+    if opts.active {
+        emit_classes(&text, &lines.join("\n"), &[class, "active"]);
+    } else {
+        emit(&text, &lines.join("\n"), class);
+    }
 }
 
 // ── display entrypoint ────────────────────────────────────────────────────────
@@ -394,6 +497,12 @@ fn account_from_cache(cache: &Value) -> Account {
 struct AccountSnapshot {
     account: Account,
     status: LimitStatus,
+}
+
+struct RankedAccount {
+    account: Account,
+    snapshot: Option<AccountSnapshot>,
+    active: bool,
 }
 
 fn account_identity(account: &Account) -> String {
@@ -423,8 +532,58 @@ fn account_short_label(account: &Account) -> String {
     }
 }
 
+fn account_bar_label(account: &Account) -> String {
+    if let Some(slot) = &account.slot {
+        if !slot.is_empty() {
+            return compact_slot_label(slot, &account.account_id);
+        }
+    }
+    let label = if !account.label.is_empty() {
+        account.label.as_str()
+    } else if !account.email.is_empty() {
+        account.email.as_str()
+    } else {
+        "active"
+    };
+    label.split('@').next().unwrap_or(label).to_string()
+}
+
+fn compact_slot_label(slot: &str, account_id: &str) -> String {
+    if account_id.is_empty() {
+        return slot.to_string();
+    }
+    let suffix = format!("-{}", &account_id[..account_id.len().min(8)]).to_lowercase();
+    let slot_lower = slot.to_lowercase();
+    if slot_lower.ends_with(&suffix) {
+        slot[..slot.len().saturating_sub(suffix.len())].to_string()
+    } else {
+        slot.to_string()
+    }
+}
+
+fn bar_text_for_account(status: &LimitStatus, account: &Account, active: bool) -> String {
+    let text = bar_text_for_status(status);
+    if active {
+        format!("{} {text}", account_bar_label(account))
+    } else {
+        text
+    }
+}
+
 fn account_service_name(account: &Account) -> String {
     format!("Codex {}", account_short_label(account))
+}
+
+fn slot_is_active(slot: Option<&str>) -> bool {
+    let active_slot = accounts::read_active_slot();
+    !active_slot.is_empty() && slot == Some(active_slot.as_str())
+}
+
+fn account_is_active(account: &Account, slot_hint: Option<&str>) -> bool {
+    if slot_is_active(slot_hint) {
+        return true;
+    }
+    slot_is_active(account.slot.as_deref())
 }
 
 fn snapshot_from_cache(cache: &Value) -> Option<AccountSnapshot> {
@@ -457,6 +616,81 @@ fn cached_snapshot_for_account(account: &Account) -> Option<AccountSnapshot> {
         return Some(snap);
     }
     None
+}
+
+fn usability_tier(snapshot: Option<&AccountSnapshot>) -> i32 {
+    match snapshot {
+        Some(snapshot) if !snapshot.status.blocked() => 0,
+        Some(_) => 1,
+        None => 2,
+    }
+}
+
+fn account_sort_label(account: &Account) -> String {
+    if !account.label.is_empty() {
+        account.label.to_lowercase()
+    } else if !account.email.is_empty() {
+        account.email.to_lowercase()
+    } else if let Some(slot) = &account.slot {
+        slot.to_lowercase()
+    } else {
+        String::new()
+    }
+}
+
+fn compare_ranked_accounts(a: &RankedAccount, b: &RankedAccount) -> Ordering {
+    let tier_a = usability_tier(a.snapshot.as_ref());
+    let tier_b = usability_tier(b.snapshot.as_ref());
+    tier_a
+        .cmp(&tier_b)
+        .then_with(|| match tier_a {
+            0 => {
+                let status_a = &a.snapshot.as_ref().unwrap().status;
+                let status_b = &b.snapshot.as_ref().unwrap().status;
+                status_b
+                    .primary_remaining
+                    .cmp(&status_a.primary_remaining)
+                    .then_with(|| {
+                        status_b
+                            .weekly_remaining
+                            .unwrap_or(-1)
+                            .cmp(&status_a.weekly_remaining.unwrap_or(-1))
+                    })
+            }
+            1 => {
+                let status_a = &a.snapshot.as_ref().unwrap().status;
+                let status_b = &b.snapshot.as_ref().unwrap().status;
+                status_a
+                    .blocked_reset
+                    .unwrap_or(i64::MAX)
+                    .cmp(&status_b.blocked_reset.unwrap_or(i64::MAX))
+            }
+            _ => Ordering::Equal,
+        })
+        .then_with(|| b.active.cmp(&a.active))
+        .then_with(|| account_sort_label(&a.account).cmp(&account_sort_label(&b.account)))
+}
+
+fn ranked_accounts() -> Vec<RankedAccount> {
+    let active_slot = accounts::read_active_slot();
+    let mut ranked: Vec<RankedAccount> = accounts::list_accounts()
+        .into_iter()
+        .map(|account| {
+            let active = account.slot.as_deref() == Some(active_slot.as_str());
+            let snapshot = cached_snapshot_for_account(&account);
+            RankedAccount {
+                account,
+                snapshot,
+                active,
+            }
+        })
+        .collect();
+    ranked.sort_by(compare_ranked_accounts);
+    ranked
+}
+
+fn slot_for_rank(rank: usize) -> Option<String> {
+    ranked_accounts().get(rank)?.account.slot.clone()
 }
 
 fn cached_other_snapshots(active: &Account) -> Vec<AccountSnapshot> {
@@ -515,15 +749,22 @@ fn comparison_line(active: &Account, status: &LimitStatus) -> Option<String> {
     best.map(|(_, _, line)| line)
 }
 
-fn notify_once(key: &str, title: &str, body: &str, urgency: &str, timeout: &str, icon: &str) {
+fn notify_once_with_state(
+    key: &str,
+    state: Value,
+    title: &str,
+    body: &str,
+    urgency: &str,
+    timeout: &str,
+    icon: &str,
+) {
     let dir = cache_dir();
     let _ = fs::create_dir_all(&dir);
     let state_file = dir.join(format!("{}.notify", slot_key(key)));
-    let next = json!({ "title": title, "body": body, "urgency": urgency });
     let same = fs::read_to_string(&state_file)
         .ok()
         .and_then(|s| serde_json::from_str::<Value>(&s).ok())
-        .map(|v| v == next)
+        .map(|v| v == state)
         .unwrap_or(false);
     if same {
         return;
@@ -558,7 +799,80 @@ fn notify_once(key: &str, title: &str, body: &str, urgency: &str, timeout: &str,
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status();
-    let _ = fs::write(&state_file, next.to_string());
+    let _ = fs::write(&state_file, state.to_string());
+}
+
+fn notify_once(key: &str, title: &str, body: &str, urgency: &str, timeout: &str, icon: &str) {
+    notify_once_with_state(
+        key,
+        json!({ "title": title, "body": body, "urgency": urgency }),
+        title,
+        body,
+        urgency,
+        timeout,
+        icon,
+    );
+}
+
+fn block_notify_key(account: &Account, window: &str) -> String {
+    format!("codex-block-{}-{window}", account_identity(account))
+}
+
+fn legacy_block_notify_file_matches(prefix: &str, reset_bucket: i64, name: &str) -> bool {
+    let Some(rest) = name.strip_prefix(prefix) else {
+        return false;
+    };
+    let Some(raw_reset) = rest.strip_suffix(".notify") else {
+        return false;
+    };
+    raw_reset
+        .parse::<i64>()
+        .map(|reset| reset / 300 == reset_bucket)
+        .unwrap_or(false)
+}
+
+fn migrate_legacy_block_notify_state(account: &Account, status: &LimitStatus) {
+    let Some(reset) = status.blocked_reset else {
+        return;
+    };
+    let window = status.window_label();
+    let stable_file = cache_dir().join(format!(
+        "{}.notify",
+        slot_key(&block_notify_key(account, window))
+    ));
+    if stable_file.exists() {
+        return;
+    }
+    let prefix = format!(
+        "{}-",
+        slot_key(&format!(
+            "codex-block-{}-{window}",
+            account_identity(account)
+        ))
+    );
+    let reset_bucket = reset / 300;
+    let seen = fs::read_dir(cache_dir())
+        .ok()
+        .into_iter()
+        .flat_map(|entries| entries.filter_map(Result::ok))
+        .filter_map(|entry| entry.file_name().into_string().ok())
+        .any(|name| legacy_block_notify_file_matches(&prefix, reset_bucket, &name));
+    if seen {
+        let _ = fs::create_dir_all(cache_dir());
+        let _ = fs::write(stable_file, block_notify_state(status).to_string());
+    }
+}
+
+fn clear_notify_state(key: &str) {
+    let _ = fs::remove_file(cache_dir().join(format!("{}.notify", slot_key(key))));
+}
+
+fn block_notify_state(status: &LimitStatus) -> Value {
+    json!({
+        "state": "blocked",
+        "window": status.window_label(),
+        "reset_bucket": status.blocked_reset.unwrap_or_default() / 300,
+    })
 }
 
 fn notify_blocked(account: &Account, status: &LimitStatus, comparison: Option<String>) {
@@ -584,13 +898,17 @@ fn notify_blocked(account: &Account, status: &LimitStatus, comparison: Option<St
         "critical"
     };
     let timeout = if status.weekly_blocked { "12000" } else { "0" };
-    let key = format!(
-        "codex-block-{}-{}-{}",
-        account_identity(account),
-        window,
-        status.blocked_reset.unwrap_or_default()
+    let key = block_notify_key(account, window);
+    migrate_legacy_block_notify_state(account, status);
+    notify_once_with_state(
+        &key,
+        block_notify_state(status),
+        title,
+        &body,
+        urgency,
+        timeout,
+        &asset("openai.svg"),
     );
-    notify_once(&key, title, &body, urgency, timeout, &asset("openai.svg"));
 }
 
 fn notify_lifted(account: &Account, previous: &LimitStatus, current: &LimitStatus) {
@@ -599,6 +917,7 @@ fn notify_lifted(account: &Account, previous: &LimitStatus, current: &LimitStatu
     }
     let window = previous.window_label();
     let label = account_short_label(account);
+    clear_notify_state(&block_notify_key(account, window));
     let title = "Codex limit reset";
     let body = format!("{label}: {window} window is available again");
     let key = format!(
@@ -624,19 +943,38 @@ fn sync_reset_for_account(account: &Account, status: &LimitStatus) {
     }
 }
 
-fn emit_cached_or_placeholder() -> ExitCode {
-    let cache = read_cache();
+fn account_for_slot(slot: &str) -> Account {
+    accounts::list_accounts()
+        .into_iter()
+        .find(|a| a.slot.as_deref() == Some(slot))
+        .unwrap_or_default()
+}
+
+fn spawn_refresh_for_stale_cache() {
+    spawn_background_refresh();
+}
+
+fn emit_cached_or_placeholder(slot: Option<&str>) -> ExitCode {
+    let cache = slot.map(read_slot_cache).unwrap_or_else(read_cache);
+    let active = slot_is_active(slot);
     // Python `if not cache:` — missing OR an empty object both mean "no cache yet".
     let empty = cache.as_object().map(|o| o.is_empty()).unwrap_or(true);
     if empty {
-        spawn_background_refresh();
-        emit("...", "Codex usage refresh started", "refreshing");
+        spawn_refresh_for_stale_cache();
+        let tooltip = slot
+            .map(|s| format!("Codex usage refresh started\naccount slot: {s}"))
+            .unwrap_or_else(|| "Codex usage refresh started".to_string());
+        if active {
+            emit_classes("...", &tooltip, &["refreshing", "active"]);
+        } else {
+            emit("...", &tooltip, "refreshing");
+        }
         return ExitCode::SUCCESS;
     }
 
     let age = cache_age_seconds(&cache);
     if age >= CACHE_MAX_AGE_SECONDS {
-        spawn_background_refresh();
+        spawn_refresh_for_stale_cache();
     }
     let stale_suffix = if age >= CACHE_MAX_AGE_SECONDS {
         format!("cached {age}s ago; refreshing in background")
@@ -653,7 +991,8 @@ fn emit_cached_or_placeholder() -> ExitCode {
         let account = {
             let a = account_from_cache(&cache);
             if a.is_empty() {
-                accounts::active_account()
+                slot.map(account_for_slot)
+                    .unwrap_or_else(accounts::active_account)
             } else {
                 a
             }
@@ -677,19 +1016,35 @@ fn emit_cached_or_placeholder() -> ExitCode {
             String::new(),
             "Open quick settings, then use Account or Login.".to_string(),
         ];
-        emit("login", lines.join("\n").trim(), "auth");
+        if account_is_active(&account, slot) {
+            emit_classes(
+                AUTH_BUBBLE_TEXT,
+                lines.join("\n").trim(),
+                &["auth", "active"],
+            );
+        } else {
+            emit(AUTH_BUBBLE_TEXT, lines.join("\n").trim(), "auth");
+        }
         return ExitCode::SUCCESS;
     }
 
     if let Some(err) = error {
         if has_limits {
+            let mut account = account_from_cache(&cache);
+            if account.slot.is_none() {
+                if let Some(slot) = slot {
+                    account.slot = Some(slot.to_string());
+                }
+            }
+            let active = account_is_active(&account, slot);
             emit_usage(
                 &limits,
-                &account_from_cache(&cache),
+                &account,
                 EmitOpts {
                     stale_age: Some(age),
                     refresh_error: Some(err.to_string()),
                     notify: false,
+                    active,
                 },
             );
             return ExitCode::SUCCESS;
@@ -709,9 +1064,23 @@ fn emit_cached_or_placeholder() -> ExitCode {
         return ExitCode::SUCCESS;
     }
 
+    let account = {
+        let mut account = account_from_cache(&cache);
+        if account.is_empty() {
+            if let Some(slot) = slot {
+                account = account_for_slot(slot);
+            }
+        } else if account.slot.is_none() {
+            if let Some(slot) = slot {
+                account.slot = Some(slot.to_string());
+            }
+        }
+        account
+    };
+    let active = account_is_active(&account, slot);
     emit_usage(
         &limits,
-        &account_from_cache(&cache),
+        &account,
         EmitOpts {
             stale_age: if age >= CACHE_MAX_AGE_SECONDS {
                 Some(age)
@@ -723,6 +1092,7 @@ fn emit_cached_or_placeholder() -> ExitCode {
                 .and_then(|v| v.as_str())
                 .map(String::from),
             notify: false,
+            active,
         },
     );
     ExitCode::SUCCESS
@@ -963,7 +1333,7 @@ fn refresh_one_account(account: &Account, active: bool) -> Option<AccountSnapsho
     })
 }
 
-fn refresh_other_accounts(active: &Account) {
+fn refresh_other_accounts(active: &Account, force: bool) {
     let active_id = account_identity(active);
     for account in accounts::list_accounts() {
         if account_identity(&account) == active_id {
@@ -979,7 +1349,7 @@ fn refresh_other_accounts(active: &Account) {
                     || cache_age_seconds(&c) >= 600
             })
             .unwrap_or(true);
-        if stale {
+        if force || stale {
             let _ = refresh_one_account(&account, false);
         } else if let Some(snap) = cached_snapshot_for_account(&account) {
             sync_reset_for_account(&snap.account, &snap.status);
@@ -1007,7 +1377,7 @@ fn refresh_usage() {
             String::new(),
             "Open quick settings, then use Account or Login.".to_string(),
         ];
-        emit("login", &lines.join("\n"), "auth");
+        emit(AUTH_BUBBLE_TEXT, &lines.join("\n"), "auth");
         write_usage_cache(json!({
             "error": "auth", "status": status,
             "account": serde_json::to_value(&account).unwrap_or(Value::Null)
@@ -1046,6 +1416,7 @@ fn refresh_usage() {
                         stale_age: Some(cache_age_seconds(&previous)),
                         refresh_error: Some(exc),
                         notify: false,
+                        active: true,
                     },
                 );
                 return;
@@ -1099,7 +1470,7 @@ fn refresh_usage() {
     }
     sync_reset_for_account(&account, &current_status);
     reset::cancel("Codex");
-    refresh_other_accounts(&account);
+    refresh_other_accounts(&account, true);
     emit_usage(
         &limits,
         &account,
@@ -1107,6 +1478,7 @@ fn refresh_usage() {
             stale_age: None,
             refresh_error: None,
             notify: true,
+            active: true,
         },
     );
 }
@@ -1193,16 +1565,42 @@ fn refresh_with_lock(signal: Option<i64>) -> ExitCode {
     ExitCode::SUCCESS
 }
 
-/// `waybar-helper codex [--refresh] [--signal N]`
+/// `waybar-helper codex [--slot SLOT|--rank N] [--refresh] [--signal N]`
 pub fn run(args: &[String]) -> ExitCode {
     if args.first().map(|s| s.as_str()) == Some("--refresh") {
         let signal = parse_signal(args);
         return refresh_with_lock(signal);
     }
-    emit_cached_or_placeholder()
+    if let Some(slot) = parse_slot(args) {
+        return emit_cached_or_placeholder(Some(slot.as_str()));
+    }
+    if let Some(rank) = parse_rank(args) {
+        return match slot_for_rank(rank) {
+            Some(slot) => emit_cached_or_placeholder(Some(slot.as_str())),
+            None => {
+                emit(
+                    AUTH_BUBBLE_TEXT,
+                    &format!("No Codex account found for rank {rank}"),
+                    "missing",
+                );
+                ExitCode::SUCCESS
+            }
+        };
+    }
+    emit_cached_or_placeholder(None)
 }
 
 fn parse_signal(args: &[String]) -> Option<i64> {
     let i = args.iter().position(|a| a == "--signal")?;
+    args.get(i + 1)?.parse().ok()
+}
+
+fn parse_slot(args: &[String]) -> Option<String> {
+    let i = args.iter().position(|a| a == "--slot")?;
+    args.get(i + 1).cloned()
+}
+
+fn parse_rank(args: &[String]) -> Option<usize> {
+    let i = args.iter().position(|a| a == "--rank")?;
     args.get(i + 1)?.parse().ok()
 }

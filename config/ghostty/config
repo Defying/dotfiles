@@ -15,7 +15,7 @@ scrollbar = never
 
 cursor-style = block
 cursor-style-blink = true
-shell-integration-features = no-cursor
+shell-integration-features = no-cursor,ssh-env,ssh-terminfo
 command = /usr/bin/zsh
 
 keybind = super+c=copy_to_clipboard:mixed

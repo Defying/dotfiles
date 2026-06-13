@@ -12,7 +12,7 @@ use std::env;
 use std::fs;
 use std::io::{ErrorKind, Read, Write};
 use std::os::unix::net::UnixStream;
-use std::process::{Command, ExitCode};
+use std::process::{Command, ExitCode, Stdio};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 mod accounts;
@@ -31,6 +31,9 @@ fn main() -> ExitCode {
         Some("weather") => weather(),
         Some("autohide") => autohide(),
         Some("autobright") => autobright(),
+        Some("bright-up") => manual_brightness(1),
+        Some("bright-down") => manual_brightness(-1),
+        Some("brightness-worker") => brightness_worker(),
         Some("trackpad") => trackpad::run(),
         Some("codex-account-status") => ExitCode::from(accounts::status_json() as u8),
         Some("codex") => codex::run(&env::args().skip(2).collect::<Vec<_>>()),
@@ -38,7 +41,7 @@ fn main() -> ExitCode {
         other => {
             eprintln!(
                 "usage: waybar-helper \
-                 <sysmon|clock24|clock12|date|weather|autohide|autobright|trackpad>; got {:?}",
+                 <sysmon|clock24|clock12|date|weather|autohide|autobright|bright-up|bright-down|brightness-worker|trackpad>; got {:?}",
                 other
             );
             ExitCode::from(2)
@@ -577,8 +580,9 @@ fn sysmon_sample(prev: &Prev, now: f64) -> (String, Prev) {
 // Port of hypr-waybar-autohide.py. Single-threaded, std-only: it blocks on
 // Hyprland's socket2 and does nothing until a window is fullscreen, then uses
 // the socket *read timeout* itself as the 10 Hz poll clock (no GLib, no GTK, no
-// extra threads). When nothing is fullscreen the read is fully blocking — the
-// poll only runs while fullscreen, the single sanctioned poll in the setup.
+// extra threads). When nothing is fullscreen the read is fully blocking; while
+// fullscreen, the poll reconciles compositor state and cursor position so
+// clients that miss an exit event cannot leave the bar hidden.
 
 const POLL: Duration = Duration::from_millis(100); // 10 Hz, only while fullscreen
 const REVEAL_PX: i32 = 6; // cursor at/above this Y reveals the bar
@@ -590,6 +594,7 @@ const HIDE_PX: i32 = 50; // cursor below this Y hides it; gap = hysteresis
 // window, some workspace switches), which is what left the bar stuck before.
 const RELEVANT: &[&str] = &[
     "fullscreen",
+    "fullscreenstate",
     "workspace",
     "workspacev2",
     "focusedmon",
@@ -751,7 +756,14 @@ fn autohide() -> ExitCode {
             // Read timeout while fullscreen → a poll tick.
             Err(ref e) if e.kind() == ErrorKind::WouldBlock || e.kind() == ErrorKind::TimedOut => {
                 if ah.fullscreen {
-                    ah.poll_cursor();
+                    let was_fullscreen = ah.fullscreen;
+                    ah.reconcile();
+                    if was_fullscreen != ah.fullscreen {
+                        apply_timeout(&stream, ah.fullscreen);
+                    }
+                    if ah.fullscreen {
+                        ah.poll_cursor();
+                    }
                 }
             }
             Err(ref e) if e.kind() == ErrorKind::Interrupted => continue,
@@ -912,6 +924,31 @@ fn idle_dimmed() -> bool {
     fs::metadata(p).is_ok()
 }
 
+/// True shortly after a manual brightness key/OSD operation. The shell OSD
+/// touches this marker every time it changes the backlight; auto-brightness
+/// treats that as user intent and gets out of the way.
+fn manual_brightness_active() -> bool {
+    let base = runtime_dir();
+    let marker = format!("{base}/brightness-manual-active");
+    if let Ok(meta) = fs::metadata(&marker) {
+        if let Ok(modified) = meta.modified() {
+            if SystemTime::now()
+                .duration_since(modified)
+                .is_ok_and(|age| age < Duration::from_secs(6))
+            {
+                return true;
+            }
+        }
+    }
+
+    let pidfile = format!("{base}/brightness-fade.pid");
+    let Ok(pid) = fs::read_to_string(pidfile) else {
+        return false;
+    };
+    let pid = pid.trim();
+    !pid.is_empty() && fs::metadata(format!("/proc/{pid}")).is_ok()
+}
+
 /// Toggle file: present = auto-brightness off (Super+Shift+B touches/removes it).
 fn autobright_off() -> bool {
     let base = env::var("XDG_CACHE_HOME")
@@ -961,19 +998,143 @@ impl Brightness {
             .status();
     }
 
-    fn fade(&mut self, start: i64, target: i64) {
+    fn fade(&mut self, start: i64, target: i64) -> bool {
         if start == target {
-            return;
+            return true;
         }
         let delay = Duration::from_secs_f64(FADE_SECONDS / FADE_STEPS as f64);
         for i in 1..=FADE_STEPS {
+            if manual_brightness_active() {
+                return false;
+            }
             let t = i as f64 / FADE_STEPS as f64;
             let e = 1.0 - (1.0 - t).powi(3); // ease-out cubic
             let raw = (start as f64 + (target - start) as f64 * e).round() as i64;
             self.set_raw(raw);
             std::thread::sleep(delay);
         }
+        true
     }
+}
+
+fn touch_manual_brightness_marker() {
+    let _ = fs::write(format!("{}/brightness-manual-active", runtime_dir()), "");
+}
+
+fn brightness_target_path() -> String {
+    format!("{}/brightness-target", runtime_dir())
+}
+
+fn brightness_pid_path() -> String {
+    format!("{}/brightness-fade.pid", runtime_dir())
+}
+
+fn process_alive(pid: u32) -> bool {
+    fs::metadata(format!("/proc/{pid}")).is_ok()
+}
+
+fn brightness_worker_alive() -> bool {
+    let Ok(pid) = fs::read_to_string(brightness_pid_path()) else {
+        return false;
+    };
+    pid.trim().parse::<u32>().ok().is_some_and(process_alive)
+}
+
+fn raw_delta_from_pct(pct: i64, max_raw: i64) -> i64 {
+    if pct >= 0 {
+        (max_raw * pct + 50) / 100
+    } else {
+        -((max_raw * -pct + 50) / 100)
+    }
+}
+
+fn start_brightness_worker() {
+    if brightness_worker_alive() {
+        return;
+    }
+    let exe = env::current_exe().unwrap_or_else(|_| "/home/ben/.local/bin/waybar-helper".into());
+    if let Ok(child) = Command::new(exe)
+        .arg("brightness-worker")
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+    {
+        let _ = fs::write(brightness_pid_path(), child.id().to_string());
+    }
+}
+
+fn manual_brightness(direction: i64) -> ExitCode {
+    let step_pct = env::args()
+        .nth(2)
+        .and_then(|s| s.parse::<i64>().ok())
+        .unwrap_or(5)
+        .clamp(1, 25);
+    let max_raw = match read_int(MAXF) {
+        Some(v) if v > 0 => v,
+        _ => return ExitCode::from(1),
+    };
+    let cur_raw = match read_int(BRIGHT) {
+        Some(v) => v,
+        None => return ExitCode::from(1),
+    };
+    let delta = raw_delta_from_pct(direction * step_pct, max_raw);
+    let target = (cur_raw + delta).clamp(1, max_raw);
+
+    touch_manual_brightness_marker();
+    if fs::write(brightness_target_path(), target.to_string()).is_err() {
+        return ExitCode::from(1);
+    }
+    start_brightness_worker();
+    ExitCode::SUCCESS
+}
+
+fn brightness_worker() -> ExitCode {
+    let max_raw = match read_int(MAXF) {
+        Some(v) if v > 0 => v,
+        _ => return ExitCode::from(1),
+    };
+    let target_path = brightness_target_path();
+    let pid_path = brightness_pid_path();
+    let mut setter = Brightness::new();
+    let mut settled_ticks = 0;
+    let max_step = raw_delta_from_pct(4, max_raw).max(1);
+
+    loop {
+        touch_manual_brightness_marker();
+        let cur = match read_int(BRIGHT) {
+            Some(v) => v,
+            None => break,
+        };
+        let target = read_int(&target_path).unwrap_or(cur).clamp(1, max_raw);
+        let delta = target - cur;
+        let abs = delta.abs();
+
+        if abs <= 1 {
+            setter.set_raw(target);
+            settled_ticks += 1;
+            if settled_ticks >= 2 {
+                std::thread::sleep(Duration::from_millis(80));
+                let latest = read_int(&target_path).unwrap_or(target).clamp(1, max_raw);
+                let now = read_int(BRIGHT).unwrap_or(target);
+                if (latest - now).abs() <= 1 {
+                    break;
+                }
+                settled_ticks = 0;
+            }
+        } else {
+            settled_ticks = 0;
+            let mut step = delta / 2;
+            if step == 0 {
+                step = delta.signum();
+            }
+            step = step.clamp(-max_step, max_step);
+            setter.set_raw((cur + step).clamp(1, max_raw));
+        }
+    }
+
+    let _ = fs::remove_file(pid_path);
+    ExitCode::SUCCESS
 }
 
 /// ~10% in the dark, ~50% in a normal room (~75 lux), 100% in daylight.
@@ -1009,6 +1170,13 @@ fn autobright() -> ExitCode {
             continue;
         }
         if idle_dimmed() {
+            continue;
+        }
+        if manual_brightness_active() {
+            if let Some(cur) = read_int(BRIGHT) {
+                last_set_raw = Some(cur);
+            }
+            backoff_until = Some(std::time::Instant::now() + BACKOFF);
             continue;
         }
 
@@ -1064,7 +1232,11 @@ fn autobright() -> ExitCode {
         }
 
         let target_raw = (max_raw as f64 * target_pct as f64 / 100.0) as i64;
-        setter.fade(cur_raw, target_raw);
-        last_set_raw = Some(target_raw);
+        if setter.fade(cur_raw, target_raw) {
+            last_set_raw = Some(target_raw);
+        } else {
+            last_set_raw = read_int(BRIGHT).or(Some(cur_raw));
+            backoff_until = Some(std::time::Instant::now() + BACKOFF);
+        }
     }
 }

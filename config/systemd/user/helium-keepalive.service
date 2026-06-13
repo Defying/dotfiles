@@ -1,0 +1,13 @@
+[Unit]
+Description=Keep Helium warm during Hyprland sessions
+PartOf=hyprland-session.target
+After=hyprland-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/helium-keepalive
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=hyprland-session.target

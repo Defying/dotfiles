@@ -45,15 +45,13 @@ do_close() {
 
 do_open() {
   [[ -n "$(panel_pid)" ]] && return 0   # already open
-  if [[ -x "$panel" ]]; then
-    "$panel" >"$log_file" 2>&1 &
-    local pid=$!
-    sleep 0.15
-    if kill -0 "$pid" >/dev/null 2>&1; then
-      disown "$pid" 2>/dev/null || true
-      return 0
-    fi
+if [[ -x "$panel" ]]; then
+  setsid -f "$panel" >"$log_file" 2>&1
+  sleep 0.15
+  if [[ -n "$(panel_pid)" ]]; then
+    return 0
   fi
+fi
   # Fallback: fuzzel quick actions
   local choice
   choice=$(

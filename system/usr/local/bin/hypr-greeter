@@ -5,4 +5,4 @@ export XKB_DEFAULT_LAYOUT=us
 export XKB_DEFAULT_MODEL=applealu_ansi
 export XKB_DEFAULT_OPTIONS=caps:super,terminate:ctrl_alt_bksp
 
-exec Hyprland --config /etc/greetd/hyprland-greeter.conf
+exec /usr/bin/start-hyprland -- --config /etc/greetd/hyprland-greeter.conf

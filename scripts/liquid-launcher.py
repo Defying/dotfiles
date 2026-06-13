@@ -115,9 +115,14 @@ gi.require_version("PangoCairo", "1.0")
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, GtkLayerShell  # noqa: E402
 
 APP_DIRS = [
-    Path("/usr/share/applications"),
     Path.home() / ".local/share/applications",
-    Path("/usr/local/share/applications"),
+    *[
+        Path(data_dir) / "applications"
+        for data_dir in os.environ.get(
+            "XDG_DATA_DIRS", "/usr/local/share:/usr/share"
+        ).split(":")
+        if data_dir
+    ],
 ]
 
 LAUNCHER_W = 580

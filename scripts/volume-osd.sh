@@ -27,6 +27,10 @@ liquid_runtime_dir="$(private_runtime_dir liquid-osd || printf '%s\n' "${HOME}/.
 hypr_runtime_dir="$(private_runtime_dir hypr-runtime || printf '%s\n' "${HOME}/.cache/hypr-runtime")"
 liquid_osd_sock="$liquid_runtime_dir/liquid-osd.sock"
 bright_fade_pidfile="$hypr_runtime_dir/brightness-fade.pid"
+bright_manual_marker="$hypr_runtime_dir/brightness-manual-active"
+bright_target_file="$hypr_runtime_dir/brightness-target"
+bright_lock_file="$hypr_runtime_dir/brightness-fade.lock"
+backlight_dir="/sys/class/backlight/apple-panel-bl"
 
 tick_sound="${VOLUME_TICK_SOUND:-/usr/share/sounds/freedesktop/stereo/audio-volume-change.oga}"
 play_tick() {
@@ -40,54 +44,121 @@ play_tick() {
 
 # Quick brightness step: compute the target up front, fire the small fade
 # in the background so the foreground script returns immediately, and echo
-# the target percent so the OSD can show the final value right away. Holding
-# the key repeats from the live brightness each time, so each press still
-# advances the total target even when the previous fade is mid-glide.
+# the target percent so the OSD can show the final value right away. Held-key
+# repeats update one shared target, so repeat events do not spawn overlapping
+# fades that fight over the panel.
 fade_brightness() {
   local delta_pct="$1"
-  local steps="${BRIGHT_FADE_STEPS:-10}"
-  local total_ms="${BRIGHT_FADE_MS:-120}"
-  (( steps > 12 )) && steps=12   # bounded — keeps a tap cheap (≤12 sysfs writes)
+  local cur max base delta target pid pct
 
-  # Supersede any in-flight fade first, so held-key repeats (repeat_rate=40)
-  # don't stack overlapping fades that fight each other. Kill the fade subshell
-  # AND its current child (sleep/brightnessctl) — a plain kill of the subshell
-  # alone leaves the in-flight step running. Read live brightness *after* so we
-  # glide from wherever the previous fade actually got to.
-  if [[ -f "$bright_fade_pidfile" ]]; then
-    local oldpid; oldpid="$(cat "$bright_fade_pidfile" 2>/dev/null)"
-    if [[ -n "$oldpid" ]]; then
-      pkill -P "$oldpid" 2>/dev/null
-      kill "$oldpid" 2>/dev/null
+  brightness_worker_alive() {
+    local pid="$1"
+    [[ -n "$pid" && -d "/proc/$pid" ]]
+  }
+
+  read_brightness_raw() {
+    if [[ -r "$backlight_dir/brightness" ]]; then
+      sed -n '1p' "$backlight_dir/brightness"
+    else
+      brightnessctl get 2>/dev/null
     fi
-  fi
+  }
 
-  local cur max target
-  cur=$(brightnessctl get)
-  max=$(brightnessctl max)
-  target=$(( cur + (max * delta_pct + 50) / 100 ))
-  (( target < 1 ))   && target=1
-  (( target > max )) && target=$max
+  read_brightness_max() {
+    if [[ -r "$backlight_dir/max_brightness" ]]; then
+      sed -n '1p' "$backlight_dir/max_brightness"
+    else
+      brightnessctl max 2>/dev/null
+    fi
+  }
 
-  local delay values
-  delay=$(awk -v t="$total_ms" -v n="$steps" 'BEGIN { printf "%.4f", (t/1000) / n }')
-  # Ease-out cubic (1-(1-t)^3): fast off the mark, settles gently — reads as
-  # smooth rather than the old 3-step linear jump. Values precomputed up front
-  # so the fade is one flat subshell loop (no pipeline → no orphan grandchildren
-  # to chase when superseding).
-  values=$(awk -v c="$cur" -v tg="$target" -v n="$steps" \
-      'BEGIN { for (i = 1; i <= n; i++) { t = i / n; e = 1 - (1 - t)^3; printf "%d ", c + (tg - c) * e } }')
+  raw_delta_from_pct() {
+    local pct="$1" max="$2"
+    if (( pct >= 0 )); then
+      printf '%s\n' $(((max * pct + 50) / 100))
+    else
+      printf '%s\n' $((-((max * -pct + 50) / 100)))
+    fi
+  }
 
-  (
-    for value in $values; do
-      brightnessctl -q set "$value" >/dev/null 2>&1 || exit 0
-      sleep "$delay"
-    done
-  ) >/dev/null 2>&1 &
-  echo $! > "$bright_fade_pidfile"
-  disown
+  write_brightness_raw() {
+    local value="$1"
+    if [[ -w "$backlight_dir/brightness" ]]; then
+      printf '%s\n' "$value" > "$backlight_dir/brightness"
+    else
+      brightnessctl -q set "$value" >/dev/null 2>&1
+    fi
+  }
 
-  awk -v v="$target" -v m="$max" 'BEGIN { printf "%d", v * 100 / m + 0.5 }'
+  start_brightness_worker() {
+    (
+      local cur max target delta abs step_raw next idle tick
+      tick="${BRIGHT_FADE_TICK:-0.016}"
+      idle=0
+      while :; do
+        : > "$bright_manual_marker"
+        cur=$(read_brightness_raw) || exit 0
+        max=$(read_brightness_max) || exit 0
+        target="$(sed -n '1p' "$bright_target_file" 2>/dev/null)"
+        [[ "$cur" =~ ^[0-9]+$ && "$max" =~ ^[0-9]+$ ]] || exit 0
+        [[ "$target" =~ ^[0-9]+$ ]] || exit 0
+        (( target < 1 )) && target=1
+        (( target > max )) && target=$max
+
+        delta=$(( target - cur ))
+        abs="${delta#-}"
+        if (( abs <= 1 )); then
+          write_brightness_raw "$target" || exit 0
+          idle=$(( idle + 1 ))
+          (( idle >= 2 )) && break
+        else
+          idle=0
+          step_raw=$(( delta / 3 ))
+          if (( step_raw == 0 )); then
+            if (( delta > 0 )); then
+              step_raw=1
+            else
+              step_raw=-1
+            fi
+          fi
+          next=$(( cur + step_raw ))
+          write_brightness_raw "$next" || exit 0
+        fi
+        sleep "$tick"
+      done
+      rm -f "$bright_fade_pidfile"
+    ) >/dev/null 2>&1 &
+    echo $! > "$bright_fade_pidfile"
+    disown
+  }
+
+  {
+    flock -x 9
+    : > "$bright_manual_marker"
+    cur=$(read_brightness_raw)
+    max=$(read_brightness_max)
+    [[ "$cur" =~ ^[0-9]+$ && "$max" =~ ^[0-9]+$ ]] || return 1
+    pid="$(sed -n '1p' "$bright_fade_pidfile" 2>/dev/null || true)"
+    if brightness_worker_alive "$pid"; then
+      base="$(sed -n '1p' "$bright_target_file" 2>/dev/null || true)"
+      [[ "$base" =~ ^[0-9]+$ ]] || base="$cur"
+    else
+      base="$cur"
+    fi
+
+    delta="$(raw_delta_from_pct "$delta_pct" "$max")"
+    target=$(( base + delta ))
+    (( target < 1 )) && target=1
+    (( target > max )) && target=$max
+    printf '%s\n' "$target" > "$bright_target_file"
+
+    if ! brightness_worker_alive "$pid"; then
+      start_brightness_worker
+    fi
+    pct=$(awk -v v="$target" -v m="$max" 'BEGIN { printf "%d", v * 100 / m + 0.5 }')
+  } 9>"$bright_lock_file"
+
+  printf '%s\n' "$pct"
 }
 
 read_pct() {

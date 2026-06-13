@@ -1,0 +1,21 @@
+[package]
+name = "hypr-emoji-picker"
+version = "0.1.0"
+edition = "2021"
+description = "Rust backend for a Hyprland Wayland emoji picker"
+
+[[bin]]
+name = "hypr-emoji-picker"
+path = "src/main.rs"
+
+[profile.release]
+opt-level = "s"
+lto = true
+strip = true
+codegen-units = 1
+panic = "abort"
+
+[dependencies]
+emojis = "0.8.2"
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.150"

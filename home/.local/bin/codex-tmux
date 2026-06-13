@@ -51,6 +51,17 @@ session_name() {
   printf 'codex-%s\n' "$(slot_label "$1")"
 }
 
+codex_login_status() {
+  local home="$1"
+  local output line
+  output="$(CODEX_HOME="$home" timeout 5 "$CODEX_BIN" login status 2>&1 || true)"
+  line="$(printf '%s\n' "$output" | sed -n '/^Logged in/p;/^Not logged in/p;/^Login /p' | head -n 1)"
+  if [ -z "$line" ]; then
+    line="$(printf '%s\n' "$output" | sed '/^[[:space:]]*$/d' | tail -n 1)"
+  fi
+  printf '%s\n' "$line"
+}
+
 resolve_slot() {
   local key="$1"
   case "$key" in
@@ -203,7 +214,7 @@ status_slots() {
     else
       attached="missing"
     fi
-    login="$(CODEX_HOME="$home" timeout 5 "$CODEX_BIN" login status 2>&1 | head -n 1 || true)"
+    login="$(codex_login_status "$home")"
     printf '%-14s %-14s attached=%s  %s\n' "$(slot_label "$slot")" "$session" "$attached" "$login"
   done
 }

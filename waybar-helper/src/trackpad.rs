@@ -116,7 +116,10 @@ fn detect_open(touches: &[&Touch], pad: &Pad) -> bool {
         return false;
     }
     let edge_x = pad.edge_x(OPEN_EDGE_FRAC);
-    if !touches.iter().all(|t| t.start_x.unwrap_or(i32::MIN) >= edge_x) {
+    if !touches
+        .iter()
+        .all(|t| t.start_x.unwrap_or(i32::MIN) >= edge_x)
+    {
         return false;
     }
     if !within_time(touches) {
@@ -140,7 +143,10 @@ fn detect_close(touches: &[&Touch], pad: &Pad) -> bool {
         return false;
     }
     let edge_x = pad.edge_x(CLOSE_END_EDGE_FRAC);
-    if !touches.iter().all(|t| t.cur_x.unwrap_or(i32::MIN) >= edge_x) {
+    if !touches
+        .iter()
+        .all(|t| t.cur_x.unwrap_or(i32::MIN) >= edge_x)
+    {
         return false;
     }
     let dx_avg: f64 = touches
@@ -355,13 +361,7 @@ fn open_trackpads() -> Vec<Device> {
 fn drain(dev: &mut Device) -> bool {
     let mut buf = [0u8; EVENT_SIZE * 64];
     loop {
-        let n = unsafe {
-            libc::read(
-                dev.fd,
-                buf.as_mut_ptr() as *mut libc::c_void,
-                buf.len(),
-            )
-        };
+        let n = unsafe { libc::read(dev.fd, buf.as_mut_ptr() as *mut libc::c_void, buf.len()) };
         if n > 0 {
             let n = n as usize;
             let mut off = 0;

@@ -65,11 +65,8 @@ def _backend_json(*args: str) -> list[dict]:
 class Popup(GlassPopup):
     WIDTH = 430
     EXTRA_CSS = b"""
-    /* Subtle full-screen dim so the picker reads as a focused modal (like the
-       liquid-launcher), instead of a washed card floating over a bright video.
-       The shared scrim is alpha 0 by default; a low-alpha fill here is below the
-       namespace's ignore_alpha so it dims without itself getting blurred. */
-    .glass-root { background: rgba(6, 9, 17, 0.22); }
+    /* Keep the scrim fully transparent (inherited from GlassPopup) so only the
+       panel frosts the desktop behind it, never the whole screen. */
     /* Richer dark glass for the card itself: the shared 0.62 fill goes muddy
        over Hyprland's bright frosted backdrop, so match the launcher's crisp
        0.74 dark card with the same accent gradient. */
@@ -80,7 +77,12 @@ class Popup(GlassPopup):
         rgba(8, 11, 20, 0.74);
       border: 1px solid rgba(255,255,255,0.34);
       border-radius: 22px;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,0.45), 0 24px 70px rgba(2,6,23,0.55);
+      /* NO outer drop-shadow. A CSS box-shadow feathers translucent pixels far
+         beyond the card; at this namespace's ignore_alpha 0.01 the compositor
+         blurs the desktop under that whole feathered region, giving a ~1in halo
+         around the card. The launcher avoids this by painting a hard-edged Cairo
+         card. Keep only the inset highlight, which paints inside the card. */
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.45);
     }
     .emoji-search {
       font-size: 15px; color: #f4f7fb;
@@ -262,10 +264,13 @@ class Popup(GlassPopup):
             self.populate()
             return
         q = self.query
+        def fire_search():
+            self._search_timer = 0
+            threading.Thread(target=self._run_search, args=(q,), daemon=True).start()
+            return False
         self._search_timer = GLib.timeout_add(
             SEARCH_DEBOUNCE_MS,
-            lambda: (threading.Thread(target=self._run_search, args=(q,),
-                                      daemon=True).start(), False)[1],
+            fire_search,
         )
 
     def _on_entry_activate(self, _entry):

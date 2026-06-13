@@ -56,15 +56,15 @@ EDGE_GAP = 24
 BASE_CSS = b"""
 .glass-root { background: transparent; }
 .panel {
-  /* Base fill is fairly opaque (0.62) so the panel stays readable over a busy
-     desktop; the Hyprland glass-popup blur rule frosts whatever shows through. */
+  /* Match the launcher/AI menu material: a hard-edged translucent card over
+     Hyprland namespace blur, without an outer shadow expanding the blur mask. */
   background:
-    linear-gradient(145deg, rgba(255,255,255,0.22), rgba(255,255,255,0.07) 42%,
-      rgba(51,204,255,0.12) 68%, rgba(192,132,245,0.16)),
-    rgba(10, 14, 24, 0.62);
-  border: 1px solid rgba(255,255,255,0.42);
+    linear-gradient(150deg, rgba(255,255,255,0.18), rgba(255,255,255,0.05) 38%,
+      rgba(51,204,255,0.08) 66%, rgba(192,132,245,0.10)),
+    rgba(8, 11, 20, 0.74);
+  border: 1px solid rgba(255,255,255,0.34);
   border-radius: 22px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.55), 0 30px 90px rgba(2,6,23,0.48);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.45);
   padding: 16px;
 }
 .title  { color: #f4f7fb; font-weight: 800; font-size: 15px; text-shadow: 0 1px 1px rgba(0,0,0,0.55); }

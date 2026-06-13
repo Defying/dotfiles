@@ -17,6 +17,14 @@ alias sd-raspberry="$HOME/.local/bin/backup-raspberrypi-sd-card.sh"
 alias claude-danger='claude --dangerously-skip-permissions'
 alias codex-danger='codex --dangerously-bypass-approvals-and-sandbox'
 
+ssh() {
+  if [[ "${TERM:-}" == "xterm-ghostty" ]]; then
+    TERM=xterm-256color command ssh "$@"
+  else
+    command ssh "$@"
+  fi
+}
+
 # OpenClaw Completion
 if [ -f "$HOME/.openclaw/completions/openclaw.zsh" ]; then
   source "$HOME/.openclaw/completions/openclaw.zsh"

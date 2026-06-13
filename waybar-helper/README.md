@@ -26,8 +26,9 @@ core, continuous) and no 12 MB Python RSS per spawn.
   shelled out to `python3` purely to JSON-escape the tooltip. Caches the last
   good JSON so a transient curl failure doesn't blank the bar.
 - `waybar-helper autohide` — fullscreen Waybar autohide daemon. Drop-in for
-  `hypr-waybar-autohide.py`; listens on Hyprland socket2 and only polls the
-  cursor while the active workspace has a fullscreen window.
+  `hypr-waybar-autohide.py`; listens on Hyprland socket2 and only polls
+  compositor state plus cursor position while the active workspace has a
+  fullscreen window.
 - `waybar-helper autobright` — adaptive backlight from the M1 ALS. Drop-in for
   `hypr-auto-brightness.py`. Sets brightness IN-PROCESS via a direct sysfs write
   (needs the `video` group + 90-backlight-perms.rules) — no spawns, even during
