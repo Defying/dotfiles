@@ -3,7 +3,8 @@
 # quick-action menu if the panel can't start. Verb is $1 (default: toggle):
 #   toggle  flip open<->closed (waybar bubble click)
 #   open    open if not already open (swipe-left-from-right-edge gesture)
-#   close   close if open        (swipe-right gesture)
+#   close   close if open, otherwise dismiss latest Mako notification
+#           (swipe-right gesture)
 
 set -u
 
@@ -39,8 +40,18 @@ panel_pid() {
 
 do_close() {
   local pids; pids="$(panel_pid)"
-  [[ -n "$pids" ]] || return 0
-  printf '%s\n' "$pids" | xargs -r kill >/dev/null 2>&1 || true
+  if [[ -n "$pids" ]]; then
+    printf '%s\n' "$pids" | xargs -r kill >/dev/null 2>&1 || true
+    return 0
+  fi
+  if makoctl list -j 2>/dev/null | jq -e '
+      if type == "array"
+      then any(.[]; (type == "object" and (has("id") or ((.notifications // []) | length > 0))))
+      else false
+      end
+    ' >/dev/null 2>&1; then
+    makoctl dismiss >/dev/null 2>&1 || true
+  fi
 }
 
 do_open() {
