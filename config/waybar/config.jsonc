@@ -25,6 +25,7 @@
   "group/status": {
     "orientation": "inherit",
     "modules": [
+      "custom/tailscale",
       "network",
       "bluetooth",
       "pulseaudio",
@@ -126,6 +127,16 @@
     "on-click": "/home/ben/dotfiles/scripts/network-popup.py",
     "on-click-right": "nm-connection-editor",
     "interval": 3
+  },
+  "custom/tailscale": {
+    "exec": "/home/ben/.local/bin/waybar-helper tailscale",
+    "return-type": "json",
+    "interval": 15,
+    "signal": 11,
+    "format": "{}",
+    "tooltip": true,
+    "on-click": "/home/ben/dotfiles/scripts/waybar-quick-settings.sh",
+    "on-click-right": "ghostty -e sh -lc 'tailscale status; printf \"\\npress enter to close \"; read -r _'"
   },
   "bluetooth": {
     "format-on": "",

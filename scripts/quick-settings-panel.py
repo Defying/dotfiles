@@ -32,6 +32,7 @@ BATTERY_UDEV_CONF = Path("/etc/udev/macsmc-battery.conf")
 AUTOBRIGHT_CACHE_HOME = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / ".cache")
 AUTOBRIGHT_OFF_FILE = AUTOBRIGHT_CACHE_HOME / "hypr" / "auto-brightness.off"
 AUTOBRIGHT_CMD = "/home/ben/.local/bin/waybar-helper"
+TAILSCALE_ADMIN_URL = "https://login.tailscale.com/admin/machines"
 
 
 def run(*args, check=False, capture=False, timeout=2.5):
@@ -126,6 +127,94 @@ def set_dnd(enabled):
     run("makoctl", "mode", "-a" if enabled else "-r", "do-not-disturb")
     run("pkill", "-RTMIN+10", "-x", "waybar")
     notify("Do Not Disturb", "on" if enabled else "off")
+
+
+def tailscale_status():
+    status = {
+        "installed": bool(shutil.which("tailscale")),
+        "state": "missing",
+        "running": False,
+        "auth_url": "",
+        "tailnet": "",
+        "ip": "",
+        "online_peers": 0,
+        "health": [],
+    }
+    if not status["installed"]:
+        return status
+    out = run("tailscale", "status", "--json", capture=True, timeout=4)
+    if not out:
+        status["state"] = "error"
+        return status
+    try:
+        data = json.loads(out)
+    except Exception:
+        status["state"] = "error"
+        return status
+    state = data.get("BackendState") or "unknown"
+    status["state"] = state
+    status["running"] = state == "Running"
+    status["auth_url"] = data.get("AuthURL") or ""
+    status["tailnet"] = (data.get("CurrentTailnet") or {}).get("Name") or ""
+    ips = (data.get("Self") or {}).get("TailscaleIPs") or []
+    status["ip"] = ips[0] if ips else ""
+    peers = data.get("Peer") or {}
+    status["online_peers"] = sum(1 for peer in peers.values() if peer.get("Online"))
+    status["health"] = data.get("Health") or []
+    return status
+
+
+def tailscale_enabled():
+    return tailscale_status()["running"]
+
+
+def tailscale_state_text(status=None):
+    status = status or tailscale_status()
+    if not status["installed"]:
+        return "missing"
+    state = status["state"]
+    state_lower = state.lower()
+    if status["auth_url"] or "login" in state_lower:
+        return "login needed"
+    if status["running"]:
+        parts = ["on"]
+        if status["tailnet"]:
+            parts.append(status["tailnet"])
+        if status["ip"]:
+            parts.append(status["ip"])
+        if status["health"]:
+            parts[0] = "warning"
+        return " · ".join(parts)
+    if state in ("Stopped", "NoState"):
+        return "off"
+    return state_lower
+
+
+def refresh_tailscale_indicator():
+    run("pkill", "-RTMIN+11", "-x", "waybar")
+
+
+def set_tailscale(enabled):
+    if not shutil.which("tailscale"):
+        notify("tailscale", "not installed")
+        return
+    if enabled:
+        run("sudo", "-n", "systemctl", "enable", "--now", "tailscaled", timeout=8)
+        run("tailscale", "up", timeout=12)
+    else:
+        run("tailscale", "down", timeout=8)
+    refresh_tailscale_indicator()
+    notify("tailscale", tailscale_state_text())
+
+
+def show_tailscale_status():
+    status = tailscale_status()
+    lines = [tailscale_state_text(status)]
+    if status["online_peers"]:
+        lines.append(f"{status['online_peers']} peers online")
+    if status["health"]:
+        lines.extend(status["health"][:2])
+    notify("tailscale", "\n".join(lines))
 
 
 def autobrightness_enabled():
@@ -517,9 +606,12 @@ class Panel(Gtk.Window):
         self._low_power_state_label = None
         self._autobrightness_switch = None
         self._autobrightness_state_label = None
+        self._tailscale_switch = None
+        self._tailscale_state_label = None
         self._syncing_awake = False
         self._syncing_low_power = False
         self._syncing_autobrightness = False
+        self._syncing_tailscale = False
 
         screen = self.get_screen()
         visual = screen.get_rgba_visual()
@@ -710,6 +802,7 @@ class Panel(Gtk.Window):
         self.add(root)
 
         self.add_toggle_tiles(root)
+        self.add_tailscale_control(root)
         self.add_low_power_control(root)
         self.add_awake_control(root)
         self.add_autobrightness_control(root)
@@ -725,6 +818,8 @@ class Panel(Gtk.Window):
         self.add_menu_button(row, "󰓃", [
             ("Audio devices", lambda: spawn("/home/ben/dotfiles/scripts/audio-menu.sh")),
             ("Network settings", lambda: spawn("nm-connection-editor")),
+            ("tailscale status", self.show_tailscale_status),
+            ("tailscale admin", lambda: spawn("xdg-open", TAILSCALE_ADMIN_URL)),
             ("Sound settings", lambda: spawn("pavucontrol")),
         ])
         self.add_menu_button(row, "", [
@@ -779,6 +874,36 @@ class Panel(Gtk.Window):
         close.set_tooltip_text("Close")
         close.connect("clicked", lambda *_: Gtk.main_quit())
         row.pack_end(close, False, False, 0)
+
+    def add_tailscale_control(self, parent):
+        row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=9)
+        row.get_style_context().add_class("awake-card")
+        parent.pack_start(row, False, False, 0)
+
+        icon_label = Gtk.Label(label="ts")
+        icon_label.get_style_context().add_class("tile-icon")
+        row.pack_start(icon_label, False, False, 0)
+
+        text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
+        title = Gtk.Label(label="tailscale")
+        title.get_style_context().add_class("awake-title")
+        title.set_xalign(0)
+        self._tailscale_state_label = Gtk.Label()
+        self._tailscale_state_label.get_style_context().add_class("muted")
+        self._tailscale_state_label.set_xalign(0)
+        text.pack_start(title, False, False, 0)
+        text.pack_start(self._tailscale_state_label, False, False, 0)
+        row.pack_start(text, True, True, 0)
+
+        status = Gtk.Button(label="status")
+        status.connect("clicked", lambda *_: self.show_tailscale_status())
+        row.pack_end(status, False, False, 0)
+
+        self._tailscale_switch = Gtk.Switch()
+        self._tailscale_switch.set_tooltip_text("tailscale")
+        self._tailscale_switch.connect("notify::active", self.on_tailscale_switch)
+        row.pack_end(self._tailscale_switch, False, False, 0)
+        self.sync_tailscale_control()
 
     def add_low_power_control(self, parent):
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=9)
@@ -934,6 +1059,27 @@ class Panel(Gtk.Window):
                 self._autobrightness_switch.set_active(active)
             finally:
                 self._syncing_autobrightness = False
+
+    def on_tailscale_switch(self, switch, *_):
+        if self._syncing_tailscale:
+            return
+        set_tailscale(switch.get_active())
+        self.sync_tailscale_control()
+
+    def sync_tailscale_control(self):
+        status = tailscale_status()
+        if self._tailscale_state_label is not None:
+            self._tailscale_state_label.set_text(tailscale_state_text(status))
+        if self._tailscale_switch is not None:
+            self._syncing_tailscale = True
+            try:
+                self._tailscale_switch.set_sensitive(status["installed"])
+                self._tailscale_switch.set_active(status["running"])
+            finally:
+                self._syncing_tailscale = False
+
+    def show_tailscale_status(self):
+        show_tailscale_status()
 
     def set_awake_mode_from_button(self, mode, active):
         if self._syncing_awake:

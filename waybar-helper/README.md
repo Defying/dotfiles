@@ -1,7 +1,7 @@
 # waybar-helper
 
 Small, fast-starting Rust replacements for waybar custom modules that otherwise
-re-spawn a Python interpreter every poll tick. std-only (no crates).
+re-spawn a Python interpreter every poll tick.
 
 Measured on this machine (M1 / Asahi, CPU-only rendering):
 
@@ -25,6 +25,9 @@ core, continuous) and no 12 MB Python RSS per spawn.
   network, but parsing/icon-map/JSON are all in Rust now — the shell version
   shelled out to `python3` purely to JSON-escape the tooltip. Caches the last
   good JSON so a transient curl failure doesn't blank the bar.
+- `waybar-helper tailscale` — compact `ts` status for Waybar. Emits `active`,
+  `warn`, `auth`, `off`, `missing`, or `error` classes and includes tailnet,
+  node IP, peer count, and health details in the tooltip.
 - `waybar-helper autohide` — fullscreen Waybar autohide daemon. Drop-in for
   `hypr-waybar-autohide.py`; listens on Hyprland socket2 and only polls
   compositor state plus cursor position while the active workspace has a

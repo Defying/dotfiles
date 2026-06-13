@@ -111,6 +111,7 @@ window#waybar {
 
 #custom-launcher,
 #workspaces button,
+#custom-tailscale,
 #network,
 #bluetooth,
 #pulseaudio,
@@ -279,11 +280,32 @@ window#waybar {
 #bluetooth,
 #pulseaudio,
 #battery,
+#custom-tailscale,
 #custom-quick-settings,
 #workspaces button {
   text-shadow:
     0 1px 1px rgba(0, 0, 0, 0.50),
     0 0 7px rgba(0, 0, 0, 0.24);
+}
+
+#custom-tailscale {
+  font-weight: 800;
+  color: rgba(244, 247, 251, 0.58);
+}
+
+#custom-tailscale.active {
+  color: #9eeaf0;
+}
+
+#custom-tailscale.warn,
+#custom-tailscale.auth {
+  color: #ffe08a;
+}
+
+#custom-tailscale.off,
+#custom-tailscale.missing,
+#custom-tailscale.error {
+  color: rgba(244, 247, 251, 0.38);
 }
 
 #custom-notifications {

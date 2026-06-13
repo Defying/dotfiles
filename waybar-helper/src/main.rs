@@ -3,6 +3,7 @@
 //!
 //! Subcommands:
 //!   sysmon   CPU + memory + network bubble (replaces waybar-sysmon.py)
+//!   tailscale small Tailscale status indicator
 //!
 //! Output matches the Python module's JSON byte-for-byte (modulo live values),
 //! so it's a drop-in `exec` swap in waybar's config.
@@ -29,6 +30,7 @@ fn main() -> ExitCode {
         Some("clock12") => clock12(),
         Some("date") => date_module(),
         Some("weather") => weather(),
+        Some("tailscale") => tailscale(),
         Some("autohide") => autohide(),
         Some("autobright") => autobright(),
         Some("bright-up") => manual_brightness(1),
@@ -41,7 +43,7 @@ fn main() -> ExitCode {
         other => {
             eprintln!(
                 "usage: waybar-helper \
-                 <sysmon|clock24|clock12|date|weather|autohide|autobright|bright-up|bright-down|brightness-worker|trackpad>; got {:?}",
+                 <sysmon|clock24|clock12|date|weather|tailscale|autohide|autobright|bright-up|bright-down|brightness-worker|trackpad>; got {:?}",
                 other
             );
             ExitCode::from(2)
@@ -83,6 +85,16 @@ fn emit_text_tooltip(text: &str, tooltip: &str) -> ExitCode {
         "{{\"text\": \"{}\", \"tooltip\": \"{}\"}}",
         esc(text),
         esc(tooltip)
+    );
+    ExitCode::SUCCESS
+}
+
+fn emit_text_tooltip_class(text: &str, tooltip: &str, class: &str) -> ExitCode {
+    println!(
+        "{{\"text\": \"{}\", \"tooltip\": \"{}\", \"class\": \"{}\"}}",
+        esc(text),
+        esc(tooltip),
+        esc(class)
     );
     ExitCode::SUCCESS
 }
@@ -241,6 +253,122 @@ fn weather() -> ExitCode {
     let _ = fs::write(weather_cache_path(), format!("{json}\n"));
     println!("{json}");
     ExitCode::SUCCESS
+}
+
+// ── tailscale ────────────────────────────────────────────────────────────────
+
+fn tailscale() -> ExitCode {
+    let output = match Command::new("tailscale")
+        .args(["status", "--json"])
+        .output()
+    {
+        Ok(output) => output,
+        Err(err) if err.kind() == ErrorKind::NotFound => {
+            return emit_text_tooltip_class("ts", "tailscale: not installed", "missing");
+        }
+        Err(err) => {
+            return emit_text_tooltip_class("ts", &format!("tailscale: {err}"), "error");
+        }
+    };
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+        let detail = if stderr.is_empty() {
+            "status unavailable".to_string()
+        } else {
+            stderr
+        };
+        return emit_text_tooltip_class("ts", &format!("tailscale: {detail}"), "error");
+    }
+
+    let data: serde_json::Value = match serde_json::from_slice(&output.stdout) {
+        Ok(data) => data,
+        Err(err) => {
+            return emit_text_tooltip_class(
+                "ts",
+                &format!("tailscale: invalid json ({err})"),
+                "error",
+            );
+        }
+    };
+
+    let state = data
+        .get("BackendState")
+        .and_then(|v| v.as_str())
+        .unwrap_or("unknown");
+    let state_lower = state.to_ascii_lowercase();
+    let auth_url = data.get("AuthURL").and_then(|v| v.as_str()).unwrap_or("");
+    let have_node_key = data
+        .get("HaveNodeKey")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false);
+    let health = data
+        .get("Health")
+        .and_then(|v| v.as_array())
+        .cloned()
+        .unwrap_or_default();
+    let health_lines: Vec<String> = health
+        .iter()
+        .filter_map(|v| v.as_str())
+        .map(|s| s.to_string())
+        .collect();
+
+    let class = if !auth_url.is_empty() || state_lower.contains("login") || !have_node_key {
+        "auth"
+    } else if state == "Running" && !health_lines.is_empty() {
+        "warn"
+    } else if state == "Running" {
+        "active"
+    } else if state == "Stopped" || state == "NoState" {
+        "off"
+    } else {
+        "warn"
+    };
+
+    let tailnet = data
+        .get("CurrentTailnet")
+        .and_then(|v| v.get("Name"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let host = data
+        .get("Self")
+        .and_then(|v| v.get("HostName"))
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let ip = data
+        .get("Self")
+        .and_then(|v| v.get("TailscaleIPs"))
+        .and_then(|v| v.as_array())
+        .and_then(|ips| ips.first())
+        .and_then(|v| v.as_str())
+        .unwrap_or("");
+    let online_peers = data
+        .get("Peer")
+        .and_then(|v| v.as_object())
+        .map(|peers| {
+            peers
+                .values()
+                .filter(|peer| peer.get("Online").and_then(|v| v.as_bool()) == Some(true))
+                .count()
+        })
+        .unwrap_or(0);
+
+    let mut tooltip = vec![format!("tailscale: {state_lower}")];
+    if !tailnet.is_empty() {
+        tooltip.push(format!("tailnet: {tailnet}"));
+    }
+    if !host.is_empty() || !ip.is_empty() {
+        tooltip.push(format!("node: {host} {ip}").trim().to_string());
+    }
+    tooltip.push(format!("peers online: {online_peers}"));
+    if !auth_url.is_empty() {
+        tooltip.push(format!("login: {auth_url}"));
+    }
+    if !health_lines.is_empty() {
+        tooltip.push(format!("health: {}", health_lines.join("\n")));
+    }
+
+    emit_text_tooltip_class("ts", &tooltip.join("\n"), class)
 }
 
 // ── sysmon ──────────────────────────────────────────────────────────────────

@@ -8,8 +8,7 @@ description = "Small fast helpers for waybar custom modules (replaces per-tick P
 name = "waybar-helper"
 path = "src/main.rs"
 
-# Tiny, fast-starting binary. No external crates — std only — so it builds
-# offline and there's nothing to audit/update.
+# Tiny, fast-starting binary with a small dependency set for JSON/time parsing.
 [profile.release]
 opt-level = "s"
 lto = true

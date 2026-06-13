@@ -23,6 +23,7 @@ power_state_file="$runtime_dir/power.json"
 low_power_profile="powersave"
 default_power_profile="balanced"
 battery_device="/org/freedesktop/UPower/devices/battery_macsmc_battery"
+tailscale_admin_url="https://login.tailscale.com/admin/machines"
 
 if [[ -r "$pid_file" ]]; then
   panel_pid="$(sed -n '1p' "$pid_file")"
@@ -207,10 +208,41 @@ if busctl get-property org.freedesktop.UPower "$battery_device" org.freedesktop.
   fi
 fi
 
+tailscale_state="missing"
+if command -v tailscale >/dev/null 2>&1; then
+  tailscale_state="$(
+    tailscale status --json 2>/dev/null | python3 -c '
+import json
+import sys
+
+try:
+    data = json.load(sys.stdin)
+except Exception:
+    print("error")
+    raise SystemExit
+
+state = data.get("BackendState") or "unknown"
+auth_url = data.get("AuthURL") or ""
+health = data.get("Health") or []
+if auth_url or "login" in state.lower():
+    print("login needed")
+elif state == "Running" and health:
+    print("warning")
+elif state == "Running":
+    print("on")
+elif state in ("Stopped", "NoState"):
+    print("off")
+else:
+    print(state.lower())
+' 2>/dev/null || printf 'error'
+  )"
+fi
+
 choice=$(
   {
     printf 'wifi: %s\n' "$wifi_state"
     printf 'bluetooth: %s\n' "$bt_state"
+    printf 'tailscale: %s\n' "$tailscale_state"
     printf 'dnd: %s\n' "$dnd_state"
     printf 'system awake: %s\n' "$([[ "$awake_mode" == "system" ]] && printf on || printf off)"
     printf 'display awake: %s\n' "$([[ "$awake_mode" == "display" ]] && printf on || printf off)"
@@ -220,6 +252,8 @@ choice=$(
     printf 'awake blockers\n'
     printf 'audio devices\n'
     printf 'network settings\n'
+    printf 'tailscale status\n'
+    printf 'tailscale admin\n'
     printf 'sound settings\n'
     printf 'brightness 25%%\n'
     printf 'brightness 50%%\n'
@@ -231,7 +265,7 @@ choice=$(
     printf 'reload hyprland\n'
     printf 'lock\n'
     printf 'power\n'
-  } | fuzzel --dmenu --prompt='settings  ' --lines=22 --width=36
+  } | fuzzel --dmenu --prompt='settings  ' --lines=24 --width=36
 )
 choice="${choice%$'\n'}"
 [[ -z "$choice" ]] && exit 0
@@ -250,6 +284,18 @@ case "$choice" in
     else
       bluetoothctl power on >/dev/null && notify "Bluetooth on"
     fi
+    ;;
+  tailscale:*)
+    if ! command -v tailscale >/dev/null 2>&1; then
+      notify "tailscale" "not installed"
+    elif [[ "$tailscale_state" == "on" || "$tailscale_state" == "warning" ]]; then
+      tailscale down >/dev/null 2>&1 && notify "tailscale" "off"
+    else
+      sudo -n systemctl enable --now tailscaled >/dev/null 2>&1 || true
+      tailscale up >/dev/null 2>&1
+      notify "tailscale" "$(tailscale status --json 2>/dev/null | python3 -c 'import json,sys; data=json.load(sys.stdin); print((data.get("BackendState") or "unknown").lower())' 2>/dev/null || printf 'started')"
+    fi
+    pkill -RTMIN+11 -x waybar >/dev/null 2>&1 || true
     ;;
   "audio devices")
     /home/ben/dotfiles/scripts/audio-menu.sh
@@ -328,6 +374,12 @@ case "$choice" in
     ;;
   "network settings")
     setsid -f nm-connection-editor >/dev/null 2>&1
+    ;;
+  "tailscale status")
+    setsid -f ghostty -e sh -lc 'tailscale status; printf "\npress enter to close "; read -r _' >/dev/null 2>&1
+    ;;
+  "tailscale admin")
+    setsid -f xdg-open "$tailscale_admin_url" >/dev/null 2>&1
     ;;
   "sound settings")
     setsid -f pavucontrol >/dev/null 2>&1
