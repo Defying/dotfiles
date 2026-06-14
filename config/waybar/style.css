@@ -299,8 +299,8 @@ window#waybar {
 
 #custom-tailscale.warn,
 #custom-tailscale.auth {
-  color: #ffe08a;
-  background-image: url("/home/ben/dotfiles/assets/tailscale.svg");
+  color: #ff6b6b;
+  background-image: url("/home/ben/dotfiles/assets/tailscale-red.svg");
   background-repeat: no-repeat;
   background-size: 15px 15px;
   background-position: center;
@@ -309,8 +309,12 @@ window#waybar {
 #custom-tailscale.off,
 #custom-tailscale.missing,
 #custom-tailscale.error {
-  color: rgba(244, 247, 251, 0.38);
-  opacity: 0.48;
+  color: #ff6b6b;
+  background-image: url("/home/ben/dotfiles/assets/tailscale-red.svg");
+  background-repeat: no-repeat;
+  background-size: 15px 15px;
+  background-position: center;
+  opacity: 1;
 }
 
 #custom-notifications {
@@ -350,8 +354,7 @@ window#waybar {
     rgba(10, 12, 18, 0.46);
 }
 
-/* Icon-only bar buttons: use centered images instead of font glyphs so side
-   bearings and text baselines cannot visually pull the icon off center. */
+/* Icon-only bar buttons. */
 #custom-notifications,
 #custom-quick-settings {
   min-width: 24px;
@@ -360,10 +363,11 @@ window#waybar {
 }
 
 #custom-quick-settings {
-  font-size: 0;
+  font-family: "Font Awesome 6 Free";
+  font-size: 12px;
+  font-weight: 900;
   color: #f4f7fb;
   background:
-    url("/usr/share/icons/breeze-dark/actions/22/settings-configure-symbolic.svg") no-repeat center / 16px 16px,
     linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04)),
     rgba(10, 12, 18, 0.56);
 }

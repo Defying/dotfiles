@@ -19,7 +19,6 @@
     "tray",
     "custom/sysmon",
     "group/status",
-    "custom/notifications",
     "custom/quick-settings"
   ],
   "group/status": {
