@@ -33,6 +33,7 @@ AUTOBRIGHT_CACHE_HOME = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / "
 AUTOBRIGHT_OFF_FILE = AUTOBRIGHT_CACHE_HOME / "hypr" / "auto-brightness.off"
 AUTOBRIGHT_CMD = "/home/ben/.local/bin/waybar-helper"
 TAILSCALE_ADMIN_URL = "https://login.tailscale.com/admin/machines"
+TAILSCALE_ICON = Path.home() / "dotfiles" / "assets" / "tailscale.png"
 
 
 def run(*args, check=False, capture=False, timeout=2.5):
@@ -178,12 +179,10 @@ def tailscale_state_text(status=None):
         return "login needed"
     if status["running"]:
         parts = ["on"]
-        if status["tailnet"]:
-            parts.append(status["tailnet"])
-        if status["ip"]:
-            parts.append(status["ip"])
         if status["health"]:
             parts[0] = "warning"
+        if status["ip"]:
+            parts.append(status["ip"])
         return " · ".join(parts)
     if state in ("Stopped", "NoState"):
         return "off"
@@ -880,9 +879,14 @@ class Panel(Gtk.Window):
         row.get_style_context().add_class("awake-card")
         parent.pack_start(row, False, False, 0)
 
-        icon_label = Gtk.Label(label="ts")
-        icon_label.get_style_context().add_class("tile-icon")
-        row.pack_start(icon_label, False, False, 0)
+        if TAILSCALE_ICON.exists():
+            icon = Gtk.Image.new_from_file(str(TAILSCALE_ICON))
+            icon.set_pixel_size(18)
+            row.pack_start(icon, False, False, 0)
+        else:
+            icon_label = Gtk.Label(label="ts")
+            icon_label.get_style_context().add_class("tile-icon")
+            row.pack_start(icon_label, False, False, 0)
 
         text = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=1)
         title = Gtk.Label(label="tailscale")

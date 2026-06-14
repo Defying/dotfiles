@@ -289,8 +289,14 @@ window#waybar {
 }
 
 #custom-tailscale {
+  min-width: 16px;
+  font-size: 0;
   font-weight: 800;
   color: rgba(244, 247, 251, 0.58);
+  background-image: url("/home/ben/dotfiles/assets/tailscale.png");
+  background-repeat: no-repeat;
+  background-size: 15px 15px;
+  background-position: center;
 }
 
 #custom-tailscale.active {
@@ -300,12 +306,16 @@ window#waybar {
 #custom-tailscale.warn,
 #custom-tailscale.auth {
   color: #ffe08a;
+  background:
+    url("/home/ben/dotfiles/assets/tailscale.png") no-repeat center / 15px 15px,
+    rgba(255, 209, 102, 0.13);
 }
 
 #custom-tailscale.off,
 #custom-tailscale.missing,
 #custom-tailscale.error {
   color: rgba(244, 247, 251, 0.38);
+  opacity: 0.48;
 }
 
 #custom-notifications {
