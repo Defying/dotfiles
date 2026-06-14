@@ -5,6 +5,8 @@
 
 set -u
 
+panel="/home/ben/dotfiles/scripts/audio-menu-panel.py"
+
 private_runtime_dir() {
   if [[ -n "${XDG_RUNTIME_DIR:-}" ]]; then
     printf '%s\n' "$XDG_RUNTIME_DIR"
@@ -17,8 +19,34 @@ private_runtime_dir() {
 
 runtime_dir="$(private_runtime_dir || printf '%s\n' "${HOME}/.cache")"
 LOG="$runtime_dir/audio-menu.log"
+pid_file="$runtime_dir/audio-menu-panel.pid"
 log() { printf '[%s] %s\n' "$(date +%H:%M:%S)" "$*" >>"$LOG"; }
 log "--- audio-menu invoked ---"
+
+if [[ -r "$pid_file" ]]; then
+  panel_pid="$(sed -n '1p' "$pid_file")"
+  if [[ "$panel_pid" =~ ^[0-9]+$ ]] && kill -0 "$panel_pid" >/dev/null 2>&1; then
+    kill "$panel_pid" >/dev/null 2>&1 || true
+    exit 0
+  fi
+  rm -f "$pid_file"
+fi
+
+existing_pids="$(pgrep -u "$USER" -f '/home/ben/dotfiles/scripts/audio-menu-panel.py' || true)"
+if [[ -n "$existing_pids" ]]; then
+  printf '%s\n' "$existing_pids" | xargs -r kill >/dev/null 2>&1 || true
+  exit 0
+fi
+
+if [[ -x "$panel" ]]; then
+  "$panel" >"$runtime_dir/audio-menu-panel.log" 2>&1 &
+  panel_pid=$!
+  sleep 0.35
+  if kill -0 "$panel_pid" >/dev/null 2>&1; then
+    disown "$panel_pid" 2>/dev/null || true
+    exit 0
+  fi
+fi
 
 # Friendly notify wrapper (mako)
 notify() {

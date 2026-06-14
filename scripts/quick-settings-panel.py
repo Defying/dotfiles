@@ -13,9 +13,10 @@ import gi
 
 gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
+gi.require_version("GdkPixbuf", "2.0")
 gi.require_version("GtkLayerShell", "0.1")
 
-from gi.repository import Gdk, Gtk, GtkLayerShell
+from gi.repository import Gdk, GdkPixbuf, GLib, Gtk, GtkLayerShell
 
 from runtime_dirs import private_runtime_dir
 
@@ -33,7 +34,7 @@ AUTOBRIGHT_CACHE_HOME = Path(os.environ.get("XDG_CACHE_HOME") or Path.home() / "
 AUTOBRIGHT_OFF_FILE = AUTOBRIGHT_CACHE_HOME / "hypr" / "auto-brightness.off"
 AUTOBRIGHT_CMD = "/home/ben/.local/bin/waybar-helper"
 TAILSCALE_ADMIN_URL = "https://login.tailscale.com/admin/machines"
-TAILSCALE_ICON = Path.home() / "dotfiles" / "assets" / "tailscale.png"
+TAILSCALE_ICON = Path.home() / "dotfiles" / "assets" / "tailscale.svg"
 
 
 def run(*args, check=False, capture=False, timeout=2.5):
@@ -798,6 +799,8 @@ class Panel(Gtk.Window):
 
         root = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         root.get_style_context().add_class("panel")
+        root.set_sensitive(False)
+        self.root = root
         self.add(root)
 
         self.add_toggle_tiles(root)
@@ -809,6 +812,11 @@ class Panel(Gtk.Window):
         self.add_scale(root, "", "Keyboard", keyboard_brightness_pct(), set_keyboard_brightness)
         self.add_scale(root, "", "Volume", volume_pct(), set_volume)
         self.add_action_menus(root)
+        GLib.timeout_add(350, self.arm_controls)
+
+    def arm_controls(self):
+        self.root.set_sensitive(True)
+        return GLib.SOURCE_REMOVE
 
     def add_action_menus(self, parent):
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
@@ -880,9 +888,13 @@ class Panel(Gtk.Window):
         parent.pack_start(row, False, False, 0)
 
         if TAILSCALE_ICON.exists():
-            icon = Gtk.Image.new_from_file(str(TAILSCALE_ICON))
-            icon.set_pixel_size(18)
-            row.pack_start(icon, False, False, 0)
+            try:
+                pixbuf = GdkPixbuf.Pixbuf.new_from_file_at_scale(str(TAILSCALE_ICON), 18, 18, True)
+                row.pack_start(Gtk.Image.new_from_pixbuf(pixbuf), False, False, 0)
+            except Exception:
+                icon_label = Gtk.Label(label="ts")
+                icon_label.get_style_context().add_class("tile-icon")
+                row.pack_start(icon_label, False, False, 0)
         else:
             icon_label = Gtk.Label(label="ts")
             icon_label.get_style_context().add_class("tile-icon")
@@ -1128,8 +1140,7 @@ class Panel(Gtk.Window):
         scale.connect("button-release-event", lambda s, _event: (setter(s.get_value()), False)[1])
 
     def reload_waybar(self):
-        run("pkill", "-x", "waybar")
-        spawn("waybar")
+        run("systemctl", "--user", "restart", "waybar.service", timeout=8)
         Gtk.main_quit()
 
     def reload_hyprland(self):

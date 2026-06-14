@@ -151,8 +151,8 @@
   },
   "pulseaudio": {
     "format": "{icon}",
-    "format-bluetooth": "\udb80\udecb",
-    "format-bluetooth-muted": "\udb80\udecb",
+    "format-bluetooth": "󱡏",
+    "format-bluetooth-muted": "󱡏",
     "format-muted": "\uf026",
     "format-icons": [
       "\uf026",

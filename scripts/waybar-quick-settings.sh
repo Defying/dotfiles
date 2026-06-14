@@ -34,7 +34,7 @@ if [[ -r "$pid_file" ]]; then
   rm -f "$pid_file"
 fi
 
-existing_pids="$(pgrep -u "$USER" -f '^python3 /home/ben/dotfiles/scripts/quick-settings-panel.py$|^/home/ben/dotfiles/scripts/quick-settings-panel.py$' || true)"
+existing_pids="$(pgrep -u "$USER" -f '/home/ben/dotfiles/scripts/quick-settings-panel.py' || true)"
 if [[ -n "$existing_pids" ]]; then
   printf '%s\n' "$existing_pids" | xargs -r kill >/dev/null 2>&1 || true
   exit 0

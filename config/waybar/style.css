@@ -120,12 +120,6 @@ window#waybar {
   margin: 0 1px;
 }
 
-#custom-quick-settings {
-  font-size: 10px;
-  font-weight: 900;
-  color: #f4f7fb;
-}
-
 #custom-codex-tokens,
 #custom-codex-tokens-primary,
 #custom-codex-tokens-secondary,
@@ -293,7 +287,7 @@ window#waybar {
   font-size: 0;
   font-weight: 800;
   color: rgba(244, 247, 251, 0.58);
-  background-image: url("/home/ben/dotfiles/assets/tailscale.png");
+  background-image: url("/home/ben/dotfiles/assets/tailscale.svg");
   background-repeat: no-repeat;
   background-size: 15px 15px;
   background-position: center;
@@ -307,7 +301,7 @@ window#waybar {
 #custom-tailscale.auth {
   color: #ffe08a;
   background:
-    url("/home/ben/dotfiles/assets/tailscale.png") no-repeat center / 15px 15px,
+    url("/home/ben/dotfiles/assets/tailscale.svg") no-repeat center / 15px 15px,
     rgba(255, 209, 102, 0.13);
 }
 
@@ -322,19 +316,19 @@ window#waybar {
   /* Frosted-glass bubble to match the other right-side modules (was missing a
      background entirely, so it rendered as an invisible bubble). */
   background:
+    url("/usr/share/icons/breeze-dark/actions/22/notification-empty.svg") no-repeat center / 15px 15px,
     linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04)),
     rgba(10, 12, 18, 0.56);
   border: 1px solid rgba(255, 255, 255, 0.30);
   box-shadow:
     inset 0 1px rgba(255, 255, 255, 0.32),
     inset 0 -1px rgba(0, 0, 0, 0.18);
-  font-size: 10px;
+  font-size: 0;
   font-weight: 800;
   color: #f4f7fb;
   text-shadow:
     0 1px 1px rgba(0, 0, 0, 0.50),
     0 0 7px rgba(0, 0, 0, 0.24);
-  padding: 4px 11px;
   margin-right: 8px;
   border-radius: 13px;
 }
@@ -342,23 +336,35 @@ window#waybar {
 #custom-notifications.active {
   color: #ffd9a8;
   background:
+    url("/usr/share/icons/breeze-dark/actions/22/notification-active.svg") no-repeat center / 15px 15px,
     linear-gradient(145deg, rgba(255, 209, 102, 0.20), rgba(255, 255, 255, 0.06)),
     rgba(255, 255, 255, 0.05);
 }
 
 #custom-notifications.dnd {
   color: rgba(244, 247, 251, 0.55);
+  background:
+    url("/usr/share/icons/breeze-dark/actions/22/notification-disabled.svg") no-repeat center / 15px 15px,
+    linear-gradient(135deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.03)),
+    rgba(10, 12, 18, 0.46);
 }
 
-/* Single-glyph icon buttons (bell + gear): force a true centred circle.
-   They were the only modules with asymmetric 4px/11px padding, which left the
-   glyph sitting high/left. Equal min-width/height + symmetric padding centres
-   the glyph; waybar vertically centres the box in the bar. */
+/* Icon-only bar buttons: use centered images instead of font glyphs so side
+   bearings and text baselines cannot visually pull the icon off center. */
 #custom-notifications,
 #custom-quick-settings {
-  min-width: 22px;
-  min-height: 22px;
-  padding: 0 6px;
+  min-width: 24px;
+  min-height: 24px;
+  padding: 0;
+}
+
+#custom-quick-settings {
+  font-size: 0;
+  color: #f4f7fb;
+  background:
+    url("/usr/share/icons/breeze-dark/actions/22/settings-configure-symbolic.svg") no-repeat center / 16px 16px,
+    linear-gradient(135deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.04)),
+    rgba(10, 12, 18, 0.56);
 }
 
 #workspaces button {
