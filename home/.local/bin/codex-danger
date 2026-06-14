@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CODEX_BIN="${CODEX_BIN:-$HOME/.local/bin/codex}"
+[ -x "$CODEX_BIN" ] || CODEX_BIN="$(command -v codex)"
+
+exec "$CODEX_BIN" --dangerously-bypass-approvals-and-sandbox "$@"

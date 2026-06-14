@@ -1,2 +1,3 @@
 #!/usr/bin/env bash
-exec /home/ben/dotfiles/home/.local/bin/codex-tmux start-all "$@"
+script_dir="$(CDPATH= cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+exec "$script_dir/codex-tmux" start-all "$@"

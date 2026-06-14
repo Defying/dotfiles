@@ -7,6 +7,7 @@ CODEX_BIN="${CODEX_BIN:-$HOME/.local/bin/codex}"
 TMUX_BIN="${TMUX_BIN:-/usr/bin/tmux}"
 SHELL_BIN="${SHELL:-/usr/bin/zsh}"
 DEFAULT_SLOTS=(defying ben-7b0d6a0e)
+TIMEOUT_BIN="${TIMEOUT_BIN:-$(command -v timeout 2>/dev/null || command -v gtimeout 2>/dev/null || true)}"
 
 [ -x "$CODEX_BIN" ] || CODEX_BIN="$(command -v codex)"
 [ -x "$TMUX_BIN" ] || TMUX_BIN="$(command -v tmux)"
@@ -54,7 +55,11 @@ session_name() {
 codex_login_status() {
   local home="$1"
   local output line
-  output="$(CODEX_HOME="$home" timeout 5 "$CODEX_BIN" login status 2>&1 || true)"
+  if [ -n "$TIMEOUT_BIN" ]; then
+    output="$(CODEX_HOME="$home" "$TIMEOUT_BIN" 5 "$CODEX_BIN" login status 2>&1 || true)"
+  else
+    output="$(CODEX_HOME="$home" "$CODEX_BIN" login status 2>&1 || true)"
+  fi
   line="$(printf '%s\n' "$output" | sed -n '/^Logged in/p;/^Not logged in/p;/^Login /p' | head -n 1)"
   if [ -z "$line" ]; then
     line="$(printf '%s\n' "$output" | sed '/^[[:space:]]*$/d' | tail -n 1)"
