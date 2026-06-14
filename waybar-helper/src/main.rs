@@ -315,8 +315,6 @@ fn tailscale() -> ExitCode {
 
     let class = if !auth_url.is_empty() || state_lower.contains("login") || !have_node_key {
         "auth"
-    } else if state == "Running" && !health_lines.is_empty() {
-        "warn"
     } else if state == "Running" {
         "active"
     } else if state == "Stopped" || state == "NoState" {
