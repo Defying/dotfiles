@@ -8,7 +8,8 @@
   "modules-left": [
     "hyprland/workspaces",
     "custom/codex-tokens-primary",
-    "custom/codex-tokens-secondary"
+    "custom/codex-tokens-secondary",
+    "custom/bambu-printer"
   ],
   "modules-center": [
     "custom/date",
@@ -79,6 +80,15 @@
     "on-click": "/home/ben/dotfiles/scripts/waybar-ai-usage.sh claude",
     "on-click-middle": "/home/ben/dotfiles/scripts/waybar-ai-refresh.sh claude 9",
     "on-click-right": "/home/ben/dotfiles/scripts/waybar-quick-settings.sh"
+  },
+  "custom/bambu-printer": {
+    "exec": "/home/ben/.local/bin/waybar-helper bambu",
+    "return-type": "json",
+    "interval": 5,
+    "signal": 12,
+    "format": "{}",
+    "tooltip": true,
+    "on-click": "/home/ben/dotfiles/scripts/waybar-bambu-printer.sh"
   },
   "hyprland/workspaces": {
     "format": "{}",

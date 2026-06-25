@@ -41,6 +41,7 @@ const CSS: &str = r#"
 .reset  { color: rgba(244,247,251,0.58); font-size: 11px; }
 .extra  { color: rgba(244,247,251,0.68); font-size: 11px; }
 .account { color: #f4f7fb; font-size: 12px; font-weight: 700; }
+.updated { color: rgba(244,247,251,0.52); font-size: 10px; }
 .account-section {
   background: rgba(255,255,255,0.045);
   border: 1px solid rgba(255,255,255,0.12);
@@ -311,17 +312,8 @@ impl PanelState {
                 section.append(&window_row(usage));
             }
 
-            let mut extra = card.extra.clone();
-            if let Some(age) = card.age {
-                if extra.is_empty() {
-                    extra = updated_label(age);
-                } else {
-                    extra.push_str("  -  ");
-                    extra.push_str(&updated_label(age));
-                }
-            }
-            if !extra.is_empty() {
-                section.append(&wrapping_label(&extra, "extra"));
+            if !card.extra.is_empty() {
+                section.append(&wrapping_label(&card.extra, "extra"));
             }
             self.panel.append(&section);
         }
@@ -339,6 +331,10 @@ impl PanelState {
         account_label.set_ellipsize(pango::EllipsizeMode::End);
         account_label.set_hexpand(true);
         row.append(&account_label);
+
+        if let Some(age) = card.age {
+            row.append(&label(&updated_label(age), 1.0, "updated"));
+        }
 
         if card.active {
             row.append(&label("ACTIVE", 1.0, "active-badge"));
@@ -731,36 +727,78 @@ fn load_codex_accounts() -> Vec<CodexCard> {
             .and_then(Value::as_str)
             .unwrap_or("")
             .to_string();
+        let error = codex_card_error(&data);
 
         cards.push(CodexCard {
             label: account_label(account, &slot),
             plan,
             active: !active_slot.is_empty() && slot == active_slot,
             slot,
-            windows: codex_windows(&data),
-            extra: codex_extra(&data),
+            windows: if error.is_empty() {
+                codex_windows(&data)
+            } else {
+                Vec::new()
+            },
+            extra: if error.is_empty() {
+                codex_extra(&data)
+            } else {
+                String::new()
+            },
             age: age_min(&data),
-            error: data
-                .get("error")
-                .and_then(Value::as_str)
-                .unwrap_or("")
-                .to_string(),
+            error,
         });
     }
 
     cards.sort_by(|left, right| {
         (
+            codex_card_priority(left),
             if left.active { 0 } else { 1 },
             left.label.to_lowercase(),
             left.slot.clone(),
         )
             .cmp(&(
+                codex_card_priority(right),
                 if right.active { 0 } else { 1 },
                 right.label.to_lowercase(),
                 right.slot.clone(),
             ))
     });
     cards
+}
+
+fn codex_card_error(data: &Value) -> String {
+    if let Some(error) = data.get("error").and_then(Value::as_str) {
+        return data
+            .get("refresh_error")
+            .and_then(Value::as_str)
+            .unwrap_or(error)
+            .to_string();
+    }
+    data.get("refresh_error")
+        .and_then(Value::as_str)
+        .filter(|message| is_auth_failure_message(message))
+        .unwrap_or("")
+        .to_string()
+}
+
+fn is_auth_failure_message(message: &str) -> bool {
+    let lower = message.to_lowercase();
+    lower.contains("401 unauthorized")
+        || lower.contains("token_revoked")
+        || lower.contains("token_invalidated")
+        || lower.contains("invalidated oauth token")
+        || lower.contains("authentication token has been invalidated")
+}
+
+fn codex_card_priority(card: &CodexCard) -> i32 {
+    if card.slot == "defying"
+        || card.label.eq_ignore_ascii_case("defying")
+        || card.label.eq_ignore_ascii_case("defying@me.com")
+    {
+        0
+    } else {
+        1
+    }
 }
 
 fn codex_windows(data: &Value) -> Vec<UsageWindow> {

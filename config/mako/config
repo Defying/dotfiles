@@ -15,6 +15,7 @@ outer-margin=6,12,0,0
 margin=6
 padding=8,10
 icons=1
+icon-location=left
 max-icon-size=28
 icon-border-radius=8
 markup=1
@@ -30,6 +31,25 @@ default-timeout=0
 background-color=#260811c9
 border-color=#ff6b6baa
 progress-color=over #ff6b6b99
+
+[app-name="disk-space"]
+width=330
+group-by=app-name,summary
+
+[app-name="disk-space" urgency=critical]
+default-timeout=0
+ignore-timeout=1
+
+[app-name="system-health"]
+width=340
+group-by=app-name,summary
+
+[app-name="system-health" urgency=critical]
+default-timeout=0
+ignore-timeout=1
+
+[app-name="battery"]
+group-by=app-name,summary
 
 [mode=do-not-disturb]
 invisible=1

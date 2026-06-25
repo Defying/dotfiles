@@ -1,0 +1,13 @@
+[Unit]
+Description=Notify when disk space is low
+PartOf=hyprland-session.target
+After=hyprland-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/dotfiles/scripts/disk-space-notify.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=hyprland-session.target

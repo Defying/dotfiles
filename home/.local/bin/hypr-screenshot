@@ -8,7 +8,7 @@ file="$dir/$(date +%Y%m%d-%H%M%S).png"
 
 notify_saved() {
   wl-copy < "$file"
-  notify-send "Screenshot copied" "$file"
+  notify-send -a "screenshot" -i "camera-photo-symbolic" "Screenshot copied" "$file"
 }
 
 case "$mode" in

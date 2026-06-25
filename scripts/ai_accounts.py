@@ -382,7 +382,17 @@ def codex_menu() -> int:
     if match:
         meta = activate(match.group(1))
         subprocess.run(
-            ["notify-send", "-a", "Codex account", "-t", "2200", "Codex account", display_label(meta)],
+            [
+                "notify-send",
+                "-a",
+                "Codex account",
+                "-i",
+                str(ROOT / "assets" / "openai.svg"),
+                "-t",
+                "2200",
+                "Codex account",
+                display_label(meta),
+            ],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )

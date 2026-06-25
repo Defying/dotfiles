@@ -7,7 +7,7 @@ WALLPAPER="/home/ben/dotfiles/assets/wallpaper-marek-piwnicki.jpg"
 STATE="${XDG_RUNTIME_DIR:-/tmp}/hypr-wallpaper-mode"
 
 notify() {
-  notify-send -a "wallpaper" -t 1200 "$1" "${2:-}" >/dev/null 2>&1 || true
+  notify-send -a "wallpaper" -i "preferences-desktop-wallpaper-symbolic" -t 1200 "$1" "${2:-}" >/dev/null 2>&1 || true
 }
 
 stop_aerial() {

@@ -51,7 +51,7 @@ if [[ -x "$panel" ]]; then
 fi
 
 notify() {
-  notify-send -a "quick-settings" -t 2200 "$1" "${2:-}" >/dev/null 2>&1 || true
+  notify-send -a "quick-settings" -i "preferences-system-symbolic" -t 2200 "$1" "${2:-}" >/dev/null 2>&1 || true
 }
 
 stop_awake() {

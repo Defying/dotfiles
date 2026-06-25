@@ -3,7 +3,7 @@
 
 use std::env;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -232,10 +232,13 @@ pub fn maybe_notify(
         .iter()
         .map(|s| s.to_string())
         .collect();
-        if std::path::Path::new(icon).exists() {
-            args.push("-i".into());
-            args.push(icon.into());
-        }
+        let notify_icon = if Path::new(icon).exists() {
+            icon.to_string()
+        } else {
+            "applications-system-symbolic".to_string()
+        };
+        args.push("-i".into());
+        args.push(notify_icon);
         args.push(title);
         args.push(format!(
             "{who}{remaining}% remaining · resets {reset_label}"

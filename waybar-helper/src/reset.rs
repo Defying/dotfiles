@@ -273,12 +273,11 @@ pub fn schedule(service: &str, window_label: &str, reset_epoch: Option<i64>, ico
     .iter()
     .map(|s| s.to_string())
     .collect();
-    if let Some(ic) = icon {
-        if Path::new(ic).exists() {
-            args.push("-i".into());
-            args.push(ic.into());
-        }
-    }
+    let notify_icon = icon
+        .filter(|ic| Path::new(*ic).exists())
+        .unwrap_or("preferences-system-notifications-symbolic");
+    args.push("-i".into());
+    args.push(notify_icon.into());
     args.push(title);
     args.push(body);
 

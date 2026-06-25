@@ -49,7 +49,7 @@ Cmd + Shift + Q    exit Hyprland
 EOF
 )"
 
-if notify-send --app-name="Hyprland" "Hyprland ready" "$body"; then
+if notify-send --app-name="Hyprland" -i "preferences-system-symbolic" "Hyprland ready" "$body"; then
   mkdir -p "$state_dir"
   touch "$marker"
   printf 'First-login notice shown: %s\n' "$marker"

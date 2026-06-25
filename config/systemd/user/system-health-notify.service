@@ -1,0 +1,13 @@
+[Unit]
+Description=Notify for important system health issues
+PartOf=hyprland-session.target
+After=hyprland-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/dotfiles/scripts/system-health-notify.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=hyprland-session.target

@@ -53,7 +53,7 @@ done
 
 if [ -z "$terminal" ]; then
   if command -v notify-send >/dev/null 2>&1; then
-    notify-send --urgency=critical --app-name="Hyprland" \
+    notify-send --urgency=critical --app-name="Hyprland" -i "dialog-warning-symbolic" \
       "No terminal found" \
       "Use Ctrl+Alt+Q to exit Hyprland, then choose Plasma." || true
   fi

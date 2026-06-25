@@ -55,7 +55,7 @@ def spawn(*args):
 
 
 def notify(title, body=""):
-    run("notify-send", "-a", "quick-settings", "-t", "2200", title, body)
+    run("notify-send", "-a", "quick-settings", "-i", "preferences-system-symbolic", "-t", "2200", title, body)
 
 
 def wifi_enabled():

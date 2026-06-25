@@ -1,0 +1,13 @@
+[Unit]
+Description=Cache Bambu printer status for Waybar
+PartOf=hyprland-session.target
+After=hyprland-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/waybar-helper bambu --daemon
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=hyprland-session.target

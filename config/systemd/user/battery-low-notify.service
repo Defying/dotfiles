@@ -1,0 +1,13 @@
+[Unit]
+Description=Notify when battery crosses low thresholds
+PartOf=hyprland-session.target
+After=hyprland-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/dotfiles/scripts/battery-low-notify.sh
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=hyprland-session.target

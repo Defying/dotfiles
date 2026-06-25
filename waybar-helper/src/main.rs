@@ -17,6 +17,7 @@ use std::process::{Command, ExitCode, Stdio};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 mod accounts;
+mod bambu;
 mod claude;
 mod codex;
 mod reset;
@@ -31,6 +32,7 @@ fn main() -> ExitCode {
         Some("date") => date_module(),
         Some("weather") => weather(),
         Some("tailscale") => tailscale(),
+        Some("bambu") => bambu::run(&env::args().skip(2).collect::<Vec<_>>()),
         Some("autohide") => autohide(),
         Some("autobright") => autobright(),
         Some("bright-up") => manual_brightness(1),
@@ -43,7 +45,7 @@ fn main() -> ExitCode {
         other => {
             eprintln!(
                 "usage: waybar-helper \
-                 <sysmon|clock24|clock12|date|weather|tailscale|autohide|autobright|bright-up|bright-down|brightness-worker|trackpad>; got {:?}",
+                 <sysmon|clock24|clock12|date|weather|tailscale|bambu|autohide|autobright|bright-up|bright-down|brightness-worker|trackpad>; got {:?}",
                 other
             );
             ExitCode::from(2)

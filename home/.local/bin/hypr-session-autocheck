@@ -80,9 +80,9 @@ doctor_log="$(sed -n 's/^log=//p' "$log_file" | tail -n 1)"
 
 if command -v notify-send >/dev/null 2>&1; then
   if [ "$status" -eq 0 ]; then
-    notify-send --app-name="Hyprland" "Hyprland verified" "Proof: $HOME/.local/state/hyprland/real-login-proof" || true
+    notify-send --app-name="Hyprland" -i "preferences-system-symbolic" "Hyprland verified" "Proof: $HOME/.local/state/hyprland/real-login-proof" || true
   else
-    notify-send --urgency=critical --app-name="Hyprland" "Hyprland verification failed" "Use Plasma or rollback if unstable. Log: $doctor_log" || true
+    notify-send --urgency=critical --app-name="Hyprland" -i "dialog-warning-symbolic" "Hyprland verification failed" "Use Plasma or rollback if unstable. Log: $doctor_log" || true
   fi
 fi
 

@@ -28,6 +28,15 @@ core, continuous) and no 12 MB Python RSS per spawn.
 - `waybar-helper tailscale` — compact `ts` status for Waybar. Emits `active`,
   `warn`, `auth`, `off`, `missing`, or `error` classes and includes tailnet,
   node IP, peer count, and health details in the tooltip.
+- `waybar-helper bambu` — compact Bambu printer progress bubble. Reads local
+  cache written by `waybar-helper bambu --daemon` and emits print percentage
+  plus `printing`, `paused`, `idle`, `stale`, `missing`, `auth`, or `error`
+  classes. The daemon reads local credentials from
+  `~/.config/bambu-waybar/config.json`, keeps one secure MQTT session open,
+  updates `~/.cache/waybar/bambu-status.json`, and sends Mako notifications
+  through `notify-send` for observed print start/finish transitions and sticky
+  critical notifications for pause/error states. Use `waybar-helper bambu
+  --refresh` for a one-shot manual fetch.
 - `waybar-helper autohide` — fullscreen Waybar autohide daemon. Drop-in for
   `hypr-waybar-autohide.py`; listens on Hyprland socket2 and only polls
   compositor state plus cursor position while the active workspace has a

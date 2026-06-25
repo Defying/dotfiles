@@ -260,7 +260,7 @@ case "$action" in
     ;;
   bright-up|bright-down)
     if ! command -v brightnessctl >/dev/null 2>&1; then
-      notify-send -a "volume-osd" "Brightness" "install brightnessctl"
+      notify-send -a "volume-osd" -i "display-brightness-symbolic" "brightness" "install brightnessctl"
       exit 1
     fi
     if [[ "$action" == "bright-up" ]]; then

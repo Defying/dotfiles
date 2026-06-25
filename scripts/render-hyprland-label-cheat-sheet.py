@@ -119,7 +119,6 @@ def main():
                 ("Cmd Space", "launcher"),
                 ("Cmd Return", "terminal"),
                 ("Cmd W", "close"),
-                ("Cmd L", "lock"),
                 ("Cmd Esc", "power menu"),
             ],
         ),

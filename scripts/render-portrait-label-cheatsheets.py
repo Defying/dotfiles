@@ -251,7 +251,6 @@ HYPR = dict(
             ("⌘⇧ 5", "edit"),
         ]),
         ("Media & System", [
-            ("⌘ L", "lock"),
             ("⌘ , / ⇧,", "dismiss / all"),
             ("⌘⌃ A", "audio mixer"),
             ("⌘⌃ W", "network"),

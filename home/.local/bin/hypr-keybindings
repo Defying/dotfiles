@@ -45,7 +45,6 @@ Cmd + Ctrl + V           clipboard history
 Cmd + Shift + 3          full screenshot
 Cmd + Shift + 4          region screenshot
 Cmd + Shift + 5          region screenshot and edit
-Cmd + L                  lock
 Cmd + Shift + /          run Hyprland doctor
 Cmd + Escape             power/logout menu
 Cmd + Comma              dismiss notification

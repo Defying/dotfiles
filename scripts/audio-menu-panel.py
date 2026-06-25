@@ -120,6 +120,8 @@ def notify(title, body=""):
         "notify-send",
         "-a",
         "audio-menu",
+        "-i",
+        "audio-headphones",
         "-t",
         "2200",
         "-h",
